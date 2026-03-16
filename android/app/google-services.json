@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "863422546089",
+    "project_id": "gromy-ps",
+    "storage_bucket": "gromy-ps.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:863422546089:android:e494c355895486b8a529b8",
+        "android_client_info": {
+          "package_name": "com.example.gromy"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAfQDXZI5oVyzmpICfsFgCu6E5jMSRhMs0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -23,7 +23,7 @@ class _LoginScreenState extends State<LoginScreen>
   late AnimationController _slideController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
-
+  
   @override
   void initState() {
     super.initState();
