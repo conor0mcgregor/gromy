@@ -5,6 +5,7 @@ class GlassTextField extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
   final IconData icon;
+  final double? iconSize;
   final bool obscureText;
   final Widget? suffixIcon;
   final TextInputType? keyboardType;
@@ -15,6 +16,7 @@ class GlassTextField extends StatelessWidget {
     required this.controller,
     required this.hint,
     required this.icon,
+    this.iconSize,
     this.obscureText = false,
     this.suffixIcon,
     this.keyboardType,
@@ -45,7 +47,7 @@ class GlassTextField extends StatelessWidget {
                   color: Colors.white.withOpacity(0.3),
                   fontSize: 15,
                 ),
-                prefixIcon: Icon(icon, color: Colors.white38, size: 20),
+                prefixIcon: Icon(icon, color: Colors.white38, size: iconSize ?? 20),
                 suffixIcon: suffixIcon,
                 filled: true,
                 fillColor: errorText != null

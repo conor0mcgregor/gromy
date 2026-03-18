@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../icons/my_icons.dart';
 import '../widgets/glow_orb.dart';
 import '../widgets/field_label.dart';
 import '../widgets/glass_text_field.dart';
@@ -329,7 +330,8 @@ class _RegisterScreenState extends State<RegisterScreen>
                                 GlassTextField(
                                   controller: _nickNameController,
                                   hint: 'Tu nombre público',
-                                  icon: Icons.public,
+                                  icon: MyFlutterApp.logo_gromy,
+                                  iconSize: 50, // Increase size since custom logo looks small
                                   errorText: _nickNameError,
                                 ),
 
