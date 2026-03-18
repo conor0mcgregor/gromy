@@ -8,6 +8,7 @@ class GlassTextField extends StatelessWidget {
   final bool obscureText;
   final Widget? suffixIcon;
   final TextInputType? keyboardType;
+  final String? errorText;
 
   const GlassTextField({
     super.key,
@@ -17,59 +18,88 @@ class GlassTextField extends StatelessWidget {
     this.obscureText = false,
     this.suffixIcon,
     this.keyboardType,
+    this.errorText,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-        child: TextField(
-          controller: controller,
-          obscureText: obscureText,
-          keyboardType: keyboardType,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 15,
-            fontWeight: FontWeight.w400,
-          ),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: TextStyle(
-              color: Colors.white.withOpacity(0.3),
-              fontSize: 15,
-            ),
-            prefixIcon: Icon(icon, color: Colors.white38, size: 20),
-            suffixIcon: suffixIcon,
-            filled: true,
-            fillColor: Colors.white.withOpacity(0.07),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(
-                color: Colors.white.withOpacity(0.1),
-                width: 1,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+            child: TextField(
+              controller: controller,
+              obscureText: obscureText,
+              keyboardType: keyboardType,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w400,
+              ),
+              decoration: InputDecoration(
+                hintText: hint,
+                hintStyle: TextStyle(
+                  color: Colors.white.withOpacity(0.3),
+                  fontSize: 15,
+                ),
+                prefixIcon: Icon(icon, color: Colors.white38, size: 20),
+                suffixIcon: suffixIcon,
+                filled: true,
+                fillColor: errorText != null
+                    ? const Color(0xFFFF4D6A).withOpacity(0.08)
+                    : Colors.white.withOpacity(0.07),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(
+                    color: Colors.white.withOpacity(0.1),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(
+                    color: errorText != null
+                        ? const Color(0xFFFF4D6A).withOpacity(0.6)
+                        : Colors.white.withOpacity(0.1),
+                    width: errorText != null ? 1.5 : 1,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(
+                    color: errorText != null
+                        ? const Color(0xFFFF4D6A)
+                        : const Color(0xFF6C63FF),
+                    width: 1.5,
+                  ),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 16),
               ),
             ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(
-                color: Colors.white.withOpacity(0.1),
-                width: 1,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(
-                color: Color(0xFF6C63FF),
-                width: 1.5,
-              ),
-            ),
-            contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           ),
         ),
-      ),
+        if (errorText != null) ...[
+          const SizedBox(height: 5),
+          Row(
+            children: [
+              const Icon(Icons.error_outline_rounded,
+                  color: Color(0xFFFF4D6A), size: 13),
+              const SizedBox(width: 4),
+              Text(
+                errorText!,
+                style: const TextStyle(
+                  color: Color(0xFFFF4D6A),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 }

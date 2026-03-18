@@ -1,34 +1,78 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:gromy/screens/register_screen.dart';
 import '../widgets/glow_orb.dart';
 import '../widgets/field_label.dart';
 import '../widgets/glass_text_field.dart';
 import '../widgets/social_button.dart';
+import '../widgets/password_strength_bar.dart';
+import '../widgets/terms_checkbox.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+// ─────────────────────────────────────────────────────────────────────────────
+// Register Screen
+// ─────────────────────────────────────────────────────────────────────────────
+
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen>
+class _RegisterScreenState extends State<RegisterScreen>
     with TickerProviderStateMixin {
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmController = TextEditingController();
+
   bool _obscurePassword = true;
+  bool _obscureConfirm = true;
+  bool _acceptTerms = false;
   bool _isLoading = false;
+
+  // Validation state
+  String? _nameError;
+  String? _emailError;
+  String? _passwordError;
+  String? _confirmError;
 
   late AnimationController _fadeController;
   late AnimationController _slideController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
-  
+
+  // Password strength
+  double get _passwordStrength {
+    final p = _passwordController.text;
+    if (p.isEmpty) return 0;
+    double s = 0;
+    if (p.length >= 6) s += 0.25;
+    if (p.length >= 10) s += 0.25;
+    if (p.contains(RegExp(r'[A-Z]'))) s += 0.25;
+    if (p.contains(RegExp(r'[0-9!@#\$%^&*]'))) s += 0.25;
+    return s;
+  }
+
+  Color get _strengthColor {
+    final s = _passwordStrength;
+    if (s <= 0.25) return const Color(0xFFFF4D6A);
+    if (s <= 0.5) return const Color(0xFFFFB347);
+    if (s <= 0.75) return const Color(0xFF00D4FF);
+    return const Color(0xFF4ADE80);
+  }
+
+  String get _strengthLabel {
+    final s = _passwordStrength;
+    if (s == 0) return '';
+    if (s <= 0.25) return 'Débil';
+    if (s <= 0.5) return 'Regular';
+    if (s <= 0.75) return 'Buena';
+    return 'Fuerte';
+  }
+
   @override
   void initState() {
     super.initState();
-
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
@@ -37,43 +81,86 @@ class _LoginScreenState extends State<LoginScreen>
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
-
-    _fadeAnimation = CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeIn,
-    );
+    _fadeAnimation =
+        CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.3),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutCubic,
-    ));
+    ).animate(
+        CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
 
     _fadeController.forward();
     _slideController.forward();
+
+    _passwordController.addListener(() => setState(() {}));
   }
 
   @override
   void dispose() {
     _fadeController.dispose();
     _slideController.dispose();
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
+  bool _validate() {
+    bool valid = true;
+    setState(() {
+      _nameError = _nameController.text.trim().isEmpty
+          ? 'Introduce tu nombre de usuario'
+          : null;
+
+      final emailReg = RegExp(r'^[\w\.\-]+@[\w\-]+\.\w{2,}$');
+      _emailError = !emailReg.hasMatch(_emailController.text.trim())
+          ? 'Correo electrónico no válido'
+          : null;
+
+      _passwordError = _passwordController.text.length < 6
+          ? 'La contraseña debe tener al menos 6 caracteres'
+          : null;
+
+      _confirmError = _confirmController.text != _passwordController.text
+          ? 'Las contraseñas no coinciden'
+          : null;
+    });
+
+    if (_nameError != null ||
+        _emailError != null ||
+        _passwordError != null ||
+        _confirmError != null) {
+      valid = false;
+    }
+    if (!_acceptTerms) {
+      valid = false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Debes aceptar los términos y condiciones'),
+          backgroundColor: const Color(0xFFFF4D6A),
+          behavior: SnackBarBehavior.floating,
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
+    return valid;
+  }
+
+  Future<void> _handleRegister() async {
+    if (!_validate()) return;
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(seconds: 2));
     setState(() => _isLoading = false);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('¡Bienvenido!'),
+          content: const Text('¡Cuenta creada con éxito! Bienvenido/a 🎉'),
           backgroundColor: const Color(0xFF6C63FF),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     }
@@ -100,33 +187,33 @@ class _LoginScreenState extends State<LoginScreen>
             ),
           ),
 
-          // ── Esferas de color difuminadas (ambiente) ─────────────────
+          // ── Esferas ambient ─────────────────────────────────────────
           Positioned(
-            top: -80,
-            left: -60,
+            top: -60,
+            right: -80,
             child: GlowOrb(
-              color: const Color(0xFF6C63FF).withOpacity(0.35),
+              color: const Color(0xFF6C63FF).withOpacity(0.3),
               size: 280,
             ),
           ),
           Positioned(
-            bottom: 60,
-            right: -80,
+            bottom: 80,
+            left: -70,
             child: GlowOrb(
-              color: const Color(0xFF00D4FF).withOpacity(0.25),
-              size: 240,
+              color: const Color(0xFF00D4FF).withOpacity(0.22),
+              size: 220,
             ),
           ),
           Positioned(
-            top: MediaQuery.of(context).size.height * 0.45,
-            left: MediaQuery.of(context).size.width * 0.3,
+            top: MediaQuery.of(context).size.height * 0.55,
+            right: MediaQuery.of(context).size.width * 0.1,
             child: GlowOrb(
-              color: const Color(0xFFFF6B9D).withOpacity(0.15),
-              size: 160,
+              color: const Color(0xFFFF6B9D).withOpacity(0.13),
+              size: 150,
             ),
           ),
 
-          // ── Contenido principal ─────────────────────────────────────
+          // ── Contenido ───────────────────────────────────────────────
           SafeArea(
             child: FadeTransition(
               opacity: _fadeAnimation,
@@ -137,12 +224,13 @@ class _LoginScreenState extends State<LoginScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 60),
+                      const SizedBox(height: 40),
 
-                      // Logo / Título
+                      // ── Header ────────────────────────────────────
                       Center(
                         child: Column(
                           children: [
+                            // Logo con icono de trofeo (contexto torneos)
                             Container(
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
@@ -176,9 +264,9 @@ class _LoginScreenState extends State<LoginScreen>
                                     ],
                                   ).createShader(bounds),
                               child: const Text(
-                                'Bienvenido',
+                                'Crear cuenta',
                                 style: TextStyle(
-                                  fontSize: 34,
+                                  fontSize: 32,
                                   fontWeight: FontWeight.w800,
                                   color: Colors.white,
                                   letterSpacing: -0.5,
@@ -187,7 +275,7 @@ class _LoginScreenState extends State<LoginScreen>
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Inicia sesión para continuar',
+                              'Únete y empieza a competir',
                               style: TextStyle(
                                 fontSize: 15,
                                 color: Colors.white.withOpacity(0.5),
@@ -198,13 +286,14 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                       ),
 
-                      const SizedBox(height: 48),
+                      const SizedBox(height: 36),
 
                       // ── Tarjeta glassmorphism ──────────────────────
                       ClipRRect(
                         borderRadius: BorderRadius.circular(28),
                         child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                          filter:
+                          ImageFilter.blur(sigmaX: 16, sigmaY: 16),
                           child: Container(
                             padding: const EdgeInsets.all(28),
                             decoration: BoxDecoration(
@@ -218,26 +307,40 @@ class _LoginScreenState extends State<LoginScreen>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Campo email
-                                const FieldLabel(label: 'Correo electrónico'),
+                                // ── Nombre de usuario ────────────────
+                                FieldLabel(label: 'Nombre de usuario'),
+                                const SizedBox(height: 8),
+                                GlassTextField(
+                                  controller: _nameController,
+                                  hint: 'Tu nombre público',
+                                  icon: Icons.person_outline_rounded,
+                                  errorText: _nameError,
+                                ),
+
+                                const SizedBox(height: 20),
+
+                                // ── Correo ───────────────────────────
+                                FieldLabel(label: 'Correo electrónico'),
                                 const SizedBox(height: 8),
                                 GlassTextField(
                                   controller: _emailController,
                                   hint: 'tu@correo.com',
                                   icon: Icons.email_outlined,
                                   keyboardType: TextInputType.emailAddress,
+                                  errorText: _emailError,
                                 ),
 
-                                const SizedBox(height: 22),
+                                const SizedBox(height: 20),
 
-                                // Campo contraseña
-                                const FieldLabel(label: 'Contraseña'),
+                                // ── Contraseña ───────────────────────
+                                FieldLabel(label: 'Contraseña'),
                                 const SizedBox(height: 8),
                                 GlassTextField(
                                   controller: _passwordController,
-                                  hint: '••••••••',
+                                  hint: 'Mínimo 6 caracteres',
                                   icon: Icons.lock_outline_rounded,
                                   obscureText: _obscurePassword,
+                                  errorText: _passwordError,
                                   suffixIcon: IconButton(
                                     icon: Icon(
                                       _obscurePassword
@@ -246,39 +349,59 @@ class _LoginScreenState extends State<LoginScreen>
                                       color: Colors.white38,
                                       size: 20,
                                     ),
-                                    onPressed: () => setState(
-                                            () => _obscurePassword = !_obscurePassword),
+                                    onPressed: () => setState(() =>
+                                    _obscurePassword =
+                                    !_obscurePassword),
                                   ),
                                 ),
 
-                                const SizedBox(height: 12),
-
-                                // ¿Olvidaste tu contraseña?
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: TextButton(
-                                    onPressed: () {},
-                                    style: TextButton.styleFrom(
-                                      padding: EdgeInsets.zero,
-                                      minimumSize: Size.zero,
-                                      tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                    child: Text(
-                                      '¿Olvidaste tu contraseña?',
-                                      style: TextStyle(
-                                        color: const Color(0xFF6C63FF)
-                                            .withOpacity(0.9),
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
+                                // Barra de fortaleza de contraseña
+                                if (_passwordController.text.isNotEmpty) ...[
+                                  const SizedBox(height: 10),
+                                  PasswordStrengthBar(
+                                    strength: _passwordStrength,
+                                    color: _strengthColor,
+                                    label: _strengthLabel,
                                   ),
+                                ],
+
+                                const SizedBox(height: 20),
+
+                                // ── Confirmar contraseña ─────────────
+                                FieldLabel(label: 'Confirmar contraseña'),
+                                const SizedBox(height: 8),
+                                GlassTextField(
+                                  controller: _confirmController,
+                                  hint: 'Repite tu contraseña',
+                                  icon: Icons.lock_outline_rounded,
+                                  obscureText: _obscureConfirm,
+                                  errorText: _confirmError,
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      _obscureConfirm
+                                          ? Icons.visibility_off_outlined
+                                          : Icons.visibility_outlined,
+                                      color: Colors.white38,
+                                      size: 20,
+                                    ),
+                                    onPressed: () => setState(
+                                            () => _obscureConfirm =
+                                        !_obscureConfirm),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 22),
+
+                                // ── Términos y condiciones ───────────
+                                TermsCheckbox(
+                                  value: _acceptTerms,
+                                  onChanged: (v) =>
+                                      setState(() => _acceptTerms = v ?? false),
                                 ),
 
                                 const SizedBox(height: 28),
 
-                                // Botón Iniciar sesión
+                                // ── Botón Registrarse ────────────────
                                 SizedBox(
                                   width: double.infinity,
                                   height: 54,
@@ -290,7 +413,8 @@ class _LoginScreenState extends State<LoginScreen>
                                           Color(0xFF00D4FF),
                                         ],
                                       ),
-                                      borderRadius: BorderRadius.circular(16),
+                                      borderRadius:
+                                      BorderRadius.circular(16),
                                       boxShadow: [
                                         BoxShadow(
                                           color: const Color(0xFF6C63FF)
@@ -301,8 +425,9 @@ class _LoginScreenState extends State<LoginScreen>
                                       ],
                                     ),
                                     child: ElevatedButton(
-                                      onPressed:
-                                      _isLoading ? null : _handleLogin,
+                                      onPressed: _isLoading
+                                          ? null
+                                          : _handleRegister,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.transparent,
                                         shadowColor: Colors.transparent,
@@ -315,13 +440,14 @@ class _LoginScreenState extends State<LoginScreen>
                                           ? const SizedBox(
                                         width: 22,
                                         height: 22,
-                                        child: CircularProgressIndicator(
+                                        child:
+                                        CircularProgressIndicator(
                                           strokeWidth: 2.5,
                                           color: Colors.white,
                                         ),
                                       )
                                           : const Text(
-                                        'Iniciar sesión',
+                                        'Crear cuenta',
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w700,
@@ -338,21 +464,22 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                       ),
 
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 28),
 
-                      // Divisor
+                      // ── Divisor social ────────────────────────────
                       Row(
                         children: [
                           Expanded(
                             child: Divider(
-                                color: Colors.white.withOpacity(0.12),
-                                thickness: 1),
+                              color: Colors.white.withOpacity(0.12),
+                              thickness: 1,
+                            ),
                           ),
                           Padding(
                             padding:
                             const EdgeInsets.symmetric(horizontal: 16),
                             child: Text(
-                              'o continúa con',
+                              'o regístrate con',
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.35),
                                 fontSize: 13,
@@ -361,15 +488,16 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                           Expanded(
                             child: Divider(
-                                color: Colors.white.withOpacity(0.12),
-                                thickness: 1),
+                              color: Colors.white.withOpacity(0.12),
+                              thickness: 1,
+                            ),
                           ),
                         ],
                       ),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 22),
 
-                      // Botones sociales
+                      // ── Botones sociales ──────────────────────────
                       Row(
                         children: [
                           Expanded(
@@ -390,27 +518,24 @@ class _LoginScreenState extends State<LoginScreen>
                         ],
                       ),
 
-                      const SizedBox(height: 36),
+                      const SizedBox(height: 32),
 
-                      // Registro
+                      // ── Ir a login ────────────────────────────────
                       Center(
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              '¿No tienes cuenta? ',
+                              '¿Ya tienes cuenta? ',
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.45),
                                 fontSize: 14,
                               ),
                             ),
                             GestureDetector(
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const RegisterScreen()),
-                              ),
+                              onTap: () => Navigator.pop(context),
                               child: const Text(
-                                'Regístrate',
+                                'Iniciar sesión',
                                 style: TextStyle(
                                   color: Color(0xFF6C63FF),
                                   fontSize: 14,
@@ -422,7 +547,7 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                       ),
 
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 36),
                     ],
                   ),
                 ),
@@ -434,3 +559,4 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 }
+
