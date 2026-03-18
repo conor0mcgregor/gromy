@@ -20,7 +20,9 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen>
     with TickerProviderStateMixin {
+  final _nickNameController = TextEditingController();
   final _nameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
@@ -31,7 +33,9 @@ class _RegisterScreenState extends State<RegisterScreen>
   bool _isLoading = false;
 
   // Validation state
+  String? _nickNameError;
   String? _nameError;
+  String? _lastNameError;
   String? _emailError;
   String? _passwordError;
   String? _confirmError;
@@ -99,7 +103,9 @@ class _RegisterScreenState extends State<RegisterScreen>
   void dispose() {
     _fadeController.dispose();
     _slideController.dispose();
+    _nickNameController.dispose();
     _nameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmController.dispose();
@@ -109,8 +115,16 @@ class _RegisterScreenState extends State<RegisterScreen>
   bool _validate() {
     bool valid = true;
     setState(() {
-      _nameError = _nameController.text.trim().isEmpty
+      _nickNameError = _nickNameController.text.trim().isEmpty
           ? 'Introduce tu nombre de usuario'
+          : null;
+
+      _nameError = _nameController.text.trim().isEmpty
+          ? 'Introduce tu nombre'
+          : null;
+
+      _lastNameError = _lastNameController.text.trim().isEmpty
+          ? 'Introduce tu apellido'
           : null;
 
       final emailReg = RegExp(r'^[\w\.\-]+@[\w\-]+\.\w{2,}$');
@@ -127,7 +141,9 @@ class _RegisterScreenState extends State<RegisterScreen>
           : null;
     });
 
-    if (_nameError != null ||
+    if (_nickNameError != null ||
+        _nameError != null ||
+        _lastNameError != null ||
         _emailError != null ||
         _passwordError != null ||
         _confirmError != null) {
@@ -307,14 +323,38 @@ class _RegisterScreenState extends State<RegisterScreen>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // ── Nombre de usuario ────────────────
-                                FieldLabel(label: 'Nombre de usuario'),
+                                // ── Nickname ────────────────
+                                FieldLabel(label: 'Nickname'),
+                                const SizedBox(height: 8),
+                                GlassTextField(
+                                  controller: _nickNameController,
+                                  hint: 'Tu nombre público',
+                                  icon: Icons.public,
+                                  errorText: _nickNameError,
+                                ),
+
+                                const SizedBox(height: 20),
+
+                                // ── Nombre ───────────────────────────
+                                FieldLabel(label: 'Nombre'),
                                 const SizedBox(height: 8),
                                 GlassTextField(
                                   controller: _nameController,
-                                  hint: 'Tu nombre público',
+                                  hint: 'Tu nombre',
                                   icon: Icons.person_outline_rounded,
                                   errorText: _nameError,
+                                ),
+
+                                const SizedBox(height: 20),
+
+                                // ── Apellido ─────────────────────────
+                                FieldLabel(label: 'Apellido'),
+                                const SizedBox(height: 8),
+                                GlassTextField(
+                                  controller: _lastNameController,
+                                  hint: 'Tu apellido',
+                                  icon: Icons.person_outline_rounded,
+                                  errorText: _lastNameError,
                                 ),
 
                                 const SizedBox(height: 20),
