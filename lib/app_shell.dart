@@ -72,7 +72,7 @@ class _AppShellState extends State<AppShell> {
           // Esferas ambient (reutilizando GlowOrb de lib/widgets)
           Positioned(
             top: -80,
-            left: -60,
+            right: -60,
             child: GlowOrb(
               color: const Color(0xFF6C63FF).withOpacity(0.28),
               size: 260,
@@ -80,7 +80,7 @@ class _AppShellState extends State<AppShell> {
           ),
           Positioned(
             bottom: 100,
-            right: -70,
+            left: -70,
             child: GlowOrb(
               color: const Color(0xFF00D4FF).withOpacity(0.18),
               size: 220,
