@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:gromy/screens/home_screen.dart';
 import 'package:gromy/screens/register_screen.dart';
+import '../app_shell.dart';
 import '../widgets/glow_orb.dart';
 import '../widgets/field_label.dart';
 import '../widgets/glass_text_field.dart';
@@ -75,6 +77,10 @@ class _LoginScreenState extends State<LoginScreen>
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
+      );
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const AppShell()),
       );
     }
   }
