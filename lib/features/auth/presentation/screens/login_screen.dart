@@ -1,12 +1,14 @@
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
-import 'package:gromy/screens/home_screen.dart';
-import 'package:gromy/screens/register_screen.dart';
-import '../app_shell.dart';
-import '../widgets/glow_orb.dart';
-import '../widgets/field_label.dart';
-import '../widgets/glass_text_field.dart';
-import '../widgets/social_button.dart';
+import 'package:gromy/features/auth/presentation/screens/register_screen.dart';
+
+import '../../../../app/app_shell.dart';
+import '../controllers/auth_controller.dart';
+import '../../../../core/widgets/field_label.dart';
+import '../../../../core/widgets/glass_text_field.dart';
+import '../../../../core/widgets/glow_orb.dart';
+import '../../../../core/widgets/social_button.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,8 +21,10 @@ class _LoginScreenState extends State<LoginScreen>
     with TickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _authController = AuthController();
   bool _obscurePassword = true;
-  bool _isLoading = false;
+
+  bool get _isLoading => _authController.isLoading;
 
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -62,27 +66,67 @@ class _LoginScreenState extends State<LoginScreen>
     _slideController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _authController.dispose();
     super.dispose();
   }
 
   Future<void> _handleLogin() async {
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 2));
-    setState(() => _isLoading = false);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('¡Bienvenido!'),
-          backgroundColor: const Color(0xFF6C63FF),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
-      Navigator.push(
+    final success = await _authController.login(
+      _emailController.text,
+      _passwordController.text,
+    );
+    if (!mounted) return;
+    setState(() {});
+    if (success) {
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const AppShell()),
+        (_) => false,
       );
+    } else {
+      _showError(_authController.errorMessage ?? 'Error desconocido.');
     }
+  }
+
+  Future<void> _handleGoogleLogin() async {
+    final success = await _authController.loginWithGoogle();
+    if (!mounted) return;
+    setState(() {});
+    if (success) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const AppShell()),
+        (_) => false,
+      );
+    } else {
+      _showError(_authController.errorMessage ?? 'Error con Google.');
+    }
+  }
+
+  Future<void> _handleAppleLogin() async {
+    final success = await _authController.loginWithApple();
+    if (!mounted) return;
+    setState(() {});
+    if (success) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const AppShell()),
+        (_) => false,
+      );
+    } else {
+      _showError(_authController.errorMessage ?? 'Error con Apple.');
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFFFF4D6A),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
   }
 
   @override
@@ -382,7 +426,7 @@ class _LoginScreenState extends State<LoginScreen>
                             child: SocialButton(
                               label: 'Google',
                               icon: Icons.g_mobiledata_rounded,
-                              onTap: () {},
+                              onTap: _isLoading ? () {} : _handleGoogleLogin,
                             ),
                           ),
                           const SizedBox(width: 14),
@@ -390,7 +434,7 @@ class _LoginScreenState extends State<LoginScreen>
                             child: SocialButton(
                               label: 'Apple',
                               icon: Icons.apple_rounded,
-                              onTap: () {},
+                              onTap: _isLoading ? () {} : _handleAppleLogin,
                             ),
                           ),
                         ],

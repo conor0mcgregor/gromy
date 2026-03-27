@@ -1,13 +1,17 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
+import 'features/auth/presentation/screens/login_screen.dart';
 import 'firebase_options.dart';
-import 'screens/login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  // Inicializar Google Sign-In (obligatorio en google_sign_in v7+)
+  await GoogleSignIn.instance.initialize();
   runApp(const MyApp());
 }
 

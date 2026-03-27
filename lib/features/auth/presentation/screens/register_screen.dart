@@ -1,12 +1,16 @@
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
-import '../icons/my_icons.dart';
-import '../widgets/glow_orb.dart';
-import '../widgets/field_label.dart';
-import '../widgets/glass_text_field.dart';
-import '../widgets/social_button.dart';
-import '../widgets/password_strength_bar.dart';
-import '../widgets/terms_checkbox.dart';
+
+import '../../../../app/app_shell.dart';
+import '../controllers/auth_controller.dart';
+import '../../../../core/icons/my_icons.dart';
+import '../../../../core/widgets/field_label.dart';
+import '../../../../core/widgets/glass_text_field.dart';
+import '../../../../core/widgets/glow_orb.dart';
+import '../../../../core/widgets/password_strength_bar.dart';
+import '../../../../core/widgets/social_button.dart';
+import '../../../../core/widgets/terms_checkbox.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Register Screen
@@ -27,11 +31,13 @@ class _RegisterScreenState extends State<RegisterScreen>
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
+  final _authController = AuthController();
 
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   bool _acceptTerms = false;
-  bool _isLoading = false;
+
+  bool get _isLoading => _authController.isLoading;
 
   // Validation state
   String? _nickNameError;
@@ -110,6 +116,7 @@ class _RegisterScreenState extends State<RegisterScreen>
     _emailController.dispose();
     _passwordController.dispose();
     _confirmController.dispose();
+    _authController.dispose();
     super.dispose();
   }
 
@@ -167,20 +174,70 @@ class _RegisterScreenState extends State<RegisterScreen>
 
   Future<void> _handleRegister() async {
     if (!_validate()) return;
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 2));
-    setState(() => _isLoading = false);
-    if (mounted) {
+    final success = await _authController.register(
+      _emailController.text,
+      _passwordController.text,
+    );
+    if (!mounted) return;
+    setState(() {});
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('¡Cuenta creada con éxito! Bienvenido/a 🎉'),
           backgroundColor: const Color(0xFF6C63FF),
           behavior: SnackBarBehavior.floating,
-          shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const AppShell()),
+        (_) => false,
+      );
+    } else {
+      _showError(_authController.errorMessage ?? 'Error al crear la cuenta.');
     }
+  }
+
+  Future<void> _handleGoogleRegister() async {
+    final success = await _authController.loginWithGoogle();
+    if (!mounted) return;
+    setState(() {});
+    if (success) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const AppShell()),
+        (_) => false,
+      );
+    } else {
+      _showError(_authController.errorMessage ?? 'Error con Google.');
+    }
+  }
+
+  Future<void> _handleAppleRegister() async {
+    final success = await _authController.loginWithApple();
+    if (!mounted) return;
+    setState(() {});
+    if (success) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const AppShell()),
+        (_) => false,
+      );
+    } else {
+      _showError(_authController.errorMessage ?? 'Error con Apple.');
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFFFF4D6A),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
   }
 
   @override
@@ -546,7 +603,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             child: SocialButton(
                               label: 'Google',
                               icon: Icons.g_mobiledata_rounded,
-                              onTap: () {},
+                              onTap: _isLoading ? () {} : _handleGoogleRegister,
                             ),
                           ),
                           const SizedBox(width: 14),
@@ -554,7 +611,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             child: SocialButton(
                               label: 'Apple',
                               icon: Icons.apple_rounded,
-                              onTap: () {},
+                              onTap: _isLoading ? () {} : _handleAppleRegister,
                             ),
                           ),
                         ],
