@@ -18,7 +18,9 @@ import 'register_dates_screen.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+  const RegisterScreen({super.key, this.authController});
+
+  final AuthController? authController;
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -33,7 +35,8 @@ class _RegisterScreenState extends State<RegisterScreen>
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
 
-  final _authController = AuthController();
+  late final AuthController _authController;
+  late final bool _ownsAuthController;
 
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
@@ -86,6 +89,8 @@ class _RegisterScreenState extends State<RegisterScreen>
   @override
   void initState() {
     super.initState();
+    _ownsAuthController = widget.authController == null;
+    _authController = widget.authController ?? AuthController();
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
@@ -94,13 +99,14 @@ class _RegisterScreenState extends State<RegisterScreen>
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
-    _fadeAnimation =
-        CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(
-        CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeIn,
+    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+        );
 
     _fadeController.forward();
     _slideController.forward();
@@ -121,7 +127,9 @@ class _RegisterScreenState extends State<RegisterScreen>
     _emailController.dispose();
     _passwordController.dispose();
     _confirmController.dispose();
-    _authController.dispose();
+    if (_ownsAuthController) {
+      _authController.dispose();
+    }
     super.dispose();
   }
 
@@ -169,8 +177,9 @@ class _RegisterScreenState extends State<RegisterScreen>
           content: const Text('Debes aceptar los términos y condiciones'),
           backgroundColor: const Color(0xFFFF4D6A),
           behavior: SnackBarBehavior.floating,
-          shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
     }
@@ -194,7 +203,9 @@ class _RegisterScreenState extends State<RegisterScreen>
           content: const Text('¡Cuenta creada con éxito! Bienvenido/a 🎉'),
           backgroundColor: const Color(0xFF6C63FF),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
       Navigator.pushAndRemoveUntil(
@@ -229,7 +240,12 @@ class _RegisterScreenState extends State<RegisterScreen>
           MaterialPageRoute(builder: (_) => const AppShell()),
           (_) => false,
         );
-      case SocialAuthNewUser(:final uid, :final email, :final photoUrl, :final provider):
+      case SocialAuthNewUser(
+        :final uid,
+        :final email,
+        :final photoUrl,
+        :final provider,
+      ):
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -327,7 +343,9 @@ class _RegisterScreenState extends State<RegisterScreen>
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF6C63FF).withOpacity(0.5),
+                                    color: const Color(
+                                      0xFF6C63FF,
+                                    ).withOpacity(0.5),
                                     blurRadius: 30,
                                     spreadRadius: 5,
                                   ),
@@ -347,13 +365,9 @@ class _RegisterScreenState extends State<RegisterScreen>
                             ),
                             const SizedBox(height: 20),
                             ShaderMask(
-                              shaderCallback: (bounds) =>
-                                  const LinearGradient(
-                                    colors: [
-                                      Color(0xFFFFFFFF),
-                                      Color(0xFFB0A8FF),
-                                    ],
-                                  ).createShader(bounds),
+                              shaderCallback: (bounds) => const LinearGradient(
+                                colors: [Color(0xFFFFFFFF), Color(0xFFB0A8FF)],
+                              ).createShader(bounds),
                               child: const Text(
                                 'Crear cuenta',
                                 style: TextStyle(
@@ -383,8 +397,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                       ClipRRect(
                         borderRadius: BorderRadius.circular(28),
                         child: BackdropFilter(
-                          filter:
-                          ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
                           child: Container(
                             padding: const EdgeInsets.all(28),
                             decoration: BoxDecoration(
@@ -405,7 +418,8 @@ class _RegisterScreenState extends State<RegisterScreen>
                                   controller: _nickNameController,
                                   hint: 'Tu nombre público',
                                   icon: MyFlutterApp.logo_gromy,
-                                  iconSize: 50, // Increase size since custom logo looks small
+                                  iconSize:
+                                      50, // Increase size since custom logo looks small
                                   errorText: _nickNameError,
                                 ),
 
@@ -465,9 +479,10 @@ class _RegisterScreenState extends State<RegisterScreen>
                                       color: Colors.white38,
                                       size: 20,
                                     ),
-                                    onPressed: () => setState(() =>
-                                    _obscurePassword =
-                                    !_obscurePassword),
+                                    onPressed: () => setState(
+                                      () =>
+                                          _obscurePassword = !_obscurePassword,
+                                    ),
                                   ),
                                 ),
 
@@ -501,8 +516,8 @@ class _RegisterScreenState extends State<RegisterScreen>
                                       size: 20,
                                     ),
                                     onPressed: () => setState(
-                                            () => _obscureConfirm =
-                                        !_obscureConfirm),
+                                      () => _obscureConfirm = !_obscureConfirm,
+                                    ),
                                   ),
                                 ),
 
@@ -529,12 +544,12 @@ class _RegisterScreenState extends State<RegisterScreen>
                                           Color(0xFF00D4FF),
                                         ],
                                       ),
-                                      borderRadius:
-                                      BorderRadius.circular(16),
+                                      borderRadius: BorderRadius.circular(16),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: const Color(0xFF6C63FF)
-                                              .withOpacity(0.45),
+                                          color: const Color(
+                                            0xFF6C63FF,
+                                          ).withOpacity(0.45),
                                           blurRadius: 20,
                                           offset: const Offset(0, 8),
                                         ),
@@ -548,29 +563,29 @@ class _RegisterScreenState extends State<RegisterScreen>
                                         backgroundColor: Colors.transparent,
                                         shadowColor: Colors.transparent,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                          BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                         ),
                                       ),
                                       child: _isLoading
                                           ? const SizedBox(
-                                        width: 22,
-                                        height: 22,
-                                        child:
-                                        CircularProgressIndicator(
-                                          strokeWidth: 2.5,
-                                          color: Colors.white,
-                                        ),
-                                      )
+                                              width: 22,
+                                              height: 22,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2.5,
+                                                color: Colors.white,
+                                              ),
+                                            )
                                           : const Text(
-                                        'Crear cuenta',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: 0.4,
-                                          color: Colors.white,
-                                        ),
-                                      ),
+                                              'Crear cuenta',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w700,
+                                                letterSpacing: 0.4,
+                                                color: Colors.white,
+                                              ),
+                                            ),
                                     ),
                                   ),
                                 ),
@@ -592,8 +607,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             ),
                           ),
                           Padding(
-                            padding:
-                            const EdgeInsets.symmetric(horizontal: 16),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: Text(
                               'o regístrate con',
                               style: TextStyle(
@@ -675,4 +689,3 @@ class _RegisterScreenState extends State<RegisterScreen>
     );
   }
 }
-

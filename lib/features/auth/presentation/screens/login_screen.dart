@@ -12,7 +12,9 @@ import '../../../../core/widgets/social_button.dart';
 import 'register_dates_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.authController});
+
+  final AuthController? authController;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -23,7 +25,8 @@ class _LoginScreenState extends State<LoginScreen>
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  final _authController = AuthController();
+  late final AuthController _authController;
+  late final bool _ownsAuthController;
 
   bool _obscurePassword = true;
 
@@ -33,10 +36,12 @@ class _LoginScreenState extends State<LoginScreen>
   late AnimationController _slideController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
-  
+
   @override
   void initState() {
     super.initState();
+    _ownsAuthController = widget.authController == null;
+    _authController = widget.authController ?? AuthController();
 
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 1200),
@@ -51,13 +56,10 @@ class _LoginScreenState extends State<LoginScreen>
       parent: _fadeController,
       curve: Curves.easeIn,
     );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutCubic,
-    ));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+        );
 
     _fadeController.forward();
     _slideController.forward();
@@ -69,7 +71,9 @@ class _LoginScreenState extends State<LoginScreen>
     _slideController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
-    _authController.dispose();
+    if (_ownsAuthController) {
+      _authController.dispose();
+    }
     super.dispose();
   }
 
@@ -113,7 +117,12 @@ class _LoginScreenState extends State<LoginScreen>
           MaterialPageRoute(builder: (_) => const AppShell()),
           (_) => false,
         );
-      case SocialAuthNewUser(:final uid, :final email, :final photoUrl, :final provider):
+      case SocialAuthNewUser(
+        :final uid,
+        :final email,
+        :final photoUrl,
+        :final provider,
+      ):
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -210,7 +219,9 @@ class _LoginScreenState extends State<LoginScreen>
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF6C63FF).withOpacity(0.5),
+                                    color: const Color(
+                                      0xFF6C63FF,
+                                    ).withOpacity(0.5),
                                     blurRadius: 30,
                                     spreadRadius: 5,
                                   ),
@@ -230,13 +241,9 @@ class _LoginScreenState extends State<LoginScreen>
                             ),
                             const SizedBox(height: 20),
                             ShaderMask(
-                              shaderCallback: (bounds) =>
-                                  const LinearGradient(
-                                    colors: [
-                                      Color(0xFFFFFFFF),
-                                      Color(0xFFB0A8FF),
-                                    ],
-                                  ).createShader(bounds),
+                              shaderCallback: (bounds) => const LinearGradient(
+                                colors: [Color(0xFFFFFFFF), Color(0xFFB0A8FF)],
+                              ).createShader(bounds),
                               child: const Text(
                                 'Bienvenido',
                                 style: TextStyle(
@@ -309,7 +316,9 @@ class _LoginScreenState extends State<LoginScreen>
                                       size: 20,
                                     ),
                                     onPressed: () => setState(
-                                            () => _obscurePassword = !_obscurePassword),
+                                      () =>
+                                          _obscurePassword = !_obscurePassword,
+                                    ),
                                   ),
                                 ),
 
@@ -324,13 +333,14 @@ class _LoginScreenState extends State<LoginScreen>
                                       padding: EdgeInsets.zero,
                                       minimumSize: Size.zero,
                                       tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
+                                          MaterialTapTargetSize.shrinkWrap,
                                     ),
                                     child: Text(
                                       '¿Olvidaste tu contraseña?',
                                       style: TextStyle(
-                                        color: const Color(0xFF6C63FF)
-                                            .withOpacity(0.9),
+                                        color: const Color(
+                                          0xFF6C63FF,
+                                        ).withOpacity(0.9),
                                         fontSize: 13,
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -355,42 +365,45 @@ class _LoginScreenState extends State<LoginScreen>
                                       borderRadius: BorderRadius.circular(16),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: const Color(0xFF6C63FF)
-                                              .withOpacity(0.45),
+                                          color: const Color(
+                                            0xFF6C63FF,
+                                          ).withOpacity(0.45),
                                           blurRadius: 20,
                                           offset: const Offset(0, 8),
                                         ),
                                       ],
                                     ),
                                     child: ElevatedButton(
-                                      onPressed:
-                                      _isLoading ? null : _handleLogin,
+                                      onPressed: _isLoading
+                                          ? null
+                                          : _handleLogin,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.transparent,
                                         shadowColor: Colors.transparent,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                          BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                         ),
                                       ),
                                       child: _isLoading
                                           ? const SizedBox(
-                                        width: 22,
-                                        height: 22,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2.5,
-                                          color: Colors.white,
-                                        ),
-                                      )
+                                              width: 22,
+                                              height: 22,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2.5,
+                                                color: Colors.white,
+                                              ),
+                                            )
                                           : const Text(
-                                        'Iniciar sesión',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: 0.4,
-                                          color: Colors.white,
-                                        ),
-                                      ),
+                                              'Iniciar sesión',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w700,
+                                                letterSpacing: 0.4,
+                                                color: Colors.white,
+                                              ),
+                                            ),
                                     ),
                                   ),
                                 ),
@@ -407,12 +420,12 @@ class _LoginScreenState extends State<LoginScreen>
                         children: [
                           Expanded(
                             child: Divider(
-                                color: Colors.white.withOpacity(0.12),
-                                thickness: 1),
+                              color: Colors.white.withOpacity(0.12),
+                              thickness: 1,
+                            ),
                           ),
                           Padding(
-                            padding:
-                            const EdgeInsets.symmetric(horizontal: 16),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: Text(
                               'o continúa con',
                               style: TextStyle(
@@ -423,8 +436,9 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                           Expanded(
                             child: Divider(
-                                color: Colors.white.withOpacity(0.12),
-                                thickness: 1),
+                              color: Colors.white.withOpacity(0.12),
+                              thickness: 1,
+                            ),
                           ),
                         ],
                       ),
@@ -469,7 +483,9 @@ class _LoginScreenState extends State<LoginScreen>
                             GestureDetector(
                               onTap: () => Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                                MaterialPageRoute(
+                                  builder: (_) => const RegisterScreen(),
+                                ),
                               ),
                               child: const Text(
                                 'Regístrate',

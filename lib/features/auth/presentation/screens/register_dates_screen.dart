@@ -19,12 +19,14 @@ class RegisterDatesScreen extends StatefulWidget {
     required this.email,
     required this.provider,
     this.photoUrl,
+    this.authController,
   });
 
   final String uid;
   final String email;
   final String provider;
   final String? photoUrl;
+  final AuthController? authController;
 
   @override
   State<RegisterDatesScreen> createState() => _RegisterDatesScreenState();
@@ -32,7 +34,8 @@ class RegisterDatesScreen extends StatefulWidget {
 
 class _RegisterDatesScreenState extends State<RegisterDatesScreen>
     with TickerProviderStateMixin {
-  final _authController = AuthController();
+  late final AuthController _authController;
+  late final bool _ownsAuthController;
   final _nicknameController = TextEditingController();
   final _nameController = TextEditingController();
   final _lastNameController = TextEditingController();
@@ -51,6 +54,8 @@ class _RegisterDatesScreenState extends State<RegisterDatesScreen>
   @override
   void initState() {
     super.initState();
+    _ownsAuthController = widget.authController == null;
+    _authController = widget.authController ?? AuthController();
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
@@ -59,13 +64,14 @@ class _RegisterDatesScreenState extends State<RegisterDatesScreen>
       duration: const Duration(milliseconds: 900),
       vsync: this,
     );
-    _fadeAnimation =
-        CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.25),
-      end: Offset.zero,
-    ).animate(
-        CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeIn,
+    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.25), end: Offset.zero).animate(
+          CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+        );
 
     _fadeController.forward();
     _slideController.forward();
@@ -82,7 +88,9 @@ class _RegisterDatesScreenState extends State<RegisterDatesScreen>
     _nicknameController.dispose();
     _nameController.dispose();
     _lastNameController.dispose();
-    _authController.dispose();
+    if (_ownsAuthController) {
+      _authController.dispose();
+    }
     super.dispose();
   }
 
@@ -101,7 +109,9 @@ class _RegisterDatesScreenState extends State<RegisterDatesScreen>
           ? 'Introduce tu apellido'
           : null;
     });
-    if (_nicknameError != null || _nameError != null || _lastNameError != null) {
+    if (_nicknameError != null ||
+        _nameError != null ||
+        _lastNameError != null) {
       valid = false;
     }
     return valid;
@@ -211,8 +221,9 @@ class _RegisterDatesScreenState extends State<RegisterDatesScreen>
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color:
-                                        const Color(0xFF6C63FF).withOpacity(0.4),
+                                    color: const Color(
+                                      0xFF6C63FF,
+                                    ).withOpacity(0.4),
                                     blurRadius: 24,
                                     spreadRadius: 4,
                                   ),
@@ -226,13 +237,9 @@ class _RegisterDatesScreenState extends State<RegisterDatesScreen>
                             ),
                             const SizedBox(height: 20),
                             ShaderMask(
-                              shaderCallback: (bounds) =>
-                                  const LinearGradient(
-                                    colors: [
-                                      Color(0xFFFFFFFF),
-                                      Color(0xFFB0A8FF),
-                                    ],
-                                  ).createShader(bounds),
+                              shaderCallback: (bounds) => const LinearGradient(
+                                colors: [Color(0xFFFFFFFF), Color(0xFFB0A8FF)],
+                              ).createShader(bounds),
                               child: const Text(
                                 'Completa tu perfil',
                                 style: TextStyle(
@@ -280,7 +287,9 @@ class _RegisterDatesScreenState extends State<RegisterDatesScreen>
                                 const SizedBox(height: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 14),
+                                    horizontal: 16,
+                                    vertical: 14,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.white.withOpacity(0.04),
                                     borderRadius: BorderRadius.circular(14),
@@ -290,9 +299,11 @@ class _RegisterDatesScreenState extends State<RegisterDatesScreen>
                                   ),
                                   child: Row(
                                     children: [
-                                      Icon(Icons.email_outlined,
-                                          color: Colors.white.withOpacity(0.3),
-                                          size: 18),
+                                      Icon(
+                                        Icons.email_outlined,
+                                        color: Colors.white.withOpacity(0.3),
+                                        size: 18,
+                                      ),
                                       const SizedBox(width: 12),
                                       Text(
                                         widget.email,
@@ -358,21 +369,25 @@ class _RegisterDatesScreenState extends State<RegisterDatesScreen>
                                       borderRadius: BorderRadius.circular(16),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: const Color(0xFF6C63FF)
-                                              .withOpacity(0.45),
+                                          color: const Color(
+                                            0xFF6C63FF,
+                                          ).withOpacity(0.45),
                                           blurRadius: 20,
                                           offset: const Offset(0, 8),
                                         ),
                                       ],
                                     ),
                                     child: ElevatedButton(
-                                      onPressed: _isLoading ? null : _handleSave,
+                                      onPressed: _isLoading
+                                          ? null
+                                          : _handleSave,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.transparent,
                                         shadowColor: Colors.transparent,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                         ),
                                       ),
                                       child: _isLoading
