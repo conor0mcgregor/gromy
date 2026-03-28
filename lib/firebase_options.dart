@@ -64,6 +64,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '863422546089',
     projectId: 'gromy-ps',
     storageBucket: 'gromy-ps.firebasestorage.app',
+    androidClientId: '863422546089-gvtds0adct95cfgvvda1lqjm82kvl8eu.apps.googleusercontent.com',
+    iosClientId: '863422546089-608jhse783jlaadeo40sedn2u51oeipv.apps.googleusercontent.com',
     iosBundleId: 'com.example.gromy',
   );
 
@@ -73,6 +75,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '863422546089',
     projectId: 'gromy-ps',
     storageBucket: 'gromy-ps.firebasestorage.app',
+    androidClientId: '863422546089-gvtds0adct95cfgvvda1lqjm82kvl8eu.apps.googleusercontent.com',
+    iosClientId: '863422546089-608jhse783jlaadeo40sedn2u51oeipv.apps.googleusercontent.com',
     iosBundleId: 'com.example.gromy',
   );
 

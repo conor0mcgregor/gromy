@@ -9,6 +9,7 @@ import '../../../../core/widgets/field_label.dart';
 import '../../../../core/widgets/glass_text_field.dart';
 import '../../../../core/widgets/glow_orb.dart';
 import '../../../../core/widgets/social_button.dart';
+import 'register_dates_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,7 +22,9 @@ class _LoginScreenState extends State<LoginScreen>
     with TickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+
   final _authController = AuthController();
+
   bool _obscurePassword = true;
 
   bool get _isLoading => _authController.isLoading;
@@ -89,32 +92,41 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _handleGoogleLogin() async {
-    final success = await _authController.loginWithGoogle();
+    final result = await _authController.loginWithGoogle();
     if (!mounted) return;
     setState(() {});
-    if (success) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const AppShell()),
-        (_) => false,
-      );
-    } else {
-      _showError(_authController.errorMessage ?? 'Error con Google.');
-    }
+    _handleSocialResult(result);
   }
 
   Future<void> _handleAppleLogin() async {
-    final success = await _authController.loginWithApple();
+    final result = await _authController.loginWithApple();
     if (!mounted) return;
     setState(() {});
-    if (success) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const AppShell()),
-        (_) => false,
-      );
-    } else {
-      _showError(_authController.errorMessage ?? 'Error con Apple.');
+    _handleSocialResult(result);
+  }
+
+  void _handleSocialResult(SocialAuthResult result) {
+    switch (result) {
+      case SocialAuthExisting():
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const AppShell()),
+          (_) => false,
+        );
+      case SocialAuthNewUser(:final uid, :final email, :final photoUrl, :final provider):
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => RegisterDatesScreen(
+              uid: uid,
+              email: email,
+              photoUrl: photoUrl,
+              provider: provider,
+            ),
+          ),
+        );
+      case SocialAuthFailure(:final message):
+        _showError(message);
     }
   }
 

@@ -67,8 +67,9 @@ class FirebaseAuthService implements AuthRepository {
       }
 
       final credential = GoogleAuthProvider.credential(idToken: idToken);
-      await _auth.signInWithCredential(credential);
-      return AuthSuccess();
+      final userCredential = await _auth.signInWithCredential(credential);
+      final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
+      return AuthSuccess(isNewUser: isNewUser);
     } on GoogleSignInException catch (e) {
       if (e.code == GoogleSignInExceptionCode.canceled) {
         return AuthFailure('Inicio de sesión con Google cancelado.');
@@ -102,8 +103,9 @@ class FirebaseAuthService implements AuthRepository {
         rawNonce: rawNonce,
       );
 
-      await _auth.signInWithCredential(oauthCredential);
-      return AuthSuccess();
+      final userCredential = await _auth.signInWithCredential(oauthCredential);
+      final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
+      return AuthSuccess(isNewUser: isNewUser);
     } on SignInWithAppleAuthorizationException catch (e) {
       if (e.code == AuthorizationErrorCode.canceled) {
         return AuthFailure('Inicio de sesión con Apple cancelado.');

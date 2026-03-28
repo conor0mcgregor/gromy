@@ -11,6 +11,7 @@ import '../../../../core/widgets/glow_orb.dart';
 import '../../../../core/widgets/password_strength_bar.dart';
 import '../../../../core/widgets/social_button.dart';
 import '../../../../core/widgets/terms_checkbox.dart';
+import 'register_dates_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Register Screen
@@ -31,6 +32,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
+
   final _authController = AuthController();
 
   bool _obscurePassword = true;
@@ -104,6 +106,9 @@ class _RegisterScreenState extends State<RegisterScreen>
     _slideController.forward();
 
     _passwordController.addListener(() => setState(() {}));
+    _authController.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -175,8 +180,11 @@ class _RegisterScreenState extends State<RegisterScreen>
   Future<void> _handleRegister() async {
     if (!_validate()) return;
     final success = await _authController.register(
-      _emailController.text,
-      _passwordController.text,
+      email: _emailController.text,
+      password: _passwordController.text,
+      nickname: _nickNameController.text,
+      name: _nameController.text,
+      lastName: _lastNameController.text,
     );
     if (!mounted) return;
     setState(() {});
@@ -200,32 +208,41 @@ class _RegisterScreenState extends State<RegisterScreen>
   }
 
   Future<void> _handleGoogleRegister() async {
-    final success = await _authController.loginWithGoogle();
+    final result = await _authController.loginWithGoogle();
     if (!mounted) return;
     setState(() {});
-    if (success) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const AppShell()),
-        (_) => false,
-      );
-    } else {
-      _showError(_authController.errorMessage ?? 'Error con Google.');
-    }
+    _handleSocialResult(result);
   }
 
   Future<void> _handleAppleRegister() async {
-    final success = await _authController.loginWithApple();
+    final result = await _authController.loginWithApple();
     if (!mounted) return;
     setState(() {});
-    if (success) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const AppShell()),
-        (_) => false,
-      );
-    } else {
-      _showError(_authController.errorMessage ?? 'Error con Apple.');
+    _handleSocialResult(result);
+  }
+
+  void _handleSocialResult(SocialAuthResult result) {
+    switch (result) {
+      case SocialAuthExisting():
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const AppShell()),
+          (_) => false,
+        );
+      case SocialAuthNewUser(:final uid, :final email, :final photoUrl, :final provider):
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => RegisterDatesScreen(
+              uid: uid,
+              email: email,
+              photoUrl: photoUrl,
+              provider: provider,
+            ),
+          ),
+        );
+      case SocialAuthFailure(:final message):
+        _showError(message);
     }
   }
 

@@ -12,7 +12,20 @@
           "package_name": "com.example.gromy"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "863422546089-gvtds0adct95cfgvvda1lqjm82kvl8eu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.gromy",
+            "certificate_hash": "144cb787145ecd49b5ccc2766983b8572c5a713e"
+          }
+        },
+        {
+          "client_id": "863422546089-pqpvbhcc7js8kan7b2j9t2rn73q3uagp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAfQDXZI5oVyzmpICfsFgCu6E5jMSRhMs0"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "863422546089-pqpvbhcc7js8kan7b2j9t2rn73q3uagp.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "863422546089-608jhse783jlaadeo40sedn2u51oeipv.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.gromy"
+              }
+            }
+          ]
         }
       }
     }
