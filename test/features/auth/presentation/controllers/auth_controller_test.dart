@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gromy/database/registration/models/registration_action_result.dart';
 import 'package:gromy/features/auth/data/models/auth_result.dart';
 import 'package:gromy/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:gromy/features/user/data/repositories/user_repository.dart';
@@ -7,6 +8,21 @@ import 'package:gromy/features/user/data/repositories/user_repository.dart';
 import '../../../../support/test_doubles.dart';
 
 void main() {
+  AuthController buildController({
+    FakeAuthRepository? authRepository,
+    FakeUserRepository? userRepository,
+    FakeEmailRegistrationRepository? emailRegistrationRepository,
+    FakeAppAccessResolver? appAccessResolver,
+  }) {
+    return AuthController(
+      authRepository: authRepository ?? FakeAuthRepository(),
+      userRepository: userRepository ?? FakeUserRepository(),
+      emailRegistrationRepository:
+          emailRegistrationRepository ?? FakeEmailRegistrationRepository(),
+      appAccessResolver: appAccessResolver ?? FakeAppAccessResolver(),
+    );
+  }
+
   group('AuthController', () {
     test(
       'login returns true when the repository authenticates successfully',
@@ -14,10 +30,7 @@ void main() {
         final authRepo = FakeAuthRepository(
           onSignInWithEmail: (email, password) async => AuthSuccess(),
         );
-        final controller = AuthController(
-          authRepository: authRepo,
-          userRepository: FakeUserRepository(),
-        );
+        final controller = buildController(authRepository: authRepo);
         addTearDown(controller.dispose);
 
         var notifications = 0;
@@ -38,12 +51,11 @@ void main() {
     );
 
     test('login exposes the repository failure message', () async {
-      final controller = AuthController(
+      final controller = buildController(
         authRepository: FakeAuthRepository(
           onSignInWithEmail: (email, password) async =>
               AuthFailure('Credenciales invalidas'),
         ),
-        userRepository: FakeUserRepository(),
       );
       addTearDown(controller.dispose);
 
@@ -57,13 +69,12 @@ void main() {
     test(
       'login returns a generic message when the repository throws',
       () async {
-        final controller = AuthController(
+        final controller = buildController(
           authRepository: FakeAuthRepository(
             onSignInWithEmail: (email, password) {
               throw StateError('unexpected failure');
             },
           ),
-          userRepository: FakeUserRepository(),
         );
         addTearDown(controller.dispose);
 
@@ -80,15 +91,15 @@ void main() {
     test(
       'register stops before auth when the nickname is already taken',
       () async {
-        final authRepo = FakeAuthRepository(
-          onRegisterWithEmail: (email, password) async => AuthSuccess(),
-        );
+        final authRepo = FakeAuthRepository();
         final userRepo = FakeUserRepository(
           onIsNicknameAvailable: (nickname) async => false,
         );
-        final controller = AuthController(
+        final emailRepo = FakeEmailRegistrationRepository();
+        final controller = buildController(
           authRepository: authRepo,
           userRepository: userRepo,
+          emailRegistrationRepository: emailRepo,
         );
         addTearDown(controller.dispose);
 
@@ -107,9 +118,75 @@ void main() {
         );
         expect(userRepo.lastNicknameChecked, 'anita');
         expect(authRepo.registerWithEmailCalls, 0);
+        expect(emailRepo.startRegistrationCalls, 0);
         expect(userRepo.createUserCalls, 0);
       },
     );
+
+    test(
+      'register stores the pending email flow and skips Firestore user creation',
+      () async {
+        final userRepo = FakeUserRepository(
+          onIsNicknameAvailable: (nickname) async => true,
+        );
+        final emailRepo = FakeEmailRegistrationRepository();
+        final controller = buildController(
+          userRepository: userRepo,
+          emailRegistrationRepository: emailRepo,
+        );
+        addTearDown(controller.dispose);
+
+        final result = await controller.register(
+          email: '  ana@example.com  ',
+          password: 'secret123',
+          nickname: '  AnaPro  ',
+          name: '  Ana  ',
+          lastName: '  Lopez  ',
+        );
+
+        expect(result, isTrue);
+        expect(controller.errorMessage, isNull);
+        expect(emailRepo.startRegistrationCalls, 1);
+        expect(emailRepo.lastRegistrationEmail, '  ana@example.com  ');
+        expect(emailRepo.lastRegistrationNickname, 'anapro');
+        expect(emailRepo.lastRegistrationName, '  Ana  ');
+        expect(emailRepo.lastRegistrationLastName, '  Lopez  ');
+        expect(userRepo.createUserCalls, 0);
+      },
+    );
+
+    test(
+      'completePendingEmailRegistration exposes repository failures',
+      () async {
+        final controller = buildController(
+          emailRegistrationRepository: FakeEmailRegistrationRepository(
+            onCompleteRegistration: () async =>
+                const RegistrationActionFailure('Correo no verificado'),
+          ),
+        );
+        addTearDown(controller.dispose);
+
+        final result = await controller.completePendingEmailRegistration();
+
+        expect(result, isFalse);
+        expect(controller.errorMessage, 'Correo no verificado');
+      },
+    );
+
+    test('resendVerificationEmail reports repository failures', () async {
+      final controller = buildController(
+        emailRegistrationRepository: FakeEmailRegistrationRepository(
+          onResendVerificationEmail: () async =>
+              const RegistrationActionFailure('No se pudo reenviar'),
+        ),
+      );
+      addTearDown(controller.dispose);
+
+      final result = await controller.resendVerificationEmail();
+
+      expect(result, isFalse);
+      expect(controller.errorMessage, 'No se pudo reenviar');
+    });
 
     test(
       'completeSocialProfile normalizes nickname and trims user data',
@@ -117,10 +194,7 @@ void main() {
         final userRepo = FakeUserRepository(
           onIsNicknameAvailable: (nickname) async => true,
         );
-        final controller = AuthController(
-          authRepository: FakeAuthRepository(),
-          userRepository: userRepo,
-        );
+        final controller = buildController(userRepository: userRepo);
         addTearDown(controller.dispose);
 
         final result = await controller.completeSocialProfile(
@@ -151,8 +225,7 @@ void main() {
     );
 
     test('completeSocialProfile reports nickname conflicts', () async {
-      final controller = AuthController(
-        authRepository: FakeAuthRepository(),
+      final controller = buildController(
         userRepository: FakeUserRepository(
           onIsNicknameAvailable: (nickname) async => false,
         ),
@@ -176,8 +249,7 @@ void main() {
     });
 
     test('completeSocialProfile maps Firestore permission errors', () async {
-      final controller = AuthController(
-        authRepository: FakeAuthRepository(),
+      final controller = buildController(
         userRepository: FakeUserRepository(
           onIsNicknameAvailable: (nickname) async => true,
           onCreateUser: (user) {
@@ -209,8 +281,7 @@ void main() {
     test(
       'completeSocialProfile handles repository uniqueness exceptions',
       () async {
-        final controller = AuthController(
-          authRepository: FakeAuthRepository(),
+        final controller = buildController(
           userRepository: FakeUserRepository(
             onIsNicknameAvailable: (nickname) async => true,
             onCreateUser: (user) {
@@ -240,11 +311,10 @@ void main() {
     test(
       'loginWithGoogle returns a social failure when the repository fails',
       () async {
-        final controller = AuthController(
+        final controller = buildController(
           authRepository: FakeAuthRepository(
             onSignInWithGoogle: () async => AuthFailure('Google cancelado'),
           ),
-          userRepository: FakeUserRepository(),
         );
         addTearDown(controller.dispose);
 
@@ -259,13 +329,12 @@ void main() {
     test(
       'loginWithApple returns a generic social error when the repository throws',
       () async {
-        final controller = AuthController(
+        final controller = buildController(
           authRepository: FakeAuthRepository(
             onSignInWithApple: () {
               throw StateError('unexpected');
             },
           ),
-          userRepository: FakeUserRepository(),
         );
         addTearDown(controller.dispose);
 

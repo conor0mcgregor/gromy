@@ -1,3 +1,8 @@
+import 'package:gromy/database/registration/models/pending_email_registration.dart';
+import 'package:gromy/database/registration/models/registration_action_result.dart';
+import 'package:gromy/database/registration/repositories/email_registration_repository.dart';
+import 'package:gromy/database/session/models/app_access_state.dart';
+import 'package:gromy/database/session/repositories/app_access_resolver.dart';
 import 'package:gromy/features/auth/data/models/auth_result.dart';
 import 'package:gromy/features/auth/data/repositories/auth_repository.dart';
 import 'package:gromy/features/user/data/models/app_user.dart';
@@ -11,6 +16,18 @@ typedef NicknameAvailabilityHandler = Future<bool> Function(String nickname);
 typedef CreateUserHandler = Future<void> Function(AppUser user);
 typedef GetUserHandler = Future<AppUser?> Function(String uid);
 typedef UserExistsHandler = Future<bool> Function(String uid);
+typedef StartEmailRegistrationHandler = Future<RegistrationActionResult> Function({
+  required String email,
+  required String password,
+  required String nickname,
+  required String name,
+  required String lastName,
+});
+typedef RegistrationActionHandler = Future<RegistrationActionResult> Function();
+typedef GetPendingRegistrationHandler =
+    Future<PendingEmailRegistration?> Function();
+typedef ResolveAppAccessHandler = Future<AppAccessState> Function();
+typedef WatchAppAccessHandler = Stream<AppAccessState> Function();
 
 class FakeAuthRepository implements AuthRepository {
   FakeAuthRepository({
@@ -120,5 +137,107 @@ class FakeUserRepository implements UserRepository {
     isNicknameAvailableCalls++;
     lastNicknameChecked = nickname;
     return onIsNicknameAvailable?.call(nickname) ?? true;
+  }
+}
+
+class FakeEmailRegistrationRepository implements EmailRegistrationRepository {
+  FakeEmailRegistrationRepository({
+    this.onStartRegistration,
+    this.onCompleteRegistration,
+    this.onResendVerificationEmail,
+    this.onGetPendingRegistration,
+    this.onClearPendingRegistration,
+  });
+
+  final StartEmailRegistrationHandler? onStartRegistration;
+  final RegistrationActionHandler? onCompleteRegistration;
+  final RegistrationActionHandler? onResendVerificationEmail;
+  final GetPendingRegistrationHandler? onGetPendingRegistration;
+  final Future<void> Function()? onClearPendingRegistration;
+
+  int startRegistrationCalls = 0;
+  int completeRegistrationCalls = 0;
+  int resendVerificationEmailCalls = 0;
+  int getPendingRegistrationCalls = 0;
+  int clearPendingRegistrationCalls = 0;
+
+  String? lastRegistrationEmail;
+  String? lastRegistrationPassword;
+  String? lastRegistrationNickname;
+  String? lastRegistrationName;
+  String? lastRegistrationLastName;
+
+  @override
+  Future<RegistrationActionResult> startRegistration({
+    required String email,
+    required String password,
+    required String nickname,
+    required String name,
+    required String lastName,
+  }) async {
+    startRegistrationCalls++;
+    lastRegistrationEmail = email;
+    lastRegistrationPassword = password;
+    lastRegistrationNickname = nickname;
+    lastRegistrationName = name;
+    lastRegistrationLastName = lastName;
+    return onStartRegistration?.call(
+          email: email,
+          password: password,
+          nickname: nickname,
+          name: name,
+          lastName: lastName,
+        ) ??
+        const RegistrationActionSuccess();
+  }
+
+  @override
+  Future<RegistrationActionResult> completeRegistration() async {
+    completeRegistrationCalls++;
+    return onCompleteRegistration?.call() ?? const RegistrationActionSuccess();
+  }
+
+  @override
+  Future<RegistrationActionResult> resendVerificationEmail() async {
+    resendVerificationEmailCalls++;
+    return onResendVerificationEmail?.call() ??
+        const RegistrationActionSuccess();
+  }
+
+  @override
+  Future<PendingEmailRegistration?> getPendingRegistrationForCurrentUser() async {
+    getPendingRegistrationCalls++;
+    return onGetPendingRegistration?.call();
+  }
+
+  @override
+  Future<void> clearPendingRegistration() async {
+    clearPendingRegistrationCalls++;
+    await (onClearPendingRegistration?.call() ?? Future<void>.value());
+  }
+}
+
+class FakeAppAccessResolver implements AppAccessResolver {
+  FakeAppAccessResolver({
+    this.onResolve,
+    this.onWatch,
+  });
+
+  final ResolveAppAccessHandler? onResolve;
+  final WatchAppAccessHandler? onWatch;
+
+  int resolveCalls = 0;
+  int watchCalls = 0;
+
+  @override
+  Future<AppAccessState> resolve() async {
+    resolveCalls++;
+    return onResolve?.call() ?? const AppAccessUnauthenticated();
+  }
+
+  @override
+  Stream<AppAccessState> watch() {
+    watchCalls++;
+    return onWatch?.call() ?? Stream.value(const AppAccessUnauthenticated());
   }
 }

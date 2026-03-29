@@ -15,6 +15,7 @@ void main() {
         email: 'ana@example.com',
         provider: 'google',
         authController: controller,
+        successBuilder: (_) => const HomeScreen(),
       ),
     );
   }
@@ -28,6 +29,8 @@ void main() {
       final controller = AuthController(
         authRepository: FakeAuthRepository(),
         userRepository: userRepo,
+        emailRegistrationRepository: FakeEmailRegistrationRepository(),
+        appAccessResolver: FakeAppAccessResolver(),
       );
       addTearDown(controller.dispose);
 
@@ -56,6 +59,8 @@ void main() {
         userRepository: FakeUserRepository(
           onIsNicknameAvailable: (nickname) async => true,
         ),
+        emailRegistrationRepository: FakeEmailRegistrationRepository(),
+        appAccessResolver: FakeAppAccessResolver(),
       );
       addTearDown(controller.dispose);
 
@@ -85,6 +90,8 @@ void main() {
             throw const NicknameAlreadyInUseException();
           },
         ),
+        emailRegistrationRepository: FakeEmailRegistrationRepository(),
+        appAccessResolver: FakeAppAccessResolver(),
       );
       addTearDown(controller.dispose);
 

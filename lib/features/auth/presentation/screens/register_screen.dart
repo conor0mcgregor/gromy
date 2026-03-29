@@ -2,8 +2,6 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-import '../../../../app/app_shell.dart';
-import '../controllers/auth_controller.dart';
 import '../../../../core/icons/my_icons.dart';
 import '../../../../core/widgets/field_label.dart';
 import '../../../../core/widgets/glass_text_field.dart';
@@ -11,11 +9,7 @@ import '../../../../core/widgets/glow_orb.dart';
 import '../../../../core/widgets/password_strength_bar.dart';
 import '../../../../core/widgets/social_button.dart';
 import '../../../../core/widgets/terms_checkbox.dart';
-import 'register_dates_screen.dart';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Register Screen
-// ─────────────────────────────────────────────────────────────────────────────
+import '../controllers/auth_controller.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key, this.authController});
@@ -42,9 +36,6 @@ class _RegisterScreenState extends State<RegisterScreen>
   bool _obscureConfirm = true;
   bool _acceptTerms = false;
 
-  bool get _isLoading => _authController.isLoading;
-
-  // Validation state
   String? _nickNameError;
   String? _nameError;
   String? _lastNameError;
@@ -53,37 +44,39 @@ class _RegisterScreenState extends State<RegisterScreen>
   String? _confirmError;
   String? _nickNameUsed;
 
-  late AnimationController _fadeController;
-  late AnimationController _slideController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
+  late final AnimationController _fadeController;
+  late final AnimationController _slideController;
+  late final Animation<double> _fadeAnimation;
+  late final Animation<Offset> _slideAnimation;
 
-  // Password strength
+  bool get _isLoading => _authController.isLoading;
+
   double get _passwordStrength {
-    final p = _passwordController.text;
-    if (p.isEmpty) return 0;
-    double s = 0;
-    if (p.length >= 6) s += 0.25;
-    if (p.length >= 10) s += 0.25;
-    if (p.contains(RegExp(r'[A-Z]'))) s += 0.25;
-    if (p.contains(RegExp(r'[0-9!@#\$%^&*]'))) s += 0.25;
-    return s;
+    final password = _passwordController.text;
+    if (password.isEmpty) return 0;
+
+    double strength = 0;
+    if (password.length >= 6) strength += 0.25;
+    if (password.length >= 10) strength += 0.25;
+    if (password.contains(RegExp(r'[A-Z]'))) strength += 0.25;
+    if (password.contains(RegExp(r'[0-9!@#\$%^&*]'))) strength += 0.25;
+    return strength;
   }
 
   Color get _strengthColor {
-    final s = _passwordStrength;
-    if (s <= 0.25) return const Color(0xFFFF4D6A);
-    if (s <= 0.5) return const Color(0xFFFFB347);
-    if (s <= 0.75) return const Color(0xFF00D4FF);
+    final strength = _passwordStrength;
+    if (strength <= 0.25) return const Color(0xFFFF4D6A);
+    if (strength <= 0.5) return const Color(0xFFFFB347);
+    if (strength <= 0.75) return const Color(0xFF00D4FF);
     return const Color(0xFF4ADE80);
   }
 
   String get _strengthLabel {
-    final s = _passwordStrength;
-    if (s == 0) return '';
-    if (s <= 0.25) return 'Débil';
-    if (s <= 0.5) return 'Regular';
-    if (s <= 0.75) return 'Buena';
+    final strength = _passwordStrength;
+    if (strength == 0) return '';
+    if (strength <= 0.25) return 'Debil';
+    if (strength <= 0.5) return 'Regular';
+    if (strength <= 0.75) return 'Buena';
     return 'Fuerte';
   }
 
@@ -92,6 +85,7 @@ class _RegisterScreenState extends State<RegisterScreen>
     super.initState();
     _ownsAuthController = widget.authController == null;
     _authController = widget.authController ?? AuthController();
+
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
@@ -106,23 +100,20 @@ class _RegisterScreenState extends State<RegisterScreen>
     );
     _slideAnimation =
         Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
-          CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
-        );
+      CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+    );
 
     _fadeController.forward();
     _slideController.forward();
 
     _passwordController.addListener(() => setState(() {}));
-    _nickNameController.addListener(() => setState(() {
-      _vailidateNickName();
-    }));
-    _authController.addListener(() {
-      if (mounted) setState(() {});
-    });
+    _nickNameController.addListener(_validateNickNameAvailability);
+    _authController.addListener(_handleControllerChanged);
   }
 
   @override
   void dispose() {
+    _authController.removeListener(_handleControllerChanged);
     _fadeController.dispose();
     _slideController.dispose();
     _nickNameController.dispose();
@@ -137,42 +128,52 @@ class _RegisterScreenState extends State<RegisterScreen>
     super.dispose();
   }
 
-  void _vailidateNickName() async {
-    var _isValid = await _authController.isValidNickName(_nickNameController.text);
+  void _handleControllerChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _validateNickNameAvailability() async {
+    final nickname = _nickNameController.text;
+    if (nickname.trim().isEmpty) {
+      if (!mounted) return;
+      setState(() => _nickNameUsed = null);
+      return;
+    }
+
+    final isValid = await _authController.isValidNickName(nickname);
+    if (!mounted || nickname != _nickNameController.text) return;
+
     setState(() {
-      _nickNameUsed = _isValid ? null : 'Nickname no esta disponible';
+      _nickNameUsed = isValid ? null : 'Nickname no esta disponible';
     });
   }
 
   bool _validate() {
-    bool valid = true;
-    setState(() async {
+    var isValid = true;
+    setState(() {
       _nickNameError = _nickNameController.text.trim().isEmpty
           ? 'Introduce tu nombre de usuario'
           : null;
-
-      _nameError = _nameController.text.trim().isEmpty
-          ? 'Introduce tu nombre'
-          : null;
-
+      _nameError =
+          _nameController.text.trim().isEmpty ? 'Introduce tu nombre' : null;
       _lastNameError = _lastNameController.text.trim().isEmpty
           ? 'Introduce tu apellido'
           : null;
 
-      final emailReg = RegExp(r'^[\w\.\-]+@[\w\-]+\.\w{2,}$');
-      _emailError = !emailReg.hasMatch(_emailController.text.trim())
-          ? 'Correo electrónico no válido'
+      final emailRegExp = RegExp(r'^[\w\.\-]+@[\w\-]+\.\w{2,}$');
+      _emailError = !emailRegExp.hasMatch(_emailController.text.trim())
+          ? 'Correo electronico no valido'
           : null;
 
       _passwordError = _passwordController.text.length < 6
-          ? 'La contraseña debe tener al menos 6 caracteres'
+          ? 'La contrasena debe tener al menos 6 caracteres'
           : null;
-
       _confirmError = _confirmController.text != _passwordController.text
-          ? 'Las contraseñas no coinciden'
+          ? 'Las contrasenas no coinciden'
           : null;
     });
-
 
     if (_nickNameError != null ||
         _nameError != null ||
@@ -181,13 +182,14 @@ class _RegisterScreenState extends State<RegisterScreen>
         _passwordError != null ||
         _confirmError != null ||
         _nickNameUsed != null) {
-      valid = false;
+      isValid = false;
     }
+
     if (!_acceptTerms) {
-      valid = false;
+      isValid = false;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Debes aceptar los términos y condiciones'),
+          content: const Text('Debes aceptar los terminos y condiciones'),
           backgroundColor: const Color(0xFFFF4D6A),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -196,11 +198,13 @@ class _RegisterScreenState extends State<RegisterScreen>
         ),
       );
     }
-    return valid;
+
+    return isValid;
   }
 
   Future<void> _handleRegister() async {
     if (!_validate()) return;
+
     final success = await _authController.register(
       email: _emailController.text,
       password: _passwordController.text,
@@ -208,24 +212,10 @@ class _RegisterScreenState extends State<RegisterScreen>
       name: _nameController.text,
       lastName: _lastNameController.text,
     );
+
     if (!mounted) return;
-    setState(() {});
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('¡Cuenta creada con éxito! Bienvenido/a 🎉'),
-          backgroundColor: const Color(0xFF6C63FF),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const AppShell()),
-        (_) => false,
-      );
+      _returnToAuthRoot();
     } else {
       _showError(_authController.errorMessage ?? 'Error al crear la cuenta.');
     }
@@ -234,44 +224,29 @@ class _RegisterScreenState extends State<RegisterScreen>
   Future<void> _handleGoogleRegister() async {
     final result = await _authController.loginWithGoogle();
     if (!mounted) return;
-    setState(() {});
     _handleSocialResult(result);
   }
 
   Future<void> _handleAppleRegister() async {
     final result = await _authController.loginWithApple();
     if (!mounted) return;
-    setState(() {});
     _handleSocialResult(result);
   }
 
   void _handleSocialResult(SocialAuthResult result) {
     switch (result) {
       case SocialAuthExisting():
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const AppShell()),
-          (_) => false,
-        );
-      case SocialAuthNewUser(
-        :final uid,
-        :final email,
-        :final photoUrl,
-        :final provider,
-      ):
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => RegisterDatesScreen(
-              uid: uid,
-              email: email,
-              photoUrl: photoUrl,
-              provider: provider,
-            ),
-          ),
-        );
+      case SocialAuthNewUser():
+        _returnToAuthRoot();
+        return;
       case SocialAuthFailure(:final message):
         _showError(message);
+    }
+  }
+
+  void _returnToAuthRoot() {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
     }
   }
 
@@ -289,11 +264,8 @@ class _RegisterScreenState extends State<RegisterScreen>
   String? _combineErrors(String? error1, String? error2) {
     if (error1 == null && error2 == null) {
       return null;
-    } else if (error1 != null) {
-      return error1;
-    } else {
-      return error2;
     }
+    return error1 ?? error2;
   }
 
   @override
@@ -302,7 +274,6 @@ class _RegisterScreenState extends State<RegisterScreen>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // ── Fondo degradado oscuro ──────────────────────────────────
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -316,8 +287,6 @@ class _RegisterScreenState extends State<RegisterScreen>
               ),
             ),
           ),
-
-          // ── Esferas ambient ─────────────────────────────────────────
           Positioned(
             top: -60,
             right: -80,
@@ -342,8 +311,6 @@ class _RegisterScreenState extends State<RegisterScreen>
               size: 150,
             ),
           ),
-
-          // ── Contenido ───────────────────────────────────────────────
           SafeArea(
             child: FadeTransition(
               opacity: _fadeAnimation,
@@ -355,20 +322,16 @@ class _RegisterScreenState extends State<RegisterScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 40),
-
-                      // ── Header ────────────────────────────────────
                       Center(
                         child: Column(
                           children: [
-                            // Logo con icono de trofeo (contexto torneos)
                             Container(
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(
-                                      0xFF6C63FF,
-                                    ).withOpacity(0.5),
+                                    color: const Color(0xFF6C63FF)
+                                        .withOpacity(0.5),
                                     blurRadius: 30,
                                     spreadRadius: 5,
                                   ),
@@ -376,7 +339,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                               ),
                               child: ClipOval(
                                 child: Transform.scale(
-                                  scale: 1.7, // zoom
+                                  scale: 1.7,
                                   child: Image.asset(
                                     'assets/images/LOGO.png',
                                     width: 100,
@@ -403,7 +366,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Únete y empieza a competir',
+                              'Unete y empieza a competir',
                               style: TextStyle(
                                 fontSize: 15,
                                 color: Colors.white.withOpacity(0.5),
@@ -413,10 +376,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                           ],
                         ),
                       ),
-
                       const SizedBox(height: 36),
-
-                      // ── Tarjeta glassmorphism ──────────────────────
                       ClipRRect(
                         borderRadius: BorderRadius.circular(28),
                         child: BackdropFilter(
@@ -434,25 +394,20 @@ class _RegisterScreenState extends State<RegisterScreen>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // ── Nickname ────────────────
-                                FieldLabel(label: 'Nickname'),
+                                const FieldLabel(label: 'Nickname'),
                                 const SizedBox(height: 8),
                                 GlassTextField(
                                   controller: _nickNameController,
-                                  hint: 'Tu nombre público',
+                                  hint: 'Tu nombre publico',
                                   icon: MyFlutterApp.logo_gromy,
-                                  iconSize:
-                                      50, // Increase size since custom logo looks small
+                                  iconSize: 50,
                                   errorText: _combineErrors(
-                                      _nickNameError,
-                                      _nickNameUsed,
+                                    _nickNameError,
+                                    _nickNameUsed,
                                   ),
                                 ),
-
                                 const SizedBox(height: 20),
-
-                                // ── Nombre ───────────────────────────
-                                FieldLabel(label: 'Nombre'),
+                                const FieldLabel(label: 'Nombre'),
                                 const SizedBox(height: 8),
                                 GlassTextField(
                                   controller: _nameController,
@@ -460,11 +415,8 @@ class _RegisterScreenState extends State<RegisterScreen>
                                   icon: Icons.person_outline_rounded,
                                   errorText: _nameError,
                                 ),
-
                                 const SizedBox(height: 20),
-
-                                // ── Apellido ─────────────────────────
-                                FieldLabel(label: 'Apellido'),
+                                const FieldLabel(label: 'Apellido'),
                                 const SizedBox(height: 8),
                                 GlassTextField(
                                   controller: _lastNameController,
@@ -472,11 +424,8 @@ class _RegisterScreenState extends State<RegisterScreen>
                                   icon: Icons.person_outline_rounded,
                                   errorText: _lastNameError,
                                 ),
-
                                 const SizedBox(height: 20),
-
-                                // ── Correo ───────────────────────────
-                                FieldLabel(label: 'Correo electrónico'),
+                                const FieldLabel(label: 'Correo electronico'),
                                 const SizedBox(height: 8),
                                 GlassTextField(
                                   controller: _emailController,
@@ -485,15 +434,12 @@ class _RegisterScreenState extends State<RegisterScreen>
                                   keyboardType: TextInputType.emailAddress,
                                   errorText: _emailError,
                                 ),
-
                                 const SizedBox(height: 20),
-
-                                // ── Contraseña ───────────────────────
-                                FieldLabel(label: 'Contraseña'),
+                                const FieldLabel(label: 'Contrasena'),
                                 const SizedBox(height: 8),
                                 GlassTextField(
                                   controller: _passwordController,
-                                  hint: 'Mínimo 6 caracteres',
+                                  hint: 'Minimo 6 caracteres',
                                   icon: Icons.lock_outline_rounded,
                                   obscureText: _obscurePassword,
                                   errorText: _passwordError,
@@ -506,13 +452,10 @@ class _RegisterScreenState extends State<RegisterScreen>
                                       size: 20,
                                     ),
                                     onPressed: () => setState(
-                                      () =>
-                                          _obscurePassword = !_obscurePassword,
+                                      () => _obscurePassword = !_obscurePassword,
                                     ),
                                   ),
                                 ),
-
-                                // Barra de fortaleza de contraseña
                                 if (_passwordController.text.isNotEmpty) ...[
                                   const SizedBox(height: 10),
                                   PasswordStrengthBar(
@@ -521,15 +464,12 @@ class _RegisterScreenState extends State<RegisterScreen>
                                     label: _strengthLabel,
                                   ),
                                 ],
-
                                 const SizedBox(height: 20),
-
-                                // ── Confirmar contraseña ─────────────
-                                FieldLabel(label: 'Confirmar contraseña'),
+                                const FieldLabel(label: 'Confirmar contrasena'),
                                 const SizedBox(height: 8),
                                 GlassTextField(
                                   controller: _confirmController,
-                                  hint: 'Repite tu contraseña',
+                                  hint: 'Repite tu contrasena',
                                   icon: Icons.lock_outline_rounded,
                                   obscureText: _obscureConfirm,
                                   errorText: _confirmError,
@@ -546,19 +486,13 @@ class _RegisterScreenState extends State<RegisterScreen>
                                     ),
                                   ),
                                 ),
-
                                 const SizedBox(height: 22),
-
-                                // ── Términos y condiciones ───────────
                                 TermsCheckbox(
                                   value: _acceptTerms,
-                                  onChanged: (v) =>
-                                      setState(() => _acceptTerms = v ?? false),
+                                  onChanged: (value) =>
+                                      setState(() => _acceptTerms = value ?? false),
                                 ),
-
                                 const SizedBox(height: 28),
-
-                                // ── Botón Registrarse ────────────────
                                 SizedBox(
                                   width: double.infinity,
                                   height: 54,
@@ -573,29 +507,22 @@ class _RegisterScreenState extends State<RegisterScreen>
                                       borderRadius: BorderRadius.circular(16),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: const Color(
-                                            0xFF6C63FF,
-                                          ).withOpacity(0.45),
+                                          color: const Color(0xFF6C63FF)
+                                              .withOpacity(0.45),
                                           blurRadius: 20,
                                           offset: const Offset(0, 8),
                                         ),
                                       ],
                                     ),
                                     child: ElevatedButton(
-                                      onPressed: () {
-                                        if (_isLoading) return;
-
-                                        setState(() {
-                                          _handleRegister();
-                                        });
-                                      },
+                                      onPressed:
+                                          _isLoading ? null : _handleRegister,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.transparent,
                                         shadowColor: Colors.transparent,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            16,
-                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
                                         ),
                                       ),
                                       child: _isLoading
@@ -624,10 +551,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 28),
-
-                      // ── Divisor social ────────────────────────────
                       Row(
                         children: [
                           Expanded(
@@ -639,7 +563,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: Text(
-                              'o regístrate con',
+                              'o registrate con',
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.35),
                                 fontSize: 13,
@@ -654,10 +578,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 22),
-
-                      // ── Botones sociales ──────────────────────────
                       Row(
                         children: [
                           Expanded(
@@ -677,16 +598,13 @@ class _RegisterScreenState extends State<RegisterScreen>
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 32),
-
-                      // ── Ir a login ────────────────────────────────
                       Center(
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              '¿Ya tienes cuenta? ',
+                              'Ya tienes cuenta? ',
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.45),
                                 fontSize: 14,
@@ -695,7 +613,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             GestureDetector(
                               onTap: () => Navigator.pop(context),
                               child: const Text(
-                                'Iniciar sesión',
+                                'Iniciar sesion',
                                 style: TextStyle(
                                   color: Color(0xFF6C63FF),
                                   fontSize: 14,
@@ -706,7 +624,6 @@ class _RegisterScreenState extends State<RegisterScreen>
                           ],
                         ),
                       ),
-
                       const SizedBox(height: 36),
                     ],
                   ),
@@ -718,5 +635,4 @@ class _RegisterScreenState extends State<RegisterScreen>
       ),
     );
   }
-
 }

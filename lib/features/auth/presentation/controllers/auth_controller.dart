@@ -1,13 +1,18 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../../data/models/auth_result.dart';
-import '../../data/repositories/auth_repository.dart';
-import '../../data/services/firebase_auth_service.dart';
+import '../../../../database/registration/models/registration_action_result.dart';
+import '../../../../database/registration/repositories/email_registration_repository.dart';
+import '../../../../database/registration/services/firebase_email_registration_service.dart';
+import '../../../../database/session/models/app_access_state.dart';
+import '../../../../database/session/repositories/app_access_resolver.dart';
+import '../../../../database/session/services/firebase_app_access_resolver.dart';
 import '../../../user/data/models/app_user.dart';
 import '../../../user/data/repositories/user_repository.dart';
 import '../../../user/data/services/firestore_user_service.dart';
+import '../../data/models/auth_result.dart';
+import '../../data/repositories/auth_repository.dart';
+import '../../data/services/firebase_auth_service.dart';
 
 sealed class SocialAuthResult {}
 
@@ -37,11 +42,31 @@ class AuthController extends ChangeNotifier {
   AuthController({
     AuthRepository? authRepository,
     UserRepository? userRepository,
-  })  : _authRepo = authRepository ?? FirebaseAuthService(),
-        _userRepo = userRepository ?? FirestoreUserService();
+    EmailRegistrationRepository? emailRegistrationRepository,
+    AppAccessResolver? appAccessResolver,
+  }) : this._(
+          authRepository: authRepository ?? FirebaseAuthService(),
+          userRepository: userRepository ?? FirestoreUserService(),
+          emailRegistrationRepository: emailRegistrationRepository,
+          appAccessResolver: appAccessResolver,
+        );
+
+  AuthController._({
+    required AuthRepository authRepository,
+    required UserRepository userRepository,
+    EmailRegistrationRepository? emailRegistrationRepository,
+    AppAccessResolver? appAccessResolver,
+  })  : _authRepo = authRepository,
+        _userRepo = userRepository,
+        _emailRegistrationRepo = emailRegistrationRepository ??
+            FirebaseEmailRegistrationService(userRepository: userRepository),
+        _appAccessResolver = appAccessResolver ??
+            FirebaseAppAccessResolver(userRepository: userRepository);
 
   final AuthRepository _authRepo;
   final UserRepository _userRepo;
+  final EmailRegistrationRepository _emailRegistrationRepo;
+  final AppAccessResolver _appAccessResolver;
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -49,14 +74,18 @@ class AuthController extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
+  Future<AppAccessState> resolveCurrentAccessState() {
+    return _appAccessResolver.resolve();
+  }
+
   Future<bool> login(String email, String password) async {
     return _runBool(() => _authRepo.signInWithEmail(email, password));
   }
+
   Future<bool> isValidNickName(String nickname) async {
     if (nickname.isEmpty) return false;
     return _userRepo.isNicknameAvailable(nickname);
   }
-
 
   Future<bool> register({
     required String email,
@@ -67,16 +96,11 @@ class AuthController extends ChangeNotifier {
   }) async {
     _setLoading(true);
     _clearError();
-    User? createdUser;
-    bool nicknameCheckedBeforeAuth = false;
 
     try {
       final normalizedNickname = _normalizeNickname(nickname);
       try {
         final available = await isValidNickName(normalizedNickname);
-        if (available) {
-          nicknameCheckedBeforeAuth = true;
-        }
         if (!available) {
           _errorMessage = 'Ese nickname ya esta en uso. Elige otro.';
           return false;
@@ -87,67 +111,71 @@ class AuthController extends ChangeNotifier {
         }
       }
 
-      final result = await _authRepo.registerWithEmail(email, password);
-      if (result is AuthFailure) {
-        _errorMessage = result.message;
-        return false;
-      }
-
-      createdUser = FirebaseAuth.instance.currentUser;
-      final uid = createdUser?.uid;
-      if (uid == null) {
-        _errorMessage = 'Error al obtener el usuario creado.';
-        return false;
-      }
-
-      if (!nicknameCheckedBeforeAuth) {
-        try {
-          final available = await isValidNickName(normalizedNickname);
-          if (!available) {
-            _errorMessage = 'Ese nickname ya esta en uso. Elige otro.';
-            await _deleteFreshAuthUser(createdUser!);
-            return false;
-          }
-        } on FirebaseException catch (e) {
-          if (e.code == 'permission-denied') {
-            // Ignorar y dejar que Firestore valide (por si las reglas de seguridad no permiten WHERE nickname)
-            debugPrint('No se pudo validar nickname por reglas (ignorando para continuar)');
-          } else {
-            rethrow;
-          }
-        }
-      }
-
-      await _userRepo.createUser(
-        AppUser(
-          uid: uid,
-          email: email.trim(),
-          nickname: normalizedNickname,
-          name: name.trim(),
-          lastName: lastName.trim(),
-          provider: 'email',
-          createdAt: DateTime.now(),
-        ),
+      final result = await _emailRegistrationRepo.startRegistration(
+        email: email,
+        password: password,
+        nickname: normalizedNickname,
+        name: name,
+        lastName: lastName,
       );
 
-      return true;
-    } on NicknameAlreadyInUseException {
-      _errorMessage = 'Ese nickname ya esta en uso. Elige otro.';
-      if (createdUser != null) {
-        await _deleteFreshAuthUser(createdUser);
+      switch (result) {
+        case RegistrationActionSuccess():
+          return true;
+        case RegistrationActionFailure(:final message):
+          _errorMessage = message;
+          return false;
       }
-      return false;
     } on FirebaseException catch (e) {
       _errorMessage = _firestoreErrorMessage(e.code);
-      if (createdUser != null) {
-        await _deleteFreshAuthUser(createdUser);
-      }
       return false;
     } catch (_) {
       _errorMessage = 'No se pudo completar el registro. Intentalo de nuevo.';
-      if (createdUser != null) {
-        await _deleteFreshAuthUser(createdUser);
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> completePendingEmailRegistration() async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final result = await _emailRegistrationRepo.completeRegistration();
+      switch (result) {
+        case RegistrationActionSuccess():
+          return true;
+        case RegistrationActionFailure(:final message):
+          _errorMessage = message;
+          return false;
       }
+    } on FirebaseException catch (e) {
+      _errorMessage = _firestoreErrorMessage(e.code);
+      return false;
+    } catch (_) {
+      _errorMessage = 'No se pudo completar el registro. Intentalo de nuevo.';
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> resendVerificationEmail() async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final result = await _emailRegistrationRepo.resendVerificationEmail();
+      switch (result) {
+        case RegistrationActionSuccess():
+          return true;
+        case RegistrationActionFailure(:final message):
+          _errorMessage = message;
+          return false;
+      }
+    } catch (_) {
+      _errorMessage = 'No se pudo reenviar el correo de verificacion.';
       return false;
     } finally {
       _setLoading(false);
@@ -190,7 +218,9 @@ class AuthController extends ChangeNotifier {
         }
       } on FirebaseException catch (e) {
         if (e.code == 'permission-denied') {
-          debugPrint('No se pudo validar nickname en completeSocialProfile por reglas (ignorando)');
+          debugPrint(
+            'No se pudo validar nickname en completeSocialProfile por reglas (ignorando)',
+          );
         } else {
           rethrow;
         }
@@ -296,19 +326,10 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  Future<void> _deleteFreshAuthUser(User user) async {
-    try {
-      await user.delete();
-    } catch (_) {}
-  }
-
   Future<bool> _safeUserExists(String uid) async {
     try {
       return await _userRepo.userExists(uid);
     } catch (_) {
-      // Si el usuario ya se autenticó pero falla la lectura del perfil,
-      // (por ejemplo por permission-denied), asumimos que no existe
-      // para forzar al usuario a que complete su información.
       return false;
     }
   }

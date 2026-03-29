@@ -3,13 +3,11 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:gromy/features/auth/presentation/screens/register_screen.dart';
 
-import '../../../../app/app_shell.dart';
 import '../controllers/auth_controller.dart';
 import '../../../../core/widgets/field_label.dart';
 import '../../../../core/widgets/glass_text_field.dart';
 import '../../../../core/widgets/glow_orb.dart';
 import '../../../../core/widgets/social_button.dart';
-import 'register_dates_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, this.authController});
@@ -84,13 +82,7 @@ class _LoginScreenState extends State<LoginScreen>
     );
     if (!mounted) return;
     setState(() {});
-    if (success) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const AppShell()),
-        (_) => false,
-      );
-    } else {
+    if (!success) {
       _showError(_authController.errorMessage ?? 'Error desconocido.');
     }
   }
@@ -112,28 +104,8 @@ class _LoginScreenState extends State<LoginScreen>
   void _handleSocialResult(SocialAuthResult result) {
     switch (result) {
       case SocialAuthExisting():
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const AppShell()),
-          (_) => false,
-        );
-      case SocialAuthNewUser(
-        :final uid,
-        :final email,
-        :final photoUrl,
-        :final provider,
-      ):
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => RegisterDatesScreen(
-              uid: uid,
-              email: email,
-              photoUrl: photoUrl,
-              provider: provider,
-            ),
-          ),
-        );
+      case SocialAuthNewUser():
+        return;
       case SocialAuthFailure(:final message):
         _showError(message);
     }

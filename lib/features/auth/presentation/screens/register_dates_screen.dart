@@ -2,11 +2,11 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-import '../../../../app/app_shell.dart';
 import '../controllers/auth_controller.dart';
 import '../../../../core/widgets/field_label.dart';
 import '../../../../core/widgets/glass_text_field.dart';
 import '../../../../core/widgets/glow_orb.dart';
+import 'auth_gate_screen.dart';
 
 /// Pantalla para completar el perfil de un usuario que se registró
 /// mediante Google o Apple y aún no tiene datos en Firestore.
@@ -20,6 +20,7 @@ class RegisterDatesScreen extends StatefulWidget {
     required this.provider,
     this.photoUrl,
     this.authController,
+    this.successBuilder,
   });
 
   final String uid;
@@ -27,6 +28,7 @@ class RegisterDatesScreen extends StatefulWidget {
   final String provider;
   final String? photoUrl;
   final AuthController? authController;
+  final WidgetBuilder? successBuilder;
 
   @override
   State<RegisterDatesScreen> createState() => _RegisterDatesScreenState();
@@ -43,6 +45,8 @@ class _RegisterDatesScreenState extends State<RegisterDatesScreen>
   String? _nicknameError;
   String? _nameError;
   String? _lastNameError;
+  String? _nickNameUsed;
+
 
   bool get _isLoading => _authController.isLoading;
 
@@ -79,7 +83,10 @@ class _RegisterDatesScreenState extends State<RegisterDatesScreen>
     _authController.addListener(() {
       if (mounted) setState(() {});
     });
+
+    _nicknameController.addListener(_validateNickNameAvailability);
   }
+
 
   @override
   void dispose() {
@@ -92,6 +99,22 @@ class _RegisterDatesScreenState extends State<RegisterDatesScreen>
       _authController.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> _validateNickNameAvailability() async {
+    final nickname = _nicknameController.text;
+    if (nickname.trim().isEmpty) {
+      if (!mounted) return;
+      setState(() => _nickNameUsed = null);
+      return;
+    }
+
+    final isValid = await _authController.isValidNickName(nickname);
+    if (!mounted || nickname != _nicknameController.text) return;
+
+    setState(() {
+      _nickNameUsed = isValid ? null : 'Nickname no esta disponible';
+    });
   }
 
   // ── Validación local ────────────────────────────────────────────────────────
@@ -138,7 +161,9 @@ class _RegisterDatesScreenState extends State<RegisterDatesScreen>
     if (success) {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const AppShell()),
+        MaterialPageRoute(
+          builder: widget.successBuilder ?? (_) => const AuthGateScreen(),
+        ),
         (_) => false,
       );
     } else {
