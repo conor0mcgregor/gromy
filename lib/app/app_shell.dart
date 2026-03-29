@@ -9,24 +9,6 @@ import '../core/icons/my_icons.dart';
 import '../core/widgets/glow_orb.dart';
 import '../core/widgets/tourney_nav_bar.dart';
 
-void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'TourneyApp',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(),
-      home: const AppShell(),
-    );
-  }
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // AppShell – demo que muestra cómo usar el widget TourneyNavBar
 // ─────────────────────────────────────────────────────────────────────────────

@@ -51,6 +51,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   String? _emailError;
   String? _passwordError;
   String? _confirmError;
+  String? _nickNameUsed;
 
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -112,6 +113,9 @@ class _RegisterScreenState extends State<RegisterScreen>
     _slideController.forward();
 
     _passwordController.addListener(() => setState(() {}));
+    _nickNameController.addListener(() => setState(() {
+      _vailidateNickName();
+    }));
     _authController.addListener(() {
       if (mounted) setState(() {});
     });
@@ -133,9 +137,16 @@ class _RegisterScreenState extends State<RegisterScreen>
     super.dispose();
   }
 
+  void _vailidateNickName() async {
+    var _isValid = await _authController.isValidNickName(_nickNameController.text);
+    setState(() {
+      _nickNameUsed = _isValid ? null : 'Nickname no esta disponible';
+    });
+  }
+
   bool _validate() {
     bool valid = true;
-    setState(() {
+    setState(() async {
       _nickNameError = _nickNameController.text.trim().isEmpty
           ? 'Introduce tu nombre de usuario'
           : null;
@@ -162,12 +173,14 @@ class _RegisterScreenState extends State<RegisterScreen>
           : null;
     });
 
+
     if (_nickNameError != null ||
         _nameError != null ||
         _lastNameError != null ||
         _emailError != null ||
         _passwordError != null ||
-        _confirmError != null) {
+        _confirmError != null ||
+        _nickNameUsed != null) {
       valid = false;
     }
     if (!_acceptTerms) {
@@ -271,6 +284,16 @@ class _RegisterScreenState extends State<RegisterScreen>
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
+  }
+
+  String? _combineErrors(String? error1, String? error2) {
+    if (error1 == null && error2 == null) {
+      return null;
+    } else if (error1 != null) {
+      return error1;
+    } else {
+      return error2;
+    }
   }
 
   @override
@@ -420,7 +443,10 @@ class _RegisterScreenState extends State<RegisterScreen>
                                   icon: MyFlutterApp.logo_gromy,
                                   iconSize:
                                       50, // Increase size since custom logo looks small
-                                  errorText: _nickNameError,
+                                  errorText: _combineErrors(
+                                      _nickNameError,
+                                      _nickNameUsed,
+                                  ),
                                 ),
 
                                 const SizedBox(height: 20),
@@ -556,9 +582,13 @@ class _RegisterScreenState extends State<RegisterScreen>
                                       ],
                                     ),
                                     child: ElevatedButton(
-                                      onPressed: _isLoading
-                                          ? null
-                                          : _handleRegister,
+                                      onPressed: () {
+                                        if (_isLoading) return;
+
+                                        setState(() {
+                                          _handleRegister();
+                                        });
+                                      },
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.transparent,
                                         shadowColor: Colors.transparent,
@@ -688,4 +718,5 @@ class _RegisterScreenState extends State<RegisterScreen>
       ),
     );
   }
+
 }

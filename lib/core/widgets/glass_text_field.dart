@@ -91,14 +91,18 @@ class GlassTextField extends StatelessWidget {
               const Icon(Icons.error_outline_rounded,
                   color: Color(0xFFFF4D6A), size: 13),
               const SizedBox(width: 4),
-              Text(
-                errorText!,
-                style: const TextStyle(
-                  color: Color(0xFFFF4D6A),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+              Expanded(
+                child: Text(
+                  errorText!,
+                  style: const TextStyle(
+                    color: Color(0xFFFF4D6A),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
+
+
+              )
             ],
           ),
         ],

@@ -52,6 +52,11 @@ class AuthController extends ChangeNotifier {
   Future<bool> login(String email, String password) async {
     return _runBool(() => _authRepo.signInWithEmail(email, password));
   }
+  Future<bool> isValidNickName(String nickname) async {
+    if (nickname.isEmpty) return false;
+    return _userRepo.isNicknameAvailable(nickname);
+  }
+
 
   Future<bool> register({
     required String email,
@@ -68,8 +73,10 @@ class AuthController extends ChangeNotifier {
     try {
       final normalizedNickname = _normalizeNickname(nickname);
       try {
-        final available = await _userRepo.isNicknameAvailable(normalizedNickname);
-        nicknameCheckedBeforeAuth = true;
+        final available = await isValidNickName(normalizedNickname);
+        if (available) {
+          nicknameCheckedBeforeAuth = true;
+        }
         if (!available) {
           _errorMessage = 'Ese nickname ya esta en uso. Elige otro.';
           return false;
@@ -95,7 +102,7 @@ class AuthController extends ChangeNotifier {
 
       if (!nicknameCheckedBeforeAuth) {
         try {
-          final available = await _userRepo.isNicknameAvailable(normalizedNickname);
+          final available = await isValidNickName(normalizedNickname);
           if (!available) {
             _errorMessage = 'Ese nickname ya esta en uso. Elige otro.';
             await _deleteFreshAuthUser(createdUser!);
@@ -176,7 +183,7 @@ class AuthController extends ChangeNotifier {
     try {
       final normalizedNickname = _normalizeNickname(nickname);
       try {
-        final available = await _userRepo.isNicknameAvailable(normalizedNickname);
+        final available = await isValidNickName(normalizedNickname);
         if (!available) {
           _errorMessage = 'Ese nickname ya esta en uso. Elige otro.';
           return false;
