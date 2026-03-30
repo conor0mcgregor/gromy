@@ -26,7 +26,6 @@ class FirestoreUserService implements UserRepository {
     try {
       print("[FIRESTORE] 1. Intentando guardar datos para el UID: ${user.uid}");
 
-      // Vamos a probar si el error está al convertir los datos
       final datosMap = user.copyWith(nickname: _normalizeNickname(user.nickname)).toMap();
       print("[FIRESTORE] 2. Datos convertidos correctamente: $datosMap");
 

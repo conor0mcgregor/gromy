@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/icons/my_icons.dart';
 import '../controllers/auth_controller.dart';
 import '../../../../core/widgets/field_label.dart';
 import '../../../../core/widgets/glass_text_field.dart';
@@ -173,6 +174,14 @@ class _RegisterDatesScreenState extends State<RegisterDatesScreen>
       });
     }
   }
+
+  String? _combineErrors(String? error1, String? error2) {
+    if (error1 == null && error2 == null) {
+      return null;
+    }
+    return error1 ?? error2;
+  }
+
 
   // ── UI ──────────────────────────────────────────────────────────────────────
 
@@ -349,8 +358,12 @@ class _RegisterDatesScreenState extends State<RegisterDatesScreen>
                                 GlassTextField(
                                   controller: _nicknameController,
                                   hint: 'Tu nombre público único',
-                                  icon: Icons.alternate_email_rounded,
-                                  errorText: _nicknameError,
+                                  icon: MyFlutterApp.logo_gromy,
+                                  iconSize: 50,
+                                  errorText: _combineErrors(
+                                    _nicknameError,
+                                    _nickNameUsed,
+                                  ),
                                 ),
 
                                 const SizedBox(height: 20),
