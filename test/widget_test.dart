@@ -26,25 +26,25 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     expect(find.byType(HomeScreen), findsOneWidget);
     expect(find.byType(EventsScreen), findsNothing);
 
     await tester.tap(find.text('Eventos'));
-    await tester.pumpAndSettle();
+    await tester.pump();
     expect(find.byType(EventsScreen), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.add));
-    await tester.pumpAndSettle();
+    await tester.pump();
     expect(find.byType(CreateTournamentScreen), findsOneWidget);
 
     await tester.tap(find.text('Alertas'));
-    await tester.pumpAndSettle();
+    await tester.pump();
     expect(find.byType(NotificationsScreen), findsOneWidget);
 
     await tester.tap(find.text('Perfil'));
-    await tester.pumpAndSettle();
+    await tester.pump();
     expect(find.byType(ProfileScreen), findsOneWidget);
   });
 }

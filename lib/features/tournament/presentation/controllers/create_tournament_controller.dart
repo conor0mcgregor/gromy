@@ -10,12 +10,16 @@ class CreateTournamentController extends ChangeNotifier {
   CreateTournamentController({
     TournamentRepository? tournamentRepository,
     FirebaseAuth? auth,
-  }) : _tournamentRepository =
-           tournamentRepository ?? FirestoreTournamentService(),
-       _auth = auth ?? FirebaseAuth.instance;
+  }) : _tournamentRepositoryOverride = tournamentRepository,
+       _authOverride = auth;
 
-  final TournamentRepository _tournamentRepository;
-  final FirebaseAuth _auth;
+  TournamentRepository? _tournamentRepositoryOverride;
+  FirebaseAuth? _authOverride;
+
+  TournamentRepository get _tournamentRepository =>
+      _tournamentRepositoryOverride ??= FirestoreTournamentService();
+
+  FirebaseAuth get _auth => _authOverride ??= FirebaseAuth.instance;
 
   bool _isSubmitting = false;
   String? _errorMessage;
