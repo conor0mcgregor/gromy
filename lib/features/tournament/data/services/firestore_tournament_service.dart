@@ -6,12 +6,11 @@ import '../repositories/tournament_repository.dart';
 
 class FirestoreTournamentService implements TournamentRepository {
   FirestoreTournamentService({FirebaseFirestore? firestore})
-    : _db =
-          firestore ??
-          FirebaseFirestore.instanceFor(
-            app: Firebase.app(),
-            databaseId: 'gromy-db',
-          );
+      : _db = firestore ??
+            FirebaseFirestore.instanceFor(
+              app: Firebase.app(),
+              databaseId: 'gromy-db',
+            );
 
   final FirebaseFirestore _db;
 
@@ -30,5 +29,23 @@ class FirestoreTournamentService implements TournamentRepository {
         .timeout(const Duration(seconds: 10));
 
     return tournamentToSave;
+  }
+
+  @override
+  Stream<List<AppTournament>> watchTournaments() {
+    // Usamos snapshots directamente sin orderBy inicialmente para asegurar que los datos fluyan
+    return _tournaments.snapshots().map((snapshot) {
+      final list = <AppTournament>[];
+      for (final doc in snapshot.docs) {
+        try {
+          list.add(AppTournament.fromMap(doc.data()));
+        } catch (e) {
+          print('Error mapeando torneo: $e');
+        }
+      }
+      // Ordenamos manualmente por fecha para no depender de índices de Firestore por ahora
+      list.sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
+      return list;
+    });
   }
 }
