@@ -8,10 +8,6 @@ import '../../../../core/widgets/glow_orb.dart';
 import '../../../../core/widgets/gradient_button.dart';
 import '../controllers/create_tournament_controller.dart';
 
-// ════════════════════════════════════════════════════════════════
-//  SCREEN PRINCIPAL
-// ════════════════════════════════════════════════════════════════
-
 class FormTournamentScreen extends StatefulWidget {
   const FormTournamentScreen({super.key});
 
@@ -43,6 +39,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
   // ── Formulario: valores recogidos ──
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _completeInformation = TextEditingController();
   final _locationController = TextEditingController();
   final _maxParticipantsController = TextEditingController();
   final _additionalInfoController = TextEditingController();
@@ -54,6 +51,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
   // ── Errores por paso ──
   String? _nameError;
   String? _descriptionError;
+  String? _completeInfoError;
   String? _locationError;
   String? _dateError;
   String? _maxParticipantsError;
@@ -64,7 +62,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
   // ──────────────────────────────────────────────────────────────
   //  Pasos definidos
   // ──────────────────────────────────────────────────────────────
-  static const int _totalSteps = 5;
+  static const int _totalSteps = 6;
 
   bool get _isSubmitting => _createTournamentController.isSubmitting;
 
@@ -111,6 +109,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     _pageController.dispose();
     _nameController.dispose();
     _descriptionController.dispose();
+    _completeInformation.dispose();
     _locationController.dispose();
     _maxParticipantsController.dispose();
     _additionalInfoController.dispose();
@@ -166,13 +165,15 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       case 0:
         return _validateStep0();
       case 1:
-        return _validateStep1();
+        return _validateStep5();
       case 2:
-        return _validateStep2();
+        return _validateStep1();
       case 3:
-        return _validateStep3();
+        return _validateStep2();
       case 4:
-        return true; // Notas adicionales son opcionales
+        return _validateStep3();
+      case 5:
+        return true; // Notas opcionales
       default:
         return true;
     }
@@ -196,6 +197,15 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       _sportError = sportOk ? null : 'Elige el deporte del torneo.';
     });
     return sportOk;
+  }
+
+  bool _validateStep5() {
+    final completeOk = _completeInformation.text.trim().length >= 100;
+    setState(() {
+      _completeInfoError =
+      completeOk ? null : 'Añade más información sobre el torneo (mín. 100 caracteres).';
+    });
+    return completeOk;
   }
 
   bool _validateStep2() {
@@ -239,6 +249,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     final success = await _createTournamentController.createTournament(
       name: _nameController.text,
       description: _descriptionController.text,
+      allInformation: _completeInformation.text,
       sport: _selectedSport!,
       scheduledAt: _selectedDate!,
       maxParticipants: maxParticipants,
@@ -254,6 +265,48 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
      } else {
        _showSnackBar('Error al crear el torneo.', isError: true);
      }
+  }
+
+  Future<void> _confirmDiscard() async {
+    FocusScope.of(context).unfocus();
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF101127),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFFF4D6A)),
+            SizedBox(width: 8),
+            Text('¿Borrar y salir?', style: TextStyle(color: Colors.white)),
+          ],
+        ),
+        content: const Text(
+          'Se eliminarán todos los datos que has introducido. ¿Estás seguro de que quieres salir?',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFFF4D6A),
+            ),
+            child: const Text('Sí, borrar todo', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      Navigator.pop(context);
+    }
   }
 
   // ──────────────────────────────────────────────────────────────
@@ -415,6 +468,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
                             physics: const NeverScrollableScrollPhysics(),
                             children: [
                               _buildStepPage(_buildStep0()),
+                              _buildStepPage(_buildStep5()),
                               _buildStepPage(_buildStep1()),
                               _buildStepPage(_buildStep2()),
                               _buildStepPage(_buildStep3()),
@@ -454,6 +508,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
   Widget _buildHeader() {
     final stepLabels = [
       'Información básica',
+      'Toda la información',
       'Deporte',
       'Cuándo y dónde',
       'Participantes',
@@ -463,6 +518,41 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Botón de descartar 
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            InkWell(
+              onTap: _confirmDiscard,
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF4D6A).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFFF4D6A).withValues(alpha: 0.3)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.delete_outline_rounded, color: Color(0xFFFF4D6A), size: 16),
+                    SizedBox(width: 6),
+                    Text(
+                      'Descartar',
+                      style: TextStyle(
+                        color: Color(0xFFFF4D6A),
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
         // Indicadores de paso
         Row(
           children: List.generate(_totalSteps, (i) {
@@ -607,7 +697,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
           _GlassField(
             controller: _descriptionController,
             hint:
-            'Explica el formato, las reglas o el objetivo del torneo...',
+            'Comenta brevemente en que consiste',
             icon: Icons.notes_rounded,
             label: 'Descripción',
             errorText: _descriptionError,
@@ -618,6 +708,28 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildStep5() {
+    return _StepCard(
+      icon: Icons.text_snippet,
+      title: 'Información completa',
+      subtitle: 'Especifica toda la información, detalles, reglas, datos, etc... del torneo.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _GlassField(
+            controller: _completeInformation,
+            hint: 'Información adicional (mínimo 100 caracteres)\nReglas del torneo, fechas clave...',
+            icon: Icons.text_snippet,
+            label: 'Información completa',
+            errorText: _completeInfoError,
+            minLines: 5,
+            maxLines: 15,
+          )
+        ]
+      )
     );
   }
 
@@ -1478,11 +1590,3 @@ class _GlassDivider extends StatelessWidget {
     ),
   );
 }
-
-// ════════════════════════════════════════════════════════════════
-//  GRADIENT BUTTON (mismo widget que gradient_button.dart)
-//  Incluido aquí para que el archivo sea autocontenido.
-//  Si ya tienes gradient_button.dart en tu proyecto, elimina
-//  esta sección e importa el archivo correspondiente.
-// ════════════════════════════════════════════════════════════════
-

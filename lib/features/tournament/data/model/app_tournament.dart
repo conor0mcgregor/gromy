@@ -7,6 +7,7 @@ class AppTournament {
     required this.id,
     required this.name,
     required this.description,
+    required this.allInformation,
     required this.scheduledAt,
     required this.maxParticipants,
     required this.location,
@@ -25,6 +26,7 @@ class AppTournament {
   final String id;
   final String name;
   final String description;
+  final String allInformation;
   final DateTime scheduledAt;
   final int maxParticipants;
   final String location;
@@ -44,6 +46,7 @@ class AppTournament {
       'id': id,
       'name': name,
       'description': description,
+      'allInformation': allInformation,
       'scheduledAt': Timestamp.fromDate(scheduledAt),
       'maxParticipants': maxParticipants,
       'location': location,
@@ -65,6 +68,7 @@ class AppTournament {
       id: map['id'] as String? ?? '',
       name: map['name'] as String? ?? '',
       description: map['description'] as String? ?? '',
+      allInformation: map['allInformation'] as String? ?? '',
       scheduledAt: _dateFromValue(map['scheduledAt']),
       maxParticipants: (map['maxParticipants'] as num?)?.toInt() ?? 0,
       location: map['location'] as String? ?? '',
@@ -89,6 +93,7 @@ class AppTournament {
     String? id,
     String? name,
     String? description,
+    String? allInformation,
     DateTime? scheduledAt,
     int? maxParticipants,
     String? location,
@@ -107,6 +112,7 @@ class AppTournament {
       id: id ?? this.id,
       name: name ?? this.name,
       description: description ?? this.description,
+      allInformation: allInformation ?? this.allInformation,
       scheduledAt: scheduledAt ?? this.scheduledAt,
       maxParticipants: maxParticipants ?? this.maxParticipants,
       location: location ?? this.location,

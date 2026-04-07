@@ -32,6 +32,7 @@ class CreateTournamentController extends ChangeNotifier {
   Future<bool> createTournament({
     required String name,
     required String description,
+    required String allInformation,
     required DateTime scheduledAt,
     required int maxParticipants,
     required String location,
@@ -52,6 +53,7 @@ class CreateTournamentController extends ChangeNotifier {
       final normalizedName = name.trim();
       final normalizedDescription = description.trim();
       final normalizedLocation = location.trim();
+      final normalizedAllInfo = allInformation.trim();
       final normalizedInfo = _normalizeOptional(additionalInfo);
       final normalizedDate = DateTime(
         scheduledAt.year,
@@ -63,6 +65,7 @@ class CreateTournamentController extends ChangeNotifier {
 
       if (normalizedName.isEmpty ||
           normalizedDescription.isEmpty ||
+          normalizedAllInfo.isEmpty ||
           normalizedLocation.isEmpty) {
         _errorMessage = 'Completa los campos obligatorios del torneo.';
         return false;
@@ -83,6 +86,7 @@ class CreateTournamentController extends ChangeNotifier {
         id: '',
         name: normalizedName,
         description: normalizedDescription,
+        allInformation: normalizedAllInfo,
         scheduledAt: normalizedDate,
         maxParticipants: maxParticipants,
         location: normalizedLocation,
