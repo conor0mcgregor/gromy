@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -11,7 +12,11 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   // Inicializar Google Sign-In (obligatorio en google_sign_in v7+)
-  await GoogleSignIn.instance.initialize();
+  await GoogleSignIn.instance.initialize(
+    clientId: kIsWeb
+        ? '863422546089-pqpvbhcc7js8kan7b2j9t2rn73q3uagp.apps.googleusercontent.com'
+        : null,
+  );
   runApp(const MyApp());
 }
 
