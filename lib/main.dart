@@ -1,7 +1,9 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 import 'features/auth/presentation/screens/auth_gate_screen.dart';
 import 'firebase_options.dart';
@@ -11,6 +13,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await initializeDateFormatting();
   // Inicializar Google Sign-In (obligatorio en google_sign_in v7+)
   await GoogleSignIn.instance.initialize(
     clientId: kIsWeb
@@ -29,6 +32,15 @@ class MyApp extends StatelessWidget {
       title: 'Login',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(),
+      supportedLocales: const [
+        Locale('es'),
+        Locale('en'),
+      ],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       home: const AuthGateScreen(),
     );
   }

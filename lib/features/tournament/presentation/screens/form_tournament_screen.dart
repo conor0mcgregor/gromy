@@ -664,7 +664,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
                 : Icons.arrow_forward_rounded,
             isLoading: _isSubmitting,
             variant: isLast
-                ? GradientButtonVariant.violet
+                ? GradientButtonVariant.forest
                 : GradientButtonVariant.ocean,
             onPressed: _goNext,
           ),
