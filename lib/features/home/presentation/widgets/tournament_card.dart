@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -16,6 +15,7 @@ class TournamentCard extends StatefulWidget {
     required this.tournament,
     this.animationDelay = Duration.zero,
     this.onTap,
+    this.isMyTournament
   });
 
   final AppTournament tournament;
@@ -24,6 +24,8 @@ class TournamentCard extends StatefulWidget {
   final Duration animationDelay;
 
   final VoidCallback? onTap;
+
+  final bool? isMyTournament;
 
   @override
   State<TournamentCard> createState() => _TournamentCardState();
@@ -220,30 +222,72 @@ class _TournamentCardState extends State<TournamentCard>
 
                         // ── Contenido ──
                         Padding(
-                          padding: const EdgeInsets.fromLTRB(22, 20, 20, 20),
+                          padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Fila superior: badge deporte + participantes
-                              Row(
-                                mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
+                              _CoverHeader(
+                                coverUrl: widget.tournament.portadaUrl,
+                                accent: _sportAccent,
+                              ),
+                              const SizedBox(height: 16),
+
+                              //labels
+                              Padding(
+                                padding: const EdgeInsets.all(0),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    _AnimatedSportBadge(
+                                      label: widget.tournament.sport.label
+                                          .toUpperCase(),
+                                      color: _sportAccent,
+                                      shimmerCtrl: _shimmerCtrl,
+                                    ),
+                                    _ParticipantsBadge(
+                                      current: widget.tournament.participantCount,
+                                      max: widget.tournament.maxParticipants,
+                                      occupancyColor: _occupancyColor,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+
+                              if (widget.isMyTournament == true) Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(999),
+                                color: Colors.white.withValues(alpha: 0.06),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.12),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  _AnimatedSportBadge(
-                                    label: widget.tournament.sport.label
-                                        .toUpperCase(),
-                                    color: _sportAccent,
-                                    shimmerCtrl: _shimmerCtrl,
-                                  ),
-                                  _ParticipantsBadge(
-                                    current:
-                                    widget.tournament.participantCount,
-                                    max: widget.tournament.maxParticipants,
-                                    occupancyColor: _occupancyColor,
+                                  const Icon(Icons.verified_user_outlined,
+                                      color: Color(0xFFB0A8FF), size: 16),
+                                  const SizedBox(width: 8),
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 200),
+                                    child: Text(
+                                      "Creador",
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
+                            ),
+
+
                               const SizedBox(height: 16),
+
 
                               // Nombre
                               Text(
@@ -362,6 +406,95 @@ class _TournamentCardState extends State<TournamentCard>
 //  SUB-WIDGETS DE LA CARD
 // ════════════════════════════════════════════════════════════════
 
+class _CoverHeader extends StatelessWidget {
+  const _CoverHeader({
+    required this.coverUrl,
+    required this.accent,
+  });
+
+  final String? coverUrl;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: SizedBox(
+        height: 118,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            _CoverImage(url: coverUrl, accent: accent),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.25),
+                    Colors.black.withValues(alpha: 0.55),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CoverImage extends StatelessWidget {
+  const _CoverImage({required this.url, required this.accent});
+
+  final String? url;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final uri = url?.trim();
+    final hasUrl = uri != null && uri.isNotEmpty;
+
+    Widget placeholder() {
+      return Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              accent.withValues(alpha: 0.22),
+              Colors.white.withValues(alpha: 0.02),
+            ],
+          ),
+        ),
+        child: Center(
+          child: Opacity(
+            opacity: 0.85,
+            child: Image.asset(
+              'assets/images/LOGO.png',
+              width: 44,
+              height: 44,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (!hasUrl) return placeholder();
+
+    return Image.network(
+      uri,
+      fit: BoxFit.cover,
+      filterQuality: FilterQuality.low,
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return placeholder();
+      },
+      errorBuilder: (context, error, stackTrace) => placeholder(),
+    );
+  }
+}
+
 /// Badge del deporte con shimmer animado
 class _AnimatedSportBadge extends StatelessWidget {
   const _AnimatedSportBadge({
@@ -392,7 +525,7 @@ class _AnimatedSportBadge extends StatelessWidget {
             shaderCallback: (bounds) => LinearGradient(
               colors: [
                 color,
-                Color.lerp(color, Colors.white, 0.7)!,
+                Color.lerp(color, Colors.white, 0.7) ?? color,
                 color,
               ],
               stops: const [0.0, 0.5, 1.0],

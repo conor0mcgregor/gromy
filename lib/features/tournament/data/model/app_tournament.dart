@@ -17,6 +17,7 @@ class AppTournament {
     required this.adminIds,
     required this.createdAt,
     required this.updatedAt,
+    this.portadaUrl,
     this.additionalInfo,
     this.organizerEmail,
     this.organizerDisplayName,
@@ -36,6 +37,11 @@ class AppTournament {
   final List<String> adminIds;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// URL de la imagen de portada almacenada en Firebase Storage. Puede ser null
+  /// si el torneo no tiene portada asignada.
+  final String? portadaUrl;
+
   final String? additionalInfo;
   final String? organizerEmail;
   final String? organizerDisplayName;
@@ -57,6 +63,7 @@ class AppTournament {
       'organizerDisplayName': organizerDisplayName,
       'adminIds': adminIds,
       'participantCount': participantCount,
+      'portadaUrl': portadaUrl,
       'additionalInfo': additionalInfo,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
@@ -83,6 +90,7 @@ class AppTournament {
           .map((value) => value.toString())
           .toList(),
       participantCount: (map['participantCount'] as num?)?.toInt() ?? 0,
+      portadaUrl: map['portadaUrl'] as String?,
       additionalInfo: map['additionalInfo'] as String?,
       createdAt: _dateFromValue(map['createdAt']),
       updatedAt: _dateFromValue(map['updatedAt']),
@@ -103,6 +111,7 @@ class AppTournament {
     List<String>? adminIds,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? portadaUrl,
     String? additionalInfo,
     String? organizerEmail,
     String? organizerDisplayName,
@@ -122,6 +131,7 @@ class AppTournament {
       adminIds: adminIds ?? this.adminIds,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      portadaUrl: portadaUrl ?? this.portadaUrl,
       additionalInfo: additionalInfo ?? this.additionalInfo,
       organizerEmail: organizerEmail ?? this.organizerEmail,
       organizerDisplayName: organizerDisplayName ?? this.organizerDisplayName,

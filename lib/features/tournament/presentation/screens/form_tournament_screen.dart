@@ -1,11 +1,14 @@
 import 'dart:ui';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../data/model/enums_tournament.dart';
+import 'package:image_picker/image_picker.dart';
 
+import '../../data/model/enums_tournament.dart';
 import '../../../../core/widgets/glow_orb.dart';
 import '../../../../core/widgets/gradient_button.dart';
+import '../../../user/data/services/firestore_user_service.dart';
 import '../controllers/create_tournament_controller.dart';
 
 class FormTournamentScreen extends StatefulWidget {
@@ -42,10 +45,18 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
   final _completeInformation = TextEditingController();
   final _locationController = TextEditingController();
   final _maxParticipantsController = TextEditingController();
-  final _additionalInfoController = TextEditingController();
+  final _adminController = TextEditingController();
   DateTime? _selectedDate;
   TournamentSport? _selectedSport;
   TournamentAccessType? _selectedAccessType;
+
+  // ── Portada + administradores ──
+  final _imagePicker = ImagePicker();
+  XFile? _coverImage;
+  Uint8List? _coverBytes;
+  bool _isAddingAdmin = false;
+  String? _adminError;
+  final List<_AdminEntry> _extraAdmins = [];
 
 
   // ── Errores por paso ──
@@ -112,7 +123,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     _completeInformation.dispose();
     _locationController.dispose();
     _maxParticipantsController.dispose();
-    _additionalInfoController.dispose();
+    _adminController.dispose();
     super.dispose();
   }
 
@@ -182,13 +193,17 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
   bool _validateStep0() {
     final nameOk = _nameController.text.trim().length >= 3;
     final descOk = _descriptionController.text.trim().length >= 10;
+    final coverOk = _coverBytes != null && _coverBytes!.isNotEmpty;
     setState(() {
       _nameError =
       nameOk ? null : 'El nombre debe tener al menos 3 caracteres.';
       _descriptionError =
       descOk ? null : 'Añade una descripción un poco más larga.';
     });
-    return nameOk && descOk;
+    if (!coverOk) {
+      _showSnackBar('Debes añadir una portada para el torneo.', isError: true);
+    }
+    return nameOk && descOk && coverOk;
   }
 
   bool _validateStep1() {
@@ -246,6 +261,8 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
 
   Future<void> _handleSubmit() async {
     final maxParticipants = int.tryParse(_maxParticipantsController.text.trim()) ?? 0;
+    final extraAdminIds =
+        _extraAdmins.map((entry) => entry.uid).toList(growable: false);
     final success = await _createTournamentController.createTournament(
       name: _nameController.text,
       description: _descriptionController.text,
@@ -255,7 +272,9 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       maxParticipants: maxParticipants,
       location: _locationController.text,
       accessType: _selectedAccessType!,
-      additionalInfo: _additionalInfoController.text,
+      additionalInfo: '',
+      extraAdminIds: extraAdminIds,
+      coverImage: _coverImage,
     );
 
      if (mounted) Navigator.pop(context);
@@ -342,6 +361,104 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     setState(() {
       _selectedDate = picked;
       _dateError = null;
+    });
+  }
+
+  Future<void> _pickCover() async {
+    FocusScope.of(context).unfocus();
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1600,
+      );
+      if (picked == null) return;
+      final bytes = await picked.readAsBytes();
+      if (!mounted) return;
+      setState(() {
+        _coverImage = picked;
+        _coverBytes = bytes;
+      });
+    } catch (_) {
+      _showSnackBar('No se pudo seleccionar la imagen.', isError: true);
+    }
+  }
+
+  void _removeCover() {
+    setState(() {
+      _coverImage = null;
+      _coverBytes = null;
+    });
+  }
+
+  Future<void> _addAdmin() async {
+    if (_isAddingAdmin) return;
+    FocusScope.of(context).unfocus();
+    final raw = _adminController.text.trim();
+    if (raw.isEmpty) return;
+
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUid == null) {
+      setState(() => _adminError = 'Debes iniciar sesión para asignar admins.');
+      return;
+    }
+
+    setState(() {
+      _isAddingAdmin = true;
+      _adminError = null;
+    });
+
+    try {
+      final userService = FirestoreUserService();
+
+      String? uid;
+      String label = raw;
+
+      final cleanRaw = raw.startsWith('@') ? raw.substring(1) : raw;
+      final userByNickname = await userService.getUserByNickname(cleanRaw);
+
+      if (userByNickname != null) {
+        uid = userByNickname.uid;
+        label = '@${userByNickname.nickname}';
+      } else {
+        final exists = await userService.userExists(raw);
+        if (!exists) {
+          setState(() => _adminError = 'No existe un usuario con ese nickname o UID.');
+          return;
+        }
+        uid = raw;
+        final user = await userService.getUser(raw);
+        label = user != null ? '@${user.nickname}' : raw;
+      }
+
+      if (uid == currentUid) {
+        setState(() => _adminError = 'Ya eres admin por defecto.');
+        return;
+      }
+
+      if (_extraAdmins.any((e) => e.uid == uid)) {
+        setState(() => _adminError = 'Ese usuario ya está añadido.');
+        return;
+      }
+
+      setState(() {
+        _extraAdmins.add(_AdminEntry(uid: uid!, label: label));
+        _adminController.clear();
+        _adminError = null;
+      });
+    } catch (_) {
+      setState(() => _adminError = 'No se pudo añadir el admin.');
+    } finally {
+      if (mounted) {
+        setState(() => _isAddingAdmin = false);
+      }
+    }
+  }
+
+  void _removeAdmin(String uid) {
+    setState(() {
+      _extraAdmins.removeWhere((e) => e.uid == uid);
+      _adminError = null;
     });
   }
 
@@ -684,6 +801,8 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       subtitle: 'Dale una identidad a tu torneo. El nombre es lo primero que verán los participantes.',
       child: Column(
         children: [
+          _buildCoverPicker(),
+          const SizedBox(height: 18),
           _GlassField(
             controller: _nameController,
             hint: 'Ej. Liga Primavera 2026',
@@ -874,20 +993,11 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       icon: Icons.sticky_note_2_outlined,
       title: 'Casi listo 🎉',
       subtitle:
-      'Añade notas opcionales y revisa el resumen antes de crear el torneo.',
+      'Revisa el resumen antes de crear el torneo.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _GlassField(
-            controller: _additionalInfoController,
-            hint:
-            'Premios, normas especiales, contacto del organizador...',
-            icon: Icons.sticky_note_2_outlined,
-            label: 'Notas adicionales (opcional)',
-            maxLines: 3,
-            minLines: 3,
-            capitalization: TextCapitalization.sentences,
-          ),
+          _buildAdminsSection(),
           const SizedBox(height: 24),
 
           // Resumen
@@ -906,6 +1016,282 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
                 : _maxParticipantsController.text.trim(),
             access: _selectedAccessType?.label ?? '—',
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCoverPicker() {
+    final hasImage = _coverBytes != null && _coverBytes!.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _FieldLabel(label: 'Portada'),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Material(
+              color: Colors.white.withValues(alpha: 0.06),
+              child: InkWell(
+                onTap: _pickCover,
+                child: Container(
+                  height: 150,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      width: 1,
+                    ),
+                  ),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (hasImage)
+                        Image.memory(_coverBytes!, fit: BoxFit.cover)
+                      else
+                        Container(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Color(0xFF2B2B53),
+                                Color(0xFF12122E),
+                              ],
+                            ),
+                          ),
+                          child: Center(
+                            child: Opacity(
+                              opacity: 0.85,
+                              child: Image.asset(
+                                'assets/images/LOGO.png',
+                                width: 56,
+                                height: 56,
+                              ),
+                            ),
+                          ),
+                        ),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.05),
+                              Colors.black.withValues(alpha: 0.35),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.center,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            color: Colors.black.withValues(alpha: 0.35),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.12),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.photo_library_outlined,
+                                  color: Colors.white, size: 18),
+                              const SizedBox(width: 10),
+                              Text(
+                                hasImage ? 'Cambiar portada' : 'Elegir portada',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (hasImage)
+                        Positioned(
+                          top: 10,
+                          right: 10,
+                          child: InkWell(
+                            onTap: _removeCover,
+                            borderRadius: BorderRadius.circular(999),
+                            child: Container(
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.black.withValues(alpha: 0.35),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.14),
+                                ),
+                              ),
+                              child: const Icon(Icons.close_rounded,
+                                  color: Colors.white, size: 18),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAdminsSection() {
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    final showCreatorChip = currentUid != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.admin_panel_settings_outlined,
+                color: Color(0xFF00D4FF), size: 18),
+            const SizedBox(width: 10),
+            Text(
+              'Administradores',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.9),
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'El creador siempre será admin. Añade otros por nickname o UID.',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.55),
+            fontSize: 12.5,
+            height: 1.3,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: _GlassField(
+                controller: _adminController,
+                hint: 'Nickname o UID',
+                icon: Icons.person_add_alt_1_rounded,
+                label: 'Añadir admin (opcional)',
+                onChanged: (_) => setState(() => _adminError = null),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 48,
+          child: _OutlineButton(
+            label: _isAddingAdmin ? '...' : 'Añadir',
+            icon: Icons.add_rounded,
+            onPressed: _isAddingAdmin ? () {} : _addAdmin,
+          ),
+        ),
+
+        if (_adminError != null) ...[
+          const SizedBox(height: 8),
+          _ErrorText(message: _adminError!),
+        ],
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            if (showCreatorChip)
+              const _AdminChip(
+                label: 'Tú (creador)',
+                isFixed: true,
+              ),
+            ..._extraAdmins.map(
+              (admin) => _AdminChip(
+                label: admin.label,
+                isFixed: false,
+                onRemove: () => _removeAdmin(admin.uid),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _AdminEntry {
+  const _AdminEntry({required this.uid, required this.label});
+  final String uid;
+  final String label;
+}
+
+class _AdminChip extends StatelessWidget {
+  const _AdminChip({
+    required this.label,
+    required this.isFixed,
+    this.onRemove,
+  });
+
+  final String label;
+  final bool isFixed;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: Colors.white.withValues(alpha: 0.06),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.12),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.verified_user_outlined,
+              color: Color(0xFFB0A8FF), size: 16),
+          const SizedBox(width: 8),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 200),
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          if (!isFixed) ...[
+            const SizedBox(width: 8),
+            InkWell(
+              onTap: onRemove,
+              borderRadius: BorderRadius.circular(999),
+              child: const Padding(
+                padding: EdgeInsets.all(2),
+                child: Icon(Icons.close_rounded,
+                    color: Colors.white70, size: 16),
+              ),
+            ),
+          ],
         ],
       ),
     );
