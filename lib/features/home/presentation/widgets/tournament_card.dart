@@ -443,7 +443,6 @@ class _CoverHeader extends StatelessWidget {
     );
   }
 }
-
 class _CoverImage extends StatelessWidget {
   const _CoverImage({required this.url, required this.accent});
 
@@ -455,7 +454,8 @@ class _CoverImage extends StatelessWidget {
     final uri = url?.trim();
     final hasUrl = uri != null && uri.isNotEmpty;
 
-    Widget placeholder() {
+    // Widget base para el estado de carga o espera
+    Widget loadingPlaceholder() {
       return Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -468,19 +468,20 @@ class _CoverImage extends StatelessWidget {
           ),
         ),
         child: Center(
-          child: Opacity(
-            opacity: 0.85,
-            child: Image.asset(
-              'assets/images/LOGO.png',
-              width: 44,
-              height: 44,
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(accent),
+              strokeWidth: 2.5,
             ),
           ),
         ),
       );
     }
 
-    if (!hasUrl) return placeholder();
+    // Si no hay URL, ahora mostramos el cargando en lugar del logo
+    if (!hasUrl) return loadingPlaceholder();
 
     return Image.network(
       uri,
@@ -488,13 +489,12 @@ class _CoverImage extends StatelessWidget {
       filterQuality: FilterQuality.low,
       loadingBuilder: (context, child, progress) {
         if (progress == null) return child;
-        return placeholder();
+        return loadingPlaceholder();
       },
-      errorBuilder: (context, error, stackTrace) => placeholder(),
+      errorBuilder: (context, error, stackTrace) => loadingPlaceholder(),
     );
   }
 }
-
 /// Badge del deporte con shimmer animado
 class _AnimatedSportBadge extends StatelessWidget {
   const _AnimatedSportBadge({
