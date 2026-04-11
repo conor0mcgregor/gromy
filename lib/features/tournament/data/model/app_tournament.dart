@@ -22,6 +22,7 @@ class AppTournament {
     this.organizerEmail,
     this.organizerDisplayName,
     this.participantCount = 0,
+    this.membersPerTeam,
   });
 
   final String id;
@@ -46,6 +47,8 @@ class AppTournament {
   final String? organizerEmail;
   final String? organizerDisplayName;
   final int participantCount;
+  final int? membersPerTeam;
+
 
   Map<String, dynamic> toMap() {
     return {
@@ -55,6 +58,7 @@ class AppTournament {
       'allInformation': allInformation,
       'scheduledAt': Timestamp.fromDate(scheduledAt),
       'maxParticipants': maxParticipants,
+      'membersPerTeam': membersPerTeam,
       'location': location,
       'sport': sport.name,
       'accessType': accessType.name,
@@ -78,6 +82,7 @@ class AppTournament {
       allInformation: map['allInformation'] as String? ?? '',
       scheduledAt: _dateFromValue(map['scheduledAt']),
       maxParticipants: (map['maxParticipants'] as num?)?.toInt() ?? 0,
+      membersPerTeam: (map['membersPerTeam'] as num?)?.toInt() ?? 0,
       location: map['location'] as String? ?? '',
       sport: TournamentSport.fromValue(map['sport'] as String? ?? ''),
       accessType: TournamentAccessType.fromValue(
@@ -116,6 +121,7 @@ class AppTournament {
     String? organizerEmail,
     String? organizerDisplayName,
     int? participantCount,
+    int? membersPerTeam,
   }) {
     return AppTournament(
       id: id ?? this.id,
@@ -136,6 +142,7 @@ class AppTournament {
       organizerEmail: organizerEmail ?? this.organizerEmail,
       organizerDisplayName: organizerDisplayName ?? this.organizerDisplayName,
       participantCount: participantCount ?? this.participantCount,
+      membersPerTeam: membersPerTeam ?? this.membersPerTeam,
     );
   }
 

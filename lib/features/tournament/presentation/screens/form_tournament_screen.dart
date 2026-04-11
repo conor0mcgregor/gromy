@@ -45,6 +45,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
   final _completeInformation = TextEditingController();
   final _locationController = TextEditingController();
   final _maxParticipantsController = TextEditingController();
+  final _membersPerTeamController = TextEditingController();
   final _adminController = TextEditingController();
   DateTime? _selectedDate;
   TournamentSport? _selectedSport;
@@ -66,6 +67,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
   String? _locationError;
   String? _dateError;
   String? _maxParticipantsError;
+  String? _membersPerTeamError;
   String? _sportError;
   String? _accessTypeError;
 
@@ -84,7 +86,10 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
   @override
   void initState() {
     super.initState();
-    _createTournamentController = CreateTournamentController();
+    _createTournamentController = CreateTournamentController()
+      ..addListener(() {
+        if (mounted) setState(() {});
+      });
 
     _fadeController = AnimationController(
         duration: const Duration(milliseconds: 700), vsync: this);
@@ -242,25 +247,47 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
 
   bool _validateStep3() {
     final maxP = int.tryParse(_maxParticipantsController.text.trim());
+    final membersPerTeam = int.tryParse(_membersPerTeamController.text.trim());
+
     final maxOk = maxP != null && maxP >= 2;
+    final membersOk = membersPerTeam != null && membersPerTeam >= 2;
+    final relationOk = maxOk && membersOk && membersPerTeam <= maxP;
     final accessOk = _selectedAccessType != null;
+
     setState(() {
+      // Validación de participantes máximos
       _maxParticipantsError = maxP == null
           ? 'Escribe un número de participantes.'
           : !maxOk
-          ? 'Hacen falta al menos 2 participantes.'
+          ? 'Debe haber al menos 2 participantes.'
           : null;
+
+      // Validación de miembros por equipo
+      _membersPerTeamError = membersPerTeam == null
+          ? 'Escribe cuántos miembros tendrá cada equipo.'
+          : !membersOk
+          ? 'Cada equipo debe tener al menos 2 miembros.'
+          : !relationOk
+          ? 'Los miembros por equipo no pueden superar el total de participantes.'
+          : null;
+
+      // Validación de tipo de acceso
       _accessTypeError = accessOk ? null : 'Indica quién puede apuntarse.';
     });
-    return maxOk && accessOk;
+
+    return maxOk && membersOk && relationOk && accessOk;
   }
+
 
   // ──────────────────────────────────────────────────────────────
   //  Submit final
   // ──────────────────────────────────────────────────────────────
 
   Future<void> _handleSubmit() async {
+    if (_isSubmitting) return;
+
     final maxParticipants = int.tryParse(_maxParticipantsController.text.trim()) ?? 0;
+    final membersPerTeam = int.tryParse(_membersPerTeamController.text.trim()) ?? 0;
     final extraAdminIds =
         _extraAdmins.map((entry) => entry.uid).toList(growable: false);
     final success = await _createTournamentController.createTournament(
@@ -270,20 +297,19 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       sport: _selectedSport!,
       scheduledAt: _selectedDate!,
       maxParticipants: maxParticipants,
+      membersPerTeam: membersPerTeam,
       location: _locationController.text,
       accessType: _selectedAccessType!,
-      additionalInfo: '',
       extraAdminIds: extraAdminIds,
       coverImage: _coverImage,
     );
 
-     if (mounted) Navigator.pop(context);
-
-     if (success) {
-       _showSnackBar('Torneo creado con éxito!', isError: false);
-     } else {
-       _showSnackBar('Error al crear el torneo.', isError: true);
-     }
+    if (success) {
+      if (mounted) Navigator.pop(context);
+      _showSnackBar('Torneo creado con éxito!', isError: false);
+    } else {
+      _showSnackBar(_createTournamentController.errorMessage ?? 'Error al crear el torneo.', isError: true);
+    }
   }
 
   Future<void> _confirmDiscard() async {
@@ -774,7 +800,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
         Expanded(
           child: GradientButton(
             label: isLast
-                ? 'Crear torneo'
+                ? (_isSubmitting ? 'Creando torneo...' : 'Crear torneo')
                 : 'Siguiente',
             icon: isLast
                 ? Icons.emoji_events_rounded
@@ -942,6 +968,10 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
   // ══════════════════════════════════════════════════════════════
 
   Widget _buildStep3() {
+    if (_selectedSport == null) return const SizedBox.shrink();
+
+    final isTeamSport = _isTeamSport(_selectedSport!);
+
     return _StepCard(
       icon: Icons.groups_2_rounded,
       title: 'Participantes',
@@ -954,12 +984,25 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
             controller: _maxParticipantsController,
             hint: 'Ej. 16',
             icon: Icons.groups_2_rounded,
-            label: 'Número máximo de participantes',
+            label: isTeamSport? 'Número máximo de equipos' : 'Número máximo de participantes',
             errorText: _maxParticipantsError,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             onChanged: (_) => setState(() => _maxParticipantsError = null),
           ),
+          const SizedBox(height: 16),
+          if (isTeamSport) ...[
+            _GlassField(
+              controller: _membersPerTeamController,
+              hint: 'Ej. 5',
+              icon: Icons.group,
+              label: 'Miembros por equipo',
+              errorText: _membersPerTeamError,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              onChanged: (_) => setState(() => _membersPerTeamError = null),
+            ),
+          ],
           const SizedBox(height: 20),
           _FieldLabel(label: '¿Quién puede apuntarse?'),
           const SizedBox(height: 10),
@@ -1231,6 +1274,12 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
         ),
       ],
     );
+  }
+
+  bool _isTeamSport(TournamentSport sport) {
+    return sport == TournamentSport.football ||
+        sport == TournamentSport.basketball ||
+        sport == TournamentSport.volleyball;
   }
 }
 

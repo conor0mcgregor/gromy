@@ -129,8 +129,8 @@ class _GradientButtonState extends State<GradientButton>
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(_borderRadius),
                   gradient: LinearGradient(
-                    begin: begin ?? Alignment.topLeft,
-                    end: end ?? Alignment.bottomRight,
+                    begin: begin,
+                    end: end,
                     colors: _disabled
                         ? _colors.map((c) => c.withValues(alpha: 0.5)).toList()
                         : _colors,
@@ -183,13 +183,15 @@ class _GradientButtonState extends State<GradientButton>
             ),
           ),
           const SizedBox(width: 10),
-          Text(
-            widget.label,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.8),
-              fontSize: _fontSize,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.2,
+          Flexible(
+            child: Text(
+              widget.label,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: _fontSize,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.2,
+              ),
             ),
           ),
         ],

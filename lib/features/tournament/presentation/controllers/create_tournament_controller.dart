@@ -49,8 +49,8 @@ class CreateTournamentController extends ChangeNotifier {
     required TournamentSport sport,
     required TournamentAccessType accessType,
     List<String> extraAdminIds = const [],
-    String? additionalInfo,
     XFile? coverImage,
+    int? membersPerTeam,
   }) async {
     _setSubmitting(true);
     _clearError();
@@ -66,7 +66,6 @@ class CreateTournamentController extends ChangeNotifier {
       final normalizedDescription = description.trim();
       final normalizedLocation = location.trim();
       final normalizedAllInfo = allInformation.trim();
-      final normalizedInfo = _normalizeOptional(additionalInfo);
       final normalizedDate = DateTime(
         scheduledAt.year,
         scheduledAt.month,
@@ -85,6 +84,11 @@ class CreateTournamentController extends ChangeNotifier {
 
       if (maxParticipants < 2) {
         _errorMessage = 'El máximo de participantes debe ser al menos 2.';
+        return false;
+      }
+
+      if (membersPerTeam != null && membersPerTeam < 2) {
+        _errorMessage = 'El número de miembros por equipo debe ser al menos 2.';
         return false;
       }
 
@@ -107,6 +111,7 @@ class CreateTournamentController extends ChangeNotifier {
         allInformation: normalizedAllInfo,
         scheduledAt: normalizedDate,
         maxParticipants: maxParticipants,
+        membersPerTeam: membersPerTeam,
         location: normalizedLocation,
         sport: sport,
         accessType: accessType,
@@ -115,7 +120,6 @@ class CreateTournamentController extends ChangeNotifier {
         organizerDisplayName: _normalizeOptional(currentUser.displayName),
         adminIds: allAdminIds,
         participantCount: 0,
-        additionalInfo: normalizedInfo,
         createdAt: now,
         updatedAt: now,
       );
