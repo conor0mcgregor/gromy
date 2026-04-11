@@ -23,6 +23,13 @@ class AppTournament {
     this.organizerDisplayName,
     this.participantCount = 0,
     this.membersPerTeam,
+    this.latitude,
+    this.longitude,
+    this.registrationDeadline,
+    this.bracketPublishDate,
+    this.contactEmail,
+    this.contactPhone,
+    this.contactLinks = const [],
   });
 
   final String id;
@@ -49,6 +56,21 @@ class AppTournament {
   final int participantCount;
   final int? membersPerTeam;
 
+  /// Coordenadas geográficas del lugar del torneo.
+  final double? latitude;
+  final double? longitude;
+
+  /// Fecha límite de inscripción.
+  final DateTime? registrationDeadline;
+
+  /// Fecha de publicación de cuadros/enfrentamientos.
+  final DateTime? bracketPublishDate;
+
+  /// Datos de contacto del organizador.
+  final String? contactEmail;
+  final String? contactPhone;
+  final List<String> contactLinks;
+
 
   Map<String, dynamic> toMap() {
     return {
@@ -60,6 +82,8 @@ class AppTournament {
       'maxParticipants': maxParticipants,
       'membersPerTeam': membersPerTeam,
       'location': location,
+      'latitude': latitude,
+      'longitude': longitude,
       'sport': sport.name,
       'accessType': accessType.name,
       'organizerUid': organizerUid,
@@ -69,6 +93,15 @@ class AppTournament {
       'participantCount': participantCount,
       'portadaUrl': portadaUrl,
       'additionalInfo': additionalInfo,
+      'registrationDeadline': registrationDeadline != null
+          ? Timestamp.fromDate(registrationDeadline!)
+          : null,
+      'bracketPublishDate': bracketPublishDate != null
+          ? Timestamp.fromDate(bracketPublishDate!)
+          : null,
+      'contactEmail': contactEmail,
+      'contactPhone': contactPhone,
+      'contactLinks': contactLinks,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -84,6 +117,8 @@ class AppTournament {
       maxParticipants: (map['maxParticipants'] as num?)?.toInt() ?? 0,
       membersPerTeam: (map['membersPerTeam'] as num?)?.toInt() ?? 0,
       location: map['location'] as String? ?? '',
+      latitude: (map['latitude'] as num?)?.toDouble(),
+      longitude: (map['longitude'] as num?)?.toDouble(),
       sport: TournamentSport.fromValue(map['sport'] as String? ?? ''),
       accessType: TournamentAccessType.fromValue(
         map['accessType'] as String? ?? '',
@@ -97,6 +132,14 @@ class AppTournament {
       participantCount: (map['participantCount'] as num?)?.toInt() ?? 0,
       portadaUrl: map['portadaUrl'] as String?,
       additionalInfo: map['additionalInfo'] as String?,
+      registrationDeadline: _nullableDateFromValue(map['registrationDeadline']),
+      bracketPublishDate: _nullableDateFromValue(map['bracketPublishDate']),
+      contactEmail: map['contactEmail'] as String?,
+      contactPhone: map['contactPhone'] as String?,
+      contactLinks:
+          (map['contactLinks'] as List<dynamic>? ?? const <dynamic>[])
+              .map((value) => value.toString())
+              .toList(),
       createdAt: _dateFromValue(map['createdAt']),
       updatedAt: _dateFromValue(map['updatedAt']),
     );
@@ -122,6 +165,13 @@ class AppTournament {
     String? organizerDisplayName,
     int? participantCount,
     int? membersPerTeam,
+    double? latitude,
+    double? longitude,
+    DateTime? registrationDeadline,
+    DateTime? bracketPublishDate,
+    String? contactEmail,
+    String? contactPhone,
+    List<String>? contactLinks,
   }) {
     return AppTournament(
       id: id ?? this.id,
@@ -143,6 +193,13 @@ class AppTournament {
       organizerDisplayName: organizerDisplayName ?? this.organizerDisplayName,
       participantCount: participantCount ?? this.participantCount,
       membersPerTeam: membersPerTeam ?? this.membersPerTeam,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      registrationDeadline: registrationDeadline ?? this.registrationDeadline,
+      bracketPublishDate: bracketPublishDate ?? this.bracketPublishDate,
+      contactEmail: contactEmail ?? this.contactEmail,
+      contactPhone: contactPhone ?? this.contactPhone,
+      contactLinks: contactLinks ?? this.contactLinks,
     );
   }
 
@@ -154,5 +211,12 @@ class AppTournament {
       return value;
     }
     return DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  static DateTime? _nullableDateFromValue(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    return null;
   }
 }

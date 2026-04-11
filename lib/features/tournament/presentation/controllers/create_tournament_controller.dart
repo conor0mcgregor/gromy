@@ -51,6 +51,13 @@ class CreateTournamentController extends ChangeNotifier {
     List<String> extraAdminIds = const [],
     XFile? coverImage,
     int? membersPerTeam,
+    double? latitude,
+    double? longitude,
+    DateTime? registrationDeadline,
+    DateTime? bracketPublishDate,
+    String? contactEmail,
+    String? contactPhone,
+    List<String> contactLinks = const [],
   }) async {
     _setSubmitting(true);
     _clearError();
@@ -113,6 +120,8 @@ class CreateTournamentController extends ChangeNotifier {
         maxParticipants: maxParticipants,
         membersPerTeam: membersPerTeam,
         location: normalizedLocation,
+        latitude: latitude,
+        longitude: longitude,
         sport: sport,
         accessType: accessType,
         organizerUid: currentUser.uid,
@@ -120,6 +129,11 @@ class CreateTournamentController extends ChangeNotifier {
         organizerDisplayName: _normalizeOptional(currentUser.displayName),
         adminIds: allAdminIds,
         participantCount: 0,
+        registrationDeadline: registrationDeadline,
+        bracketPublishDate: bracketPublishDate,
+        contactEmail: contactEmail?.trim(),
+        contactPhone: contactPhone?.trim(),
+        contactLinks: contactLinks,
         createdAt: now,
         updatedAt: now,
       );
