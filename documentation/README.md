@@ -35,7 +35,9 @@ El estado actual del codigo refleja principalmente la fase inicial del proyecto 
 - pantallas base para inicio, eventos, notificaciones, perfil y creacion de torneos;
 - bateria inicial de pruebas unitarias y widget tests.
 
-Todavia no estan implementadas de forma completa las funcionalidades nucleares de torneos definidas en el backlog, como inscripcion, buscador avanzado, geolocalizacion, gestion de calendario, resultados, equipos, privacidad completa o monetizacion.
+Todavia no estan implementadas de forma completa las funcionalidades nucleares de torneos definidas en el backlog, como inscripcion, buscador avanzado, gestion de calendario, resultados, equipos, privacidad completa o monetizacion.
+
+La geolocalizacion del formulario de torneos si cuenta ya con una implementacion funcional de mapa, seleccion manual por tap y geocodificacion, documentada aparte en la guia tecnica de geolocalizacion.
 
 ## Objetivos del producto
 
@@ -65,6 +67,9 @@ Construir una aplicacion multiplataforma para organizar, descubrir y gestionar t
 - Cloud Firestore
 - Google Sign-In
 - Sign in with Apple
+- Stadia Maps
+- MapTiler Geocoding
+- Geolocator
 
 ### Calidad y soporte al desarrollo
 
@@ -111,9 +116,24 @@ flowchart TD
     K["AppShell"] --> C
 ```
 
+## Mapa y geolocalizacion
+
+La implementacion actual del mapa del formulario de torneos usa:
+
+- `flutter_map` para renderizado;
+- Stadia Maps para tiles;
+- OpenMapTiles y OpenStreetMap como base cartografica;
+- MapTiler para geocodificacion y geocodificacion inversa;
+- `geolocator` para obtener la posicion actual del dispositivo.
+
+Las API keys del sistema de mapa estan centralizadas en:
+
+- `lib/features/tournament/config/map_provider_config.dart`
+
 ## Documentacion disponible
 
 - [Arquitectura](C:\Users\ossam\Desktop\ULPGC\3year\2SEMESTRE\PS\proyecto%20PS\gromy\documentation\architecture.md)
+- [Geolocalizacion y mapas](C:\Users\ossam\Desktop\ULPGC\3year\2SEMESTRE\PS\proyecto%20PS\gromy\documentation\geolocation.md)
 - [Backlog del producto](C:\Users\ossam\Desktop\ULPGC\3year\2SEMESTRE\PS\proyecto%20PS\gromy\documentation\product-backlog.md)
 - [Plan Scrum](C:\Users\ossam\Desktop\ULPGC\3year\2SEMESTRE\PS\proyecto%20PS\gromy\documentation\scrum-plan.md)
 

@@ -218,6 +218,98 @@ Debe utilizarse para notificaciones push, siempre coordinadas desde backend y no
 
 Debe incorporarse antes de abrir el sistema a usuarios reales para reducir abuso automatizado sobre Firestore y Functions.
 
+## Arquitectura del mapa y geolocalizacion
+
+La geolocalizacion del formulario de torneos sigue una separacion por responsabilidades coherente con la arquitectura por features del proyecto.
+
+### Objetivo del flujo actual
+
+Permitir que el usuario:
+
+- vea un mapa estilizado y estable;
+- centre la camara en su zona actual sin obligarle a seleccionar ese punto;
+- seleccione manualmente una ubicacion solo mediante `tap`;
+- mantenga la seleccion aunque siga explorando el mapa.
+
+### Componentes tecnicos
+
+- `presentation/screens/form/steps/step3_geolocation.dart`
+- `presentation/screens/form/widgets/location_picker_map.dart`
+- `presentation/controllers/location_picker_controller.dart`
+- `data/services/location_service.dart`
+- `data/services/geocoding_service.dart`
+- `config/map_provider_config.dart`
+
+### Responsabilidad por capa
+
+#### Configuracion
+
+`map_provider_config.dart` centraliza:
+
+- API keys;
+- URL de tiles de Stadia Maps;
+- configuracion base de MapTiler.
+
+#### Presentacion
+
+`Step3Geolocation` compone el buscador y el mapa.
+
+`LocationPickerMap` renderiza `FlutterMap`, escucha el `onTap` y dibuja el `MarkerLayer`.
+
+#### Logica de estado
+
+`LocationPickerController` coordina:
+
+- estado `loading`, `error` y `success`;
+- centrado inicial del mapa;
+- seleccion manual por `tap`;
+- persistencia visual del marcador seleccionado.
+
+#### Infraestructura
+
+`LocationService` encapsula `geolocator` para permisos y posicion del dispositivo.
+
+`GeocodingService` encapsula MapTiler para:
+
+- busqueda por texto;
+- geocodificacion inversa tras seleccionar un punto.
+
+### Flujo de seleccion manual
+
+```mermaid
+sequenceDiagram
+    participant U as Usuario
+    participant M as LocationPickerMap
+    participant LPC as LocationPickerController
+    participant FC as TournamentFormController
+    participant GS as GeocodingService
+
+    U->>M: Tap sobre el mapa
+    M->>LPC: handleMapTap(point)
+    LPC->>LPC: Guarda selectedPoint
+    LPC->>FC: onMapTap(lat, lng)
+    FC->>GS: reverseGeocode(lat, lng)
+    GS-->>FC: direccion legible
+    FC-->>M: estado actualizado
+    M->>M: Renderiza MarkerLayer en las coordenadas elegidas
+```
+
+### Decisiones de UX reflejadas en arquitectura
+
+- mover la camara no cambia la seleccion;
+- solo `onTap` modifica `selectedPoint`;
+- el marcador no esta fijo en el centro de pantalla;
+- el marcador solo aparece si ya existe una ubicacion elegida;
+- recentrar en la posicion actual no debe pisar automaticamente una seleccion manual previa.
+
+### Ubicacion actual de las API keys del mapa
+
+Las API keys de Stadia Maps y MapTiler estan hoy en:
+
+- `lib/features/tournament/config/map_provider_config.dart`
+
+Esto evita duplicacion de secretos en widgets y servicios, aunque en produccion deberian migrarse a variables por entorno.
+
 ## Modelo de crecimiento por dominios
 
 Para escalar sin perder claridad, se recomienda organizar la evolucion del sistema por dominios funcionales.

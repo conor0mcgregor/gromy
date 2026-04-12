@@ -7,12 +7,13 @@ class GlassField extends StatelessWidget {
     super.key,
     required this.controller,
     required this.hint,
-    required this.icon,
+    this.icon, // <-- ¡Ahora es opcional!
     required this.label,
     this.errorText,
     this.maxLines = 1,
     this.minLines = 1,
     this.keyboardType,
+    this.textInputAction, // <-- Añadido para controlar el teclado
     this.inputFormatters,
     this.capitalization = TextCapitalization.none,
     this.onChanged,
@@ -20,12 +21,13 @@ class GlassField extends StatelessWidget {
 
   final TextEditingController controller;
   final String hint;
-  final IconData icon;
+  final IconData? icon; // <-- Nullable
   final String label;
   final String? errorText;
   final int maxLines;
   final int minLines;
   final TextInputType? keyboardType;
+  final TextInputAction? textInputAction;
   final List<TextInputFormatter>? inputFormatters;
   final TextCapitalization capitalization;
   final ValueChanged<String>? onChanged;
@@ -56,6 +58,7 @@ class GlassField extends StatelessWidget {
             maxLines: maxLines,
             minLines: minLines,
             keyboardType: keyboardType,
+            textInputAction: textInputAction,
             inputFormatters: inputFormatters,
             textCapitalization: capitalization,
             onChanged: onChanged,
@@ -66,12 +69,16 @@ class GlassField extends StatelessWidget {
                 color: Colors.white.withValues(alpha: 0.32),
                 fontSize: 14,
               ),
-              prefixIcon: Padding(
+              // Solo dibujamos el icono y su espacio si se ha proporcionado uno
+              prefixIcon: icon != null
+                  ? Padding(
                 padding: const EdgeInsets.only(left: 14, right: 10),
                 child: Icon(icon, color: Colors.white38, size: 20),
-              ),
-              prefixIconConstraints:
-                  const BoxConstraints(minWidth: 44, minHeight: 44),
+              )
+                  : null,
+              prefixIconConstraints: icon != null
+                  ? const BoxConstraints(minWidth: 44, minHeight: 44)
+                  : null,
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16, vertical: 14),
@@ -86,7 +93,6 @@ class GlassField extends StatelessWidget {
     );
   }
 }
-
 class PickerTile extends StatelessWidget {
   const PickerTile({
     super.key,
