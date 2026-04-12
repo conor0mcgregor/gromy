@@ -26,7 +26,7 @@ class LocationPickerController extends ChangeNotifier {
            ? LocationPickerStatus.success
            : LocationPickerStatus.loading,
        _message = initialPoint != null
-           ? 'Ubicación lista. Puedes afinarla moviendo el mapa.'
+           ? 'Ubicación lista. Toca otro punto del mapa si quieres cambiarla.'
            : 'Obteniendo tu ubicación actual...';
 
   final LocationService _locationService;
@@ -46,14 +46,11 @@ class LocationPickerController extends ChangeNotifier {
   LatLng? _selectedPoint;
   bool _hasBootstrapped = false;
   bool _isResolvingLocation = false;
-  bool _isInteracting = false;
-  Timer? _selectionDebounce;
 
   LocationPickerStatus get status => _status;
   bool get isLoading => _status == LocationPickerStatus.loading;
   bool get hasError => _status == LocationPickerStatus.error;
   bool get hasSelection => _selectedPoint != null;
-  bool get isInteracting => _isInteracting;
   String get message => _message;
   LocationIssue? get issue => _issue;
   LatLng get cameraCenter => _cameraCenter;
@@ -83,9 +80,6 @@ class LocationPickerController extends ChangeNotifier {
   }
 
   void syncExternalSelection(LatLng? point) {
-    _selectionDebounce?.cancel();
-    _isInteracting = false;
-
     if (point == null) {
       if (_selectedPoint == null) return;
 
@@ -93,7 +87,7 @@ class LocationPickerController extends ChangeNotifier {
       _status = LocationPickerStatus.success;
       _issue = null;
       _message =
-          'Selecciona una sugerencia o mueve el mapa para fijar el punto.';
+          'Selecciona una sugerencia o toca el mapa para fijar el punto.';
       notifyListeners();
       return;
     }
@@ -117,9 +111,7 @@ class LocationPickerController extends ChangeNotifier {
   Future<void> centerOnUserLocation() async {
     if (_isResolvingLocation) return;
 
-    _selectionDebounce?.cancel();
     _isResolvingLocation = true;
-    _isInteracting = false;
     _status = LocationPickerStatus.loading;
     _issue = null;
     _message = 'Obteniendo tu ubicación actual...';
@@ -128,17 +120,18 @@ class LocationPickerController extends ChangeNotifier {
     try {
       final result = await _locationService.getCurrentPosition();
       final point = LatLng(result.latitude, result.longitude);
+      final hadSelection = _selectedPoint != null;
 
-      _selectedPoint = point;
       _cameraCenter = point;
       _zoom = focusedZoom;
       _status = LocationPickerStatus.success;
       _issue = null;
-      _message = 'Mapa centrado en tu ubicación actual.';
+      _message = hadSelection
+          ? 'Mapa centrado en tu ubicación actual. La selección previa no cambió.'
+          : 'Mapa centrado en tu ubicación actual. Toca el punto exacto para seleccionarlo.';
       notifyListeners();
 
       _moveMap(point, focusedZoom, id: 'device-location');
-      await _onLocationConfirmed(point);
     } on LocationException catch (error) {
       _status = LocationPickerStatus.error;
       _issue = error.issue;
@@ -170,42 +163,14 @@ class LocationPickerController extends ChangeNotifier {
   }
 
   void handleMapTap(LatLng point) {
-    _selectionDebounce?.cancel();
-    _isInteracting = false;
-    _cameraCenter = point;
-    _zoom = focusedZoom;
-    _moveMap(point, focusedZoom, id: 'map-tap');
     unawaited(
-      _commitSelection(point, message: 'Ubicación actualizada desde el mapa.'),
+      _commitSelection(point, message: 'Ubicación seleccionada en el mapa.'),
     );
   }
 
   void handlePositionChanged(MapCamera camera, bool hasGesture) {
     _cameraCenter = camera.center;
     _zoom = camera.zoom;
-
-    if (!hasGesture) {
-      return;
-    }
-
-    if (!_isInteracting) {
-      _isInteracting = true;
-      _status = LocationPickerStatus.success;
-      _issue = null;
-      _message = 'Mueve el mapa y suéltalo para fijar el punto exacto.';
-      notifyListeners();
-    }
-
-    _selectionDebounce?.cancel();
-    _selectionDebounce = Timer(const Duration(milliseconds: 280), () {
-      _isInteracting = false;
-      unawaited(
-        _commitSelection(
-          _cameraCenter,
-          message: 'Ubicación fijada en el centro del mapa.',
-        ),
-      );
-    });
   }
 
   Future<void> handleIssueAction() async {
@@ -251,7 +216,6 @@ class LocationPickerController extends ChangeNotifier {
 
   @override
   void dispose() {
-    _selectionDebounce?.cancel();
     mapController.dispose();
     super.dispose();
   }

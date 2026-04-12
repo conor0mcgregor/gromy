@@ -98,7 +98,7 @@ class _Step3GeolocationState extends State<Step3Geolocation> {
           icon: Icons.location_on_rounded,
           title: 'Geolocalización',
           subtitle:
-              'Busca una dirección o mueve el mapa para dejar el pin centrado exactamente donde debe quedar.',
+              'Busca una dirección o toca el mapa para colocar el marcador exactamente donde debe quedar.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -161,7 +161,7 @@ class _MapFooter extends StatelessWidget {
           SizedBox(width: 8),
           Expanded(
             child: Text(
-              'La dirección y las coordenadas se actualizarán al fijar una ubicación válida.',
+              'La dirección y las coordenadas se actualizarán cuando toques una ubicación válida en el mapa.',
               style: TextStyle(
                 color: Color(0xFF64748B),
                 fontSize: 11.8,

@@ -315,6 +315,9 @@ class TournamentFormController extends ChangeNotifier {
     if (address != null && address.trim().isNotEmpty) {
       locationController.text = address;
       locationError = null;
+    } else {
+      locationController.text =
+          'Ubicación seleccionada (${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)})';
     }
 
     notifyListeners();

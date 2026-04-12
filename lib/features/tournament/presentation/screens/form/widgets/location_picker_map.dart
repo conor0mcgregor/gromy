@@ -65,6 +65,18 @@ class LocationPickerMap extends StatelessWidget {
                           duration: Duration(milliseconds: 120),
                         ),
                       ),
+                      if (controller.selectedPoint != null)
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              point: controller.selectedPoint!,
+                              width: 96,
+                              height: 118,
+                              alignment: Alignment.topCenter,
+                              child: const _DynamicLocationPin(),
+                            ),
+                          ],
+                        ),
                       RichAttributionWidget(
                         alignment: AttributionAlignment.bottomLeft,
                         showFlutterMapAttribution: false,
@@ -117,24 +129,10 @@ class LocationPickerMap extends StatelessWidget {
                       const SizedBox(width: 10),
                       _MapActionButton(
                         icon: Icons.my_location_rounded,
-                        tooltip: 'Usar mi ubicación',
+                        tooltip: 'Centrar en mi ubicación',
                         onPressed: controller.centerOnUserLocation,
                       ),
                     ],
-                  ),
-                ),
-                const Positioned.fill(
-                  child: IgnorePointer(child: _CenterGuideline()),
-                ),
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: Align(
-                      alignment: Alignment.center,
-                      child: FractionalTranslation(
-                        translation: const Offset(0, -0.5),
-                        child: _CenteredLocationPin(),
-                      ),
-                    ),
                   ),
                 ),
                 if (controller.hasError && !controller.isLoading)
@@ -154,9 +152,9 @@ class LocationPickerMap extends StatelessWidget {
                     right: 18,
                     bottom: 54,
                     child: _MapHintCard(
-                      icon: Icons.pan_tool_alt_rounded,
+                      icon: Icons.touch_app_rounded,
                       text:
-                          'Mueve el mapa para fijar el pin en el centro o toca directamente un punto.',
+                          'Explora el mapa libremente y toca el punto exacto donde quieres colocar el torneo.',
                     ),
                   ),
                 if (controller.isLoading)
@@ -179,29 +177,8 @@ class LocationPickerMap extends StatelessWidget {
   }
 }
 
-class _CenterGuideline extends StatelessWidget {
-  const _CenterGuideline();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        width: 18,
-        height: 18,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.12),
-            width: 1.2,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CenteredLocationPin extends StatelessWidget {
-  const _CenteredLocationPin();
+class _DynamicLocationPin extends StatelessWidget {
+  const _DynamicLocationPin();
 
   @override
   Widget build(BuildContext context) {
@@ -231,7 +208,7 @@ class _CenteredLocationPin extends StatelessWidget {
           ),
           CustomPaint(
             size: const Size(96, 118),
-            painter: _CenteredLocationPinPainter(),
+            painter: _DynamicLocationPinPainter(),
           ),
           Positioned(
             top: 25,
@@ -258,7 +235,7 @@ class _CenteredLocationPin extends StatelessWidget {
   }
 }
 
-class _CenteredLocationPinPainter extends CustomPainter {
+class _DynamicLocationPinPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final path = Path()

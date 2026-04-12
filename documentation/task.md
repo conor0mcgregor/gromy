@@ -12,3 +12,4 @@
 12. foto de perfil
 13. perfil
 14. mejorar el step de allinformacion 
+15. mejorar como resumene antes de crear torneo
