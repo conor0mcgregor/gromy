@@ -10,23 +10,23 @@ import '../../data/services/geocoding_service.dart';
 /// Entrada de administrador: UID + etiqueta visible.
 class FormAdminEntry {
   const FormAdminEntry({required this.uid, required this.label});
+
   final String uid;
   final String label;
 }
 
-/// Controlador que centraliza TODO el estado del formulario de creación de
+/// Controlador que centraliza todo el estado del formulario de creación de
 /// torneos (8 pasos).
 ///
 /// SRP: gestiona únicamente los valores del formulario, la validación por paso
-/// y la búsqueda de ubicación. No contiene lógica de persistencia (esa vive en
-/// [CreateTournamentController]).
+/// y la búsqueda de ubicación. No contiene lógica de persistencia.
 class TournamentFormController extends ChangeNotifier {
   TournamentFormController({GeocodingService? geocodingService})
     : _geocodingService = geocodingService ?? GeocodingService();
 
   final GeocodingService _geocodingService;
 
-  // ── Step 0: Identidad ────────────────────────────────────────
+  // Step 0: Identidad
   final nameController = TextEditingController();
   final descriptionController = TextEditingController();
   XFile? coverImage;
@@ -34,11 +34,11 @@ class TournamentFormController extends ChangeNotifier {
   String? nameError;
   String? descriptionError;
 
-  // ── Step 1: Disciplina ───────────────────────────────────────
+  // Step 1: Disciplina
   TournamentSport? selectedSport;
   String? sportError;
 
-  // ── Step 2: Cronograma ───────────────────────────────────────
+  // Step 2: Cronograma
   DateTime? eventDate;
   DateTime? registrationDeadline;
   DateTime? bracketPublishDate;
@@ -46,7 +46,7 @@ class TournamentFormController extends ChangeNotifier {
   String? registrationDeadlineError;
   String? bracketPublishDateError;
 
-  // ── Step 3: Geolocalización ──────────────────────────────────
+  // Step 3: Geolocalización
   final locationController = TextEditingController();
   String? locationError;
   double? latitude;
@@ -54,8 +54,10 @@ class TournamentFormController extends ChangeNotifier {
   List<GeocodingResult> locationSuggestions = [];
   bool isSearchingLocation = false;
   Timer? _debounce;
+  int _locationSearchRequestId = 0;
+  int _reverseGeocodeRequestId = 0;
 
-  // ── Step 4: Logística y Privacidad ───────────────────────────
+  // Step 4: Logística y Privacidad
   final maxParticipantsController = TextEditingController();
   final membersPerTeamController = TextEditingController();
   TournamentAccessType? selectedAccessType;
@@ -63,11 +65,11 @@ class TournamentFormController extends ChangeNotifier {
   String? membersPerTeamError;
   String? accessTypeError;
 
-  // ── Step 5: Reglamento ───────────────────────────────────────
+  // Step 5: Reglamento
   final rulesController = TextEditingController();
   String? rulesError;
 
-  // ── Step 6: Staff y Soporte ──────────────────────────────────
+  // Step 6: Staff y Soporte
   final adminController = TextEditingController();
   final contactEmailController = TextEditingController();
   final contactPhoneController = TextEditingController();
@@ -79,17 +81,14 @@ class TournamentFormController extends ChangeNotifier {
   String? adminError;
   String? contactEmailError;
 
-  // ── Navegación ───────────────────────────────────────────────
+  // Navegación
   static const int totalSteps = 8;
   int currentStep = 0;
 
-  // ── Helpers para deporte ─────────────────────────────────────
   bool get isTeamSport =>
       selectedSport == TournamentSport.football ||
       selectedSport == TournamentSport.basketball ||
       selectedSport == TournamentSport.volleyball;
-
-  // ── Navegación ───────────────────────────────────────────────
 
   bool canGoNext() => validateCurrentStep();
 
@@ -99,8 +98,6 @@ class TournamentFormController extends ChangeNotifier {
       notifyListeners();
     }
   }
-
-  // ── Validación ───────────────────────────────────────────────
 
   bool validateCurrentStep() {
     switch (currentStep) {
@@ -119,7 +116,7 @@ class TournamentFormController extends ChangeNotifier {
       case 6:
         return _validateStaff();
       case 7:
-        return true; // Review — always valid
+        return true;
       default:
         return true;
     }
@@ -157,27 +154,18 @@ class TournamentFormController extends ChangeNotifier {
         ? 'La fecha debe ser hoy o en el futuro.'
         : null;
 
-    // registrationDeadline es opcional pero, si existe, debe ser antes del
-    // evento.
     if (registrationDeadline != null && eventDate != null) {
-      if (registrationDeadline!.isAfter(eventDate!)) {
-        registrationDeadlineError =
-            'El límite de inscripción debe ser antes del evento.';
-      } else {
-        registrationDeadlineError = null;
-      }
+      registrationDeadlineError = registrationDeadline!.isAfter(eventDate!)
+          ? 'El límite de inscripción debe ser antes del evento.'
+          : null;
     } else {
       registrationDeadlineError = null;
     }
 
-    // bracketPublishDate es opcional.
     if (bracketPublishDate != null && eventDate != null) {
-      if (bracketPublishDate!.isAfter(eventDate!)) {
-        bracketPublishDateError =
-            'Los cuadros deben publicarse antes del evento.';
-      } else {
-        bracketPublishDateError = null;
-      }
+      bracketPublishDateError = bracketPublishDate!.isAfter(eventDate!)
+          ? 'Los cuadros deben publicarse antes del evento.'
+          : null;
     } else {
       bracketPublishDateError = null;
     }
@@ -189,20 +177,29 @@ class TournamentFormController extends ChangeNotifier {
   }
 
   bool _validateGeolocation() {
-    final locOk = locationController.text.trim().isNotEmpty;
-    locationError = locOk ? null : '¿Dónde se juega? Indica el lugar.';
+    final hasText = locationController.text.trim().isNotEmpty;
+    final hasCoordinates = latitude != null && longitude != null;
+    final locOk = hasText && hasCoordinates;
+
+    locationError = switch ((hasText, hasCoordinates)) {
+      (false, _) => '¿Dónde se juega? Indica el lugar.',
+      (true, false) =>
+        'Selecciona una sugerencia o fija el punto en el mapa para guardar coordenadas reales.',
+      (true, true) => null,
+    };
+
     notifyListeners();
     return locOk;
   }
 
   bool _validateLogistics() {
-    final maxP = int.tryParse(maxParticipantsController.text.trim());
+    final maxParticipants = int.tryParse(maxParticipantsController.text.trim());
     final membersPerTeam = int.tryParse(membersPerTeamController.text.trim());
 
-    final maxOk = maxP != null && maxP >= 2;
+    final maxOk = maxParticipants != null && maxParticipants >= 2;
     final accessOk = selectedAccessType != null;
 
-    maxParticipantsError = maxP == null
+    maxParticipantsError = maxParticipants == null
         ? 'Escribe un número de participantes.'
         : !maxOk
         ? 'Debe haber al menos 2 participantes.'
@@ -210,7 +207,8 @@ class TournamentFormController extends ChangeNotifier {
 
     if (isTeamSport) {
       final membersOk = membersPerTeam != null && membersPerTeam >= 2;
-      final relationOk = maxOk && membersOk && membersPerTeam <= maxP;
+      final relationOk =
+          maxOk && membersOk && membersPerTeam <= maxParticipants;
 
       membersPerTeamError = membersPerTeam == null
           ? 'Escribe cuántos miembros tendrá cada equipo.'
@@ -223,12 +221,12 @@ class TournamentFormController extends ChangeNotifier {
       accessTypeError = accessOk ? null : 'Indica quién puede apuntarse.';
       notifyListeners();
       return maxOk && membersOk && relationOk && accessOk;
-    } else {
-      membersPerTeamError = null;
-      accessTypeError = accessOk ? null : 'Indica quién puede apuntarse.';
-      notifyListeners();
-      return maxOk && accessOk;
     }
+
+    membersPerTeamError = null;
+    accessTypeError = accessOk ? null : 'Indica quién puede apuntarse.';
+    notifyListeners();
+    return maxOk && accessOk;
   }
 
   bool _validateRules() {
@@ -256,31 +254,44 @@ class TournamentFormController extends ChangeNotifier {
     return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
   }
 
-  // ── Geolocalización ──────────────────────────────────────────
-
+  // Geolocalización
   void onLocationQueryChanged(String query) {
     _debounce?.cancel();
-    if (query.trim().length < 3) {
+    _locationSearchRequestId++;
+
+    latitude = null;
+    longitude = null;
+
+    final trimmed = query.trim();
+    if (trimmed.length < 3) {
       locationSuggestions = [];
+      isSearchingLocation = false;
       notifyListeners();
       return;
     }
+
     _debounce = Timer(const Duration(milliseconds: 400), () {
-      _searchLocation(query);
+      _searchLocation(trimmed);
     });
   }
 
   Future<void> _searchLocation(String query) async {
+    final requestId = ++_locationSearchRequestId;
     isSearchingLocation = true;
     notifyListeners();
 
-    locationSuggestions = await _geocodingService.search(query);
+    final results = await _geocodingService.search(query);
+    if (requestId != _locationSearchRequestId) return;
 
+    locationSuggestions = results;
     isSearchingLocation = false;
     notifyListeners();
   }
 
   void selectLocation(GeocodingResult result) {
+    _locationSearchRequestId++;
+    _reverseGeocodeRequestId++;
+
     locationController.text = result.displayName;
     latitude = result.latitude;
     longitude = result.longitude;
@@ -290,20 +301,26 @@ class TournamentFormController extends ChangeNotifier {
   }
 
   Future<void> onMapTap(double lat, double lng) async {
+    final requestId = ++_reverseGeocodeRequestId;
+
     latitude = lat;
     longitude = lng;
+    locationSuggestions = [];
+    locationError = null;
     notifyListeners();
 
     final address = await _geocodingService.reverseGeocode(lat, lng);
-    if (address != null) {
+    if (requestId != _reverseGeocodeRequestId) return;
+
+    if (address != null && address.trim().isNotEmpty) {
       locationController.text = address;
       locationError = null;
     }
+
     notifyListeners();
   }
 
-  // ── Contact links ────────────────────────────────────────────
-
+  // Contact links
   void addContactLink() {
     contactLinkControllers.add(TextEditingController());
     notifyListeners();
@@ -318,45 +335,56 @@ class TournamentFormController extends ChangeNotifier {
   }
 
   List<String> get contactLinks => contactLinkControllers
-      .map((c) => c.text.trim())
-      .where((s) => s.isNotEmpty)
+      .map((controller) => controller.text.trim())
+      .where((value) => value.isNotEmpty)
       .toList();
 
-  // ── Clearers ─────────────────────────────────────────────────
-
+  // Helpers
   void clearFieldError(String field) {
     switch (field) {
       case 'name':
         nameError = null;
+        break;
       case 'description':
         descriptionError = null;
+        break;
       case 'sport':
         sportError = null;
+        break;
       case 'eventDate':
         eventDateError = null;
+        break;
       case 'registrationDeadline':
         registrationDeadlineError = null;
+        break;
       case 'bracketPublishDate':
         bracketPublishDateError = null;
+        break;
       case 'location':
         locationError = null;
+        break;
       case 'maxParticipants':
         maxParticipantsError = null;
+        break;
       case 'membersPerTeam':
         membersPerTeamError = null;
+        break;
       case 'accessType':
         accessTypeError = null;
+        break;
       case 'rules':
         rulesError = null;
+        break;
       case 'admin':
         adminError = null;
+        break;
       case 'contactEmail':
         contactEmailError = null;
+        break;
     }
+
     notifyListeners();
   }
-
-  // ── Formatting ───────────────────────────────────────────────
 
   String formatDate(DateTime date) {
     const months = [
@@ -373,6 +401,7 @@ class TournamentFormController extends ChangeNotifier {
       'noviembre',
       'diciembre',
     ];
+
     return '${date.day} de ${months[date.month - 1]} de ${date.year}';
   }
 
@@ -388,9 +417,11 @@ class TournamentFormController extends ChangeNotifier {
     adminController.dispose();
     contactEmailController.dispose();
     contactPhoneController.dispose();
-    for (final c in contactLinkControllers) {
-      c.dispose();
+
+    for (final controller in contactLinkControllers) {
+      controller.dispose();
     }
+
     _geocodingService.dispose();
     super.dispose();
   }
