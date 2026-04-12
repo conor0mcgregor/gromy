@@ -38,6 +38,10 @@ class TournamentFormController extends ChangeNotifier {
   TournamentSport? selectedSport;
   String? sportError;
 
+  /// `true` si la disciplina elegida obliga modalidad por equipos (fútbol, etc.).
+  bool get isTeamModeLockedByDiscipline =>
+      selectedSport?.isTeamOnlyDiscipline ?? false;
+
   // Step 2: Cronograma
   DateTime? eventDate;
   DateTime? registrationDeadline;
@@ -85,10 +89,24 @@ class TournamentFormController extends ChangeNotifier {
   static const int totalSteps = 8;
   int currentStep = 0;
 
-  bool get isTeamSport =>
-      selectedSport == TournamentSport.football ||
-      selectedSport == TournamentSport.basketball ||
-      selectedSport == TournamentSport.volleyball;
+  bool isTeamSport = false;
+
+  /// Actualiza la disciplina y sincroniza [isTeamSport] con reglas por deporte.
+  void selectSport(TournamentSport sport) {
+    selectedSport = sport;
+    sportError = null;
+    if (sport.isTeamOnlyDiscipline) {
+      isTeamSport = true;
+    }
+    notifyListeners();
+  }
+
+  /// Cambia la modalidad equipos / individual (ignorado si la disciplina lo fija).
+  void setTeamTournament(bool value) {
+    if (isTeamModeLockedByDiscipline) return;
+    isTeamSport = value;
+    notifyListeners();
+  }
 
   bool canGoNext() => validateCurrentStep();
 

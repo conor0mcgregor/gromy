@@ -656,10 +656,10 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
   Widget _buildStep1() => Step1Discipline(
     selectedSport: _form.selectedSport,
     sportError: _form.sportError,
-    onSportChanged: (sport) => setState(() {
-      _form.selectedSport = sport;
-      _form.sportError = null;
-    }),
+    onSportChanged: _form.selectSport,
+    isTeamSport: _form.isTeamSport,
+    teamModeLockedByDiscipline: _form.isTeamModeLockedByDiscipline,
+    onTeamTournamentChanged: _form.setTeamTournament,
   );
 
   Widget _buildStep2() => Step2Schedule(

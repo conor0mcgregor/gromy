@@ -17,6 +17,17 @@ enum TournamentSport {
       orElse: () => TournamentSport.football,
     );
   }
+
+  /// Deportes que en este formulario imponen torneo por equipos (switch fijo).
+  bool get isTeamOnlyDiscipline {
+    return switch (this) {
+      TournamentSport.football ||
+      TournamentSport.basketball ||
+      TournamentSport.volleyball =>
+        true,
+      _ => false,
+    };
+  }
 }
 
 enum TournamentAccessType {
