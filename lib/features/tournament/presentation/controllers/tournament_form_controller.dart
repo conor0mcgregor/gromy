@@ -22,7 +22,7 @@ class FormAdminEntry {
 /// [CreateTournamentController]).
 class TournamentFormController extends ChangeNotifier {
   TournamentFormController({GeocodingService? geocodingService})
-      : _geocodingService = geocodingService ?? GeocodingService();
+    : _geocodingService = geocodingService ?? GeocodingService();
 
   final GeocodingService _geocodingService;
 
@@ -131,8 +131,9 @@ class TournamentFormController extends ChangeNotifier {
     final coverOk = coverBytes != null && coverBytes!.isNotEmpty;
 
     nameError = nameOk ? null : 'El nombre debe tener al menos 3 caracteres.';
-    descriptionError =
-        descOk ? null : 'Añade una descripción un poco más larga (mín. 10).';
+    descriptionError = descOk
+        ? null
+        : 'Añade una descripción un poco más larga (mín. 10).';
 
     notifyListeners();
     return nameOk && descOk && coverOk;
@@ -153,8 +154,8 @@ class TournamentFormController extends ChangeNotifier {
     eventDateError = eventDate == null
         ? 'Elige la fecha del torneo.'
         : !dateOk
-            ? 'La fecha debe ser hoy o en el futuro.'
-            : null;
+        ? 'La fecha debe ser hoy o en el futuro.'
+        : null;
 
     // registrationDeadline es opcional pero, si existe, debe ser antes del
     // evento.
@@ -196,8 +197,7 @@ class TournamentFormController extends ChangeNotifier {
 
   bool _validateLogistics() {
     final maxP = int.tryParse(maxParticipantsController.text.trim());
-    final membersPerTeam =
-        int.tryParse(membersPerTeamController.text.trim());
+    final membersPerTeam = int.tryParse(membersPerTeamController.text.trim());
 
     final maxOk = maxP != null && maxP >= 2;
     final accessOk = selectedAccessType != null;
@@ -205,20 +205,20 @@ class TournamentFormController extends ChangeNotifier {
     maxParticipantsError = maxP == null
         ? 'Escribe un número de participantes.'
         : !maxOk
-            ? 'Debe haber al menos 2 participantes.'
-            : null;
+        ? 'Debe haber al menos 2 participantes.'
+        : null;
 
     if (isTeamSport) {
       final membersOk = membersPerTeam != null && membersPerTeam >= 2;
-      final relationOk = maxOk && membersOk && (membersPerTeam ?? 0) <= (maxP ?? 0);
+      final relationOk = maxOk && membersOk && membersPerTeam <= maxP;
 
       membersPerTeamError = membersPerTeam == null
           ? 'Escribe cuántos miembros tendrá cada equipo.'
           : !membersOk
-              ? 'Cada equipo debe tener al menos 2 miembros.'
-              : !relationOk
-                  ? 'Los miembros por equipo no pueden superar el total de participantes.'
-                  : null;
+          ? 'Cada equipo debe tener al menos 2 miembros.'
+          : !relationOk
+          ? 'Los miembros por equipo no pueden superar el total de participantes.'
+          : null;
 
       accessTypeError = accessOk ? null : 'Indica quién puede apuntarse.';
       notifyListeners();
@@ -246,8 +246,8 @@ class TournamentFormController extends ChangeNotifier {
     contactEmailError = emailRaw.isEmpty
         ? 'El email de contacto es obligatorio.'
         : !emailOk
-            ? 'Introduce un email válido.'
-            : null;
+        ? 'Introduce un email válido.'
+        : null;
     notifyListeners();
     return emailOk;
   }
@@ -360,8 +360,18 @@ class TournamentFormController extends ChangeNotifier {
 
   String formatDate(DateTime date) {
     const months = [
-      'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+      'enero',
+      'febrero',
+      'marzo',
+      'abril',
+      'mayo',
+      'junio',
+      'julio',
+      'agosto',
+      'septiembre',
+      'octubre',
+      'noviembre',
+      'diciembre',
     ];
     return '${date.day} de ${months[date.month - 1]} de ${date.year}';
   }

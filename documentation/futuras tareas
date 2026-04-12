@@ -1,5 +1,0 @@
-añadir List<user> participantes en la base de datos de torneos;
-poder en el formulario de creación de torneo añadir los administradores;
-poder en el formulario de creación de torneo añadir la foto;
-logica de invitacion a torneos privados
-añadir en eventos los torneos creadors y inscritos

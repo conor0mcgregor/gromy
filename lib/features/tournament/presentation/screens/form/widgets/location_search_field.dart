@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../data/services/geocoding_service.dart';
 import 'form_fields.dart';
-import 'form_helpers.dart';
 
 /// Campo de búsqueda de ubicación con autocompletado usando Nominatim.
 ///
@@ -73,9 +72,7 @@ class LocationSearchField extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
               color: const Color(0xFF161640),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.1),
-              ),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.3),
@@ -90,7 +87,7 @@ class LocationSearchField extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 shrinkWrap: true,
                 itemCount: suggestions.length,
-                separatorBuilder: (_, __) => Divider(
+                separatorBuilder: (_, index) => Divider(
                   height: 1,
                   color: Colors.white.withValues(alpha: 0.06),
                 ),
@@ -102,7 +99,9 @@ class LocationSearchField extends StatelessWidget {
                       onTap: () => onSuggestionSelected(item),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 12),
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
                         child: Row(
                           children: [
                             Container(
@@ -110,8 +109,9 @@ class LocationSearchField extends StatelessWidget {
                               height: 32,
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(8),
-                                color: const Color(0xFF6C63FF)
-                                    .withValues(alpha: 0.15),
+                                color: const Color(
+                                  0xFF6C63FF,
+                                ).withValues(alpha: 0.15),
                               ),
                               child: const Icon(
                                 Icons.place_rounded,

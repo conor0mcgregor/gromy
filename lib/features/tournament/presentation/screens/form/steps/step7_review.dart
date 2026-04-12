@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../widgets/step_card.dart';
-import '../widgets/form_helpers.dart';
 
 /// Paso 7 — Review: Resumen de solo lectura de todos los datos para
 /// confirmación final antes de crear el torneo.
@@ -83,9 +82,7 @@ class Step7Review extends StatelessWidget {
           _ReviewSection(
             icon: Icons.sports_rounded,
             title: 'Disciplina',
-            children: [
-              _ReviewRow(label: 'Deporte', value: sport),
-            ],
+            children: [_ReviewRow(label: 'Deporte', value: sport)],
           ),
 
           // ── Cronograma ──
@@ -96,12 +93,14 @@ class Step7Review extends StatelessWidget {
               _ReviewRow(label: 'Fecha del evento', value: eventDate),
               if (registrationDeadline != null)
                 _ReviewRow(
-                    label: 'Límite inscripción',
-                    value: registrationDeadline!),
+                  label: 'Límite inscripción',
+                  value: registrationDeadline!,
+                ),
               if (bracketPublishDate != null)
                 _ReviewRow(
-                    label: 'Publicación cuadros',
-                    value: bracketPublishDate!),
+                  label: 'Publicación cuadros',
+                  value: bracketPublishDate!,
+                ),
             ],
           ),
 
@@ -125,8 +124,7 @@ class Step7Review extends StatelessWidget {
             children: [
               _ReviewRow(label: 'Participantes', value: maxParticipants),
               if (membersPerTeam != null)
-                _ReviewRow(
-                    label: 'Miembros/equipo', value: membersPerTeam!),
+                _ReviewRow(label: 'Miembros/equipo', value: membersPerTeam!),
               _ReviewRow(label: 'Acceso', value: accessType),
             ],
           ),
@@ -154,9 +152,7 @@ class Step7Review extends StatelessWidget {
               if (contactPhone != null && contactPhone!.isNotEmpty)
                 _ReviewRow(label: 'Teléfono', value: contactPhone!),
               if (contactLinks.isNotEmpty)
-                _ReviewRow(
-                    label: 'Enlaces',
-                    value: contactLinks.join('\n')),
+                _ReviewRow(label: 'Enlaces', value: contactLinks.join('\n')),
               _ReviewRow(
                 label: 'Admins',
                 value: admins.isEmpty ? 'Solo tú' : admins.join(', '),

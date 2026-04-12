@@ -1,9 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../data/model/enums_tournament.dart';
 import '../../../../core/widgets/glow_orb.dart';
 import '../../../../core/widgets/gradient_button.dart';
 import '../../../user/data/services/firestore_user_service.dart';
@@ -69,24 +67,31 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       });
 
     _fadeController = AnimationController(
-        duration: const Duration(milliseconds: 700), vsync: this);
+      duration: const Duration(milliseconds: 700),
+      vsync: this,
+    );
     _slideController = AnimationController(
-        duration: const Duration(milliseconds: 800), vsync: this);
-    _fadeAnimation =
-        CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeIn,
+    );
     _slideAnimation =
         Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero).animate(
-            CurvedAnimation(
-                parent: _slideController, curve: Curves.easeOutCubic));
+          CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+        );
 
     _stepController = AnimationController(
-        duration: const Duration(milliseconds: 350), vsync: this);
-    _stepFade =
-        CurvedAnimation(parent: _stepController, curve: Curves.easeOut);
-    _stepSlide =
-        Tween<Offset>(begin: const Offset(0.06, 0), end: Offset.zero).animate(
-            CurvedAnimation(
-                parent: _stepController, curve: Curves.easeOutCubic));
+      duration: const Duration(milliseconds: 350),
+      vsync: this,
+    );
+    _stepFade = CurvedAnimation(parent: _stepController, curve: Curves.easeOut);
+    _stepSlide = Tween<Offset>(begin: const Offset(0.06, 0), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _stepController, curve: Curves.easeOutCubic),
+        );
 
     _fadeController.forward();
     _slideController.forward();
@@ -113,14 +118,18 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     if (_form.currentStep == 0) {
       if (!_form.validateCurrentStep()) {
         if (_form.coverBytes == null || _form.coverBytes!.isEmpty) {
-          _showSnackBar('Debes añadir una portada para el torneo.',
-              isError: true);
+          _showSnackBar(
+            'Debes añadir una portada para el torneo.',
+            isError: true,
+          );
         }
         return;
       }
       if (_form.coverBytes == null || _form.coverBytes!.isEmpty) {
-        _showSnackBar('Debes añadir una portada para el torneo.',
-            isError: true);
+        _showSnackBar(
+          'Debes añadir una portada para el torneo.',
+          isError: true,
+        );
         return;
       }
     } else if (!_form.validateCurrentStep()) {
@@ -167,10 +176,12 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
 
     final maxParticipants =
         int.tryParse(_form.maxParticipantsController.text.trim()) ?? 0;
-    final membersPerTeam =
-        int.tryParse(_form.membersPerTeamController.text.trim());
-    final extraAdminIds =
-        _form.extraAdmins.map((entry) => entry.uid).toList(growable: false);
+    final membersPerTeam = int.tryParse(
+      _form.membersPerTeamController.text.trim(),
+    );
+    final extraAdminIds = _form.extraAdmins
+        .map((entry) => entry.uid)
+        .toList(growable: false);
 
     final success = await _submitController.createTournament(
       name: _form.nameController.text,
@@ -198,8 +209,9 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       _showSnackBar('Torneo creado con éxito!', isError: false);
     } else {
       _showSnackBar(
-          _submitController.errorMessage ?? 'Error al crear el torneo.',
-          isError: true);
+        _submitController.errorMessage ?? 'Error al crear el torneo.',
+        isError: true,
+      );
     }
   }
 
@@ -229,16 +241,20 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar',
-                style: TextStyle(color: Colors.white54)),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(color: Colors.white54),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(
               foregroundColor: const Color(0xFFFF4D6A),
             ),
-            child: const Text('Sí, borrar todo',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Sí, borrar todo',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -252,8 +268,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
   Future<DateTime?> _pickDate({DateTime? initialDate}) async {
     FocusScope.of(context).unfocus();
     final today = DateTime.now();
-    final initial =
-        initialDate ?? DateTime(today.year, today.month, today.day);
+    final initial = initialDate ?? DateTime(today.year, today.month, today.day);
     return showDatePicker(
       context: context,
       initialDate: initial,
@@ -269,8 +284,9 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
             secondary: Color(0xFF00D4FF),
             surface: Color(0xFF12122E),
           ),
-          dialogTheme:
-              const DialogThemeData(backgroundColor: Color(0xFF101127)),
+          dialogTheme: const DialogThemeData(
+            backgroundColor: Color(0xFF101127),
+          ),
         ),
         child: child ?? const SizedBox.shrink(),
       ),
@@ -313,7 +329,8 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     final currentUid = FirebaseAuth.instance.currentUser?.uid;
     if (currentUid == null) {
       setState(
-          () => _form.adminError = 'Debes iniciar sesión para asignar admins.');
+        () => _form.adminError = 'Debes iniciar sesión para asignar admins.',
+      );
       return;
     }
 
@@ -337,8 +354,10 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       } else {
         final exists = await userService.userExists(raw);
         if (!exists) {
-          setState(() => _form.adminError =
-              'No existe un usuario con ese nickname o UID.');
+          setState(
+            () => _form.adminError =
+                'No existe un usuario con ese nickname o UID.',
+          );
           return;
         }
         uid = raw;
@@ -383,9 +402,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
         content: Row(
           children: [
             Icon(
-              isError
-                  ? Icons.info_outline_rounded
-                  : Icons.check_circle_rounded,
+              isError ? Icons.info_outline_rounded : Icons.check_circle_rounded,
               color: Colors.white,
               size: 18,
             ),
@@ -393,11 +410,11 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor:
-            isError ? const Color(0xFFFF4D6A) : const Color(0xFF22C55E),
+        backgroundColor: isError
+            ? const Color(0xFFFF4D6A)
+            : const Color(0xFF22C55E),
         behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         duration: const Duration(seconds: 3),
       ),
     );
@@ -429,22 +446,25 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
             top: -80,
             left: -60,
             child: GlowOrb(
-                color: const Color(0xFF6C63FF).withValues(alpha: 0.35),
-                size: 280),
+              color: const Color(0xFF6C63FF).withValues(alpha: 0.35),
+              size: 280,
+            ),
           ),
           Positioned(
             bottom: 60,
             right: -80,
             child: GlowOrb(
-                color: const Color(0xFF00D4FF).withValues(alpha: 0.25),
-                size: 240),
+              color: const Color(0xFF00D4FF).withValues(alpha: 0.25),
+              size: 240,
+            ),
           ),
           Positioned(
             top: MediaQuery.of(context).size.height * 0.45,
             left: MediaQuery.of(context).size.width * 0.3,
             child: GlowOrb(
-                color: const Color(0xFFFF6B9D).withValues(alpha: 0.15),
-                size: 160),
+              color: const Color(0xFFFF6B9D).withValues(alpha: 0.15),
+              size: 160,
+            ),
           ),
           SafeArea(
             child: FadeTransition(
@@ -459,8 +479,9 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
                         Padding(
                           padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                           child: ConstrainedBox(
-                            constraints:
-                                BoxConstraints(maxWidth: isWide ? 880 : 620),
+                            constraints: BoxConstraints(
+                              maxWidth: isWide ? 880 : 620,
+                            ),
                             child: _buildHeader(),
                           ),
                         ),
@@ -485,7 +506,8 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
                           child: Center(
                             child: ConstrainedBox(
                               constraints: BoxConstraints(
-                                  maxWidth: isWide ? 880 : 620),
+                                maxWidth: isWide ? 880 : 620,
+                              ),
                               child: _buildNavButtons(),
                             ),
                           ),
@@ -528,20 +550,25 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
               onTap: _confirmDiscard,
               borderRadius: BorderRadius.circular(8),
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFF4D6A).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                      color:
-                          const Color(0xFFFF4D6A).withValues(alpha: 0.3)),
+                    color: const Color(0xFFFF4D6A).withValues(alpha: 0.3),
+                  ),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.delete_outline_rounded,
-                        color: Color(0xFFFF4D6A), size: 16),
+                    Icon(
+                      Icons.delete_outline_rounded,
+                      color: Color(0xFFFF4D6A),
+                      size: 16,
+                    ),
                     SizedBox(width: 6),
                     Text(
                       'Descartar',
@@ -571,7 +598,8 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
                   borderRadius: BorderRadius.circular(99),
                   gradient: isActive || isDone
                       ? const LinearGradient(
-                          colors: [Color(0xFF6C63FF), Color(0xFF00D4FF)])
+                          colors: [Color(0xFF6C63FF), Color(0xFF00D4FF)],
+                        )
                       : null,
                   color: isActive || isDone
                       ? null
@@ -614,175 +642,167 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
   // ── Step builders ──
 
   Widget _buildStep0() => Step0Identity(
-        nameController: _form.nameController,
-        descriptionController: _form.descriptionController,
-        nameError: _form.nameError,
-        descriptionError: _form.descriptionError,
-        coverBytes: _form.coverBytes,
-        onNameChanged: (_) => _form.clearFieldError('name'),
-        onDescriptionChanged: (_) => _form.clearFieldError('description'),
-        onPickCover: _pickCover,
-        onRemoveCover: _removeCover,
-      );
+    nameController: _form.nameController,
+    descriptionController: _form.descriptionController,
+    nameError: _form.nameError,
+    descriptionError: _form.descriptionError,
+    coverBytes: _form.coverBytes,
+    onNameChanged: (_) => _form.clearFieldError('name'),
+    onDescriptionChanged: (_) => _form.clearFieldError('description'),
+    onPickCover: _pickCover,
+    onRemoveCover: _removeCover,
+  );
 
   Widget _buildStep1() => Step1Discipline(
-        selectedSport: _form.selectedSport,
-        sportError: _form.sportError,
-        onSportChanged: (sport) => setState(() {
-          _form.selectedSport = sport;
-          _form.sportError = null;
-        }),
-      );
+    selectedSport: _form.selectedSport,
+    sportError: _form.sportError,
+    onSportChanged: (sport) => setState(() {
+      _form.selectedSport = sport;
+      _form.sportError = null;
+    }),
+  );
 
   Widget _buildStep2() => Step2Schedule(
-        eventDate: _form.eventDate,
-        eventDateError: _form.eventDateError,
-        onPickEventDate: () async {
-          final picked = await _pickDate(initialDate: _form.eventDate);
-          if (picked != null && mounted) {
-            setState(() {
-              _form.eventDate = picked;
-              _form.eventDateError = null;
-            });
-          }
-        },
-        registrationDeadline: _form.registrationDeadline,
-        registrationDeadlineError: _form.registrationDeadlineError,
-        onPickRegistrationDeadline: () async {
-          final picked =
-              await _pickDate(initialDate: _form.registrationDeadline);
-          if (picked != null && mounted) {
-            setState(() {
-              _form.registrationDeadline = picked;
-              _form.registrationDeadlineError = null;
-            });
-          }
-        },
-        bracketPublishDate: _form.bracketPublishDate,
-        bracketPublishDateError: _form.bracketPublishDateError,
-        onPickBracketPublishDate: () async {
-          final picked =
-              await _pickDate(initialDate: _form.bracketPublishDate);
-          if (picked != null && mounted) {
-            setState(() {
-              _form.bracketPublishDate = picked;
-              _form.bracketPublishDateError = null;
-            });
-          }
-        },
-        formatDate: _form.formatDate,
-      );
+    eventDate: _form.eventDate,
+    eventDateError: _form.eventDateError,
+    onPickEventDate: () async {
+      final picked = await _pickDate(initialDate: _form.eventDate);
+      if (picked != null && mounted) {
+        setState(() {
+          _form.eventDate = picked;
+          _form.eventDateError = null;
+        });
+      }
+    },
+    registrationDeadline: _form.registrationDeadline,
+    registrationDeadlineError: _form.registrationDeadlineError,
+    onPickRegistrationDeadline: () async {
+      final picked = await _pickDate(initialDate: _form.registrationDeadline);
+      if (picked != null && mounted) {
+        setState(() {
+          _form.registrationDeadline = picked;
+          _form.registrationDeadlineError = null;
+        });
+      }
+    },
+    bracketPublishDate: _form.bracketPublishDate,
+    bracketPublishDateError: _form.bracketPublishDateError,
+    onPickBracketPublishDate: () async {
+      final picked = await _pickDate(initialDate: _form.bracketPublishDate);
+      if (picked != null && mounted) {
+        setState(() {
+          _form.bracketPublishDate = picked;
+          _form.bracketPublishDateError = null;
+        });
+      }
+    },
+    formatDate: _form.formatDate,
+  );
 
   Widget _buildStep3() => Step3Geolocation(
-        locationController: _form.locationController,
-        locationError: _form.locationError,
-        latitude: _form.latitude,
-        longitude: _form.longitude,
-        suggestions: _form.locationSuggestions,
-        isSearching: _form.isSearchingLocation,
-        onQueryChanged: (query) {
-          _form.clearFieldError('location');
-          _form.onLocationQueryChanged(query);
-        },
-        onSuggestionSelected: (result) {
-          _form.selectLocation(result);
-          setState(() {});
-        },
-        onMapTap: (lat, lng) {
-          _form.onMapTap(lat, lng);
-        },
-      );
+    locationController: _form.locationController,
+    locationError: _form.locationError,
+    latitude: _form.latitude,
+    longitude: _form.longitude,
+    suggestions: _form.locationSuggestions,
+    isSearching: _form.isSearchingLocation,
+    onQueryChanged: (query) {
+      _form.clearFieldError('location');
+      _form.onLocationQueryChanged(query);
+    },
+    onSuggestionSelected: (result) {
+      _form.selectLocation(result);
+      setState(() {});
+    },
+    onMapTap: (lat, lng) {
+      _form.onMapTap(lat, lng);
+    },
+  );
 
   Widget _buildStep4() => Step4Logistics(
-        selectedSport: _form.selectedSport,
-        isTeamSport: _form.isTeamSport,
-        maxParticipantsController: _form.maxParticipantsController,
-        maxParticipantsError: _form.maxParticipantsError,
-        onMaxParticipantsChanged: (_) =>
-            _form.clearFieldError('maxParticipants'),
-        membersPerTeamController: _form.membersPerTeamController,
-        membersPerTeamError: _form.membersPerTeamError,
-        onMembersPerTeamChanged: (_) =>
-            _form.clearFieldError('membersPerTeam'),
-        selectedAccessType: _form.selectedAccessType,
-        accessTypeError: _form.accessTypeError,
-        onAccessTypeChanged: (type) => setState(() {
-          _form.selectedAccessType = type;
-          _form.accessTypeError = null;
-        }),
-      );
+    selectedSport: _form.selectedSport,
+    isTeamSport: _form.isTeamSport,
+    maxParticipantsController: _form.maxParticipantsController,
+    maxParticipantsError: _form.maxParticipantsError,
+    onMaxParticipantsChanged: (_) => _form.clearFieldError('maxParticipants'),
+    membersPerTeamController: _form.membersPerTeamController,
+    membersPerTeamError: _form.membersPerTeamError,
+    onMembersPerTeamChanged: (_) => _form.clearFieldError('membersPerTeam'),
+    selectedAccessType: _form.selectedAccessType,
+    accessTypeError: _form.accessTypeError,
+    onAccessTypeChanged: (type) => setState(() {
+      _form.selectedAccessType = type;
+      _form.accessTypeError = null;
+    }),
+  );
 
   Widget _buildStep5() => Step5Rules(
-        rulesController: _form.rulesController,
-        rulesError: _form.rulesError,
-        onRulesChanged: (_) => _form.clearFieldError('rules'),
-      );
+    rulesController: _form.rulesController,
+    rulesError: _form.rulesError,
+    onRulesChanged: (_) => _form.clearFieldError('rules'),
+  );
 
   Widget _buildStep6() => Step6Staff(
-        adminController: _form.adminController,
-        adminError: _form.adminError,
-        isAddingAdmin: _form.isAddingAdmin,
-        extraAdmins: _form.extraAdmins,
-        onAdminChanged: (_) => _form.clearFieldError('admin'),
-        onAddAdmin: _addAdmin,
-        onRemoveAdmin: _removeAdmin,
-        contactEmailController: _form.contactEmailController,
-        contactEmailError: _form.contactEmailError,
-        onContactEmailChanged: (_) => _form.clearFieldError('contactEmail'),
-        contactPhoneController: _form.contactPhoneController,
-        onContactPhoneChanged: (_) {},
-        contactLinkControllers: _form.contactLinkControllers,
-        onAddContactLink: () => setState(() => _form.addContactLink()),
-        onRemoveContactLink: (i) =>
-            setState(() => _form.removeContactLink(i)),
-      );
+    adminController: _form.adminController,
+    adminError: _form.adminError,
+    isAddingAdmin: _form.isAddingAdmin,
+    extraAdmins: _form.extraAdmins,
+    onAdminChanged: (_) => _form.clearFieldError('admin'),
+    onAddAdmin: _addAdmin,
+    onRemoveAdmin: _removeAdmin,
+    contactEmailController: _form.contactEmailController,
+    contactEmailError: _form.contactEmailError,
+    onContactEmailChanged: (_) => _form.clearFieldError('contactEmail'),
+    contactPhoneController: _form.contactPhoneController,
+    onContactPhoneChanged: (_) {},
+    contactLinkControllers: _form.contactLinkControllers,
+    onAddContactLink: () => setState(() => _form.addContactLink()),
+    onRemoveContactLink: (i) => setState(() => _form.removeContactLink(i)),
+  );
 
   Widget _buildStep7() => Step7Review(
-        coverBytes: _form.coverBytes,
-        name: _form.nameController.text.trim().isEmpty
-            ? '—'
-            : _form.nameController.text.trim(),
-        description: _form.descriptionController.text.trim().isEmpty
-            ? '—'
-            : _form.descriptionController.text.trim(),
-        sport: _form.selectedSport?.label ?? '—',
-        eventDate: _form.eventDate == null
-            ? '—'
-            : _form.formatDate(_form.eventDate!),
-        registrationDeadline: _form.registrationDeadline != null
-            ? _form.formatDate(_form.registrationDeadline!)
-            : null,
-        bracketPublishDate: _form.bracketPublishDate != null
-            ? _form.formatDate(_form.bracketPublishDate!)
-            : null,
-        location: _form.locationController.text.trim().isEmpty
-            ? '—'
-            : _form.locationController.text.trim(),
-        hasCoordinates: _form.latitude != null && _form.longitude != null,
-        maxParticipants: _form.maxParticipantsController.text.trim().isEmpty
-            ? '—'
-            : _form.maxParticipantsController.text.trim(),
-        membersPerTeam: _form.isTeamSport
-            ? (_form.membersPerTeamController.text.trim().isEmpty
-                ? '—'
-                : _form.membersPerTeamController.text.trim())
-            : null,
-        accessType: _form.selectedAccessType?.label ?? '—',
-        rulesPreview: _form.rulesController.text.trim().isEmpty
-            ? '—'
-            : _form.rulesController.text.trim(),
-        contactEmail: _form.contactEmailController.text.trim().isEmpty
-            ? '—'
-            : _form.contactEmailController.text.trim(),
-        contactPhone: _form.contactPhoneController.text.trim().isEmpty
-            ? null
-            : _form.contactPhoneController.text.trim(),
-        contactLinks: _form.contactLinks,
-        admins: [
-          'Tú (creador)',
-          ..._form.extraAdmins.map((a) => a.label),
-        ],
-      );
+    coverBytes: _form.coverBytes,
+    name: _form.nameController.text.trim().isEmpty
+        ? '—'
+        : _form.nameController.text.trim(),
+    description: _form.descriptionController.text.trim().isEmpty
+        ? '—'
+        : _form.descriptionController.text.trim(),
+    sport: _form.selectedSport?.label ?? '—',
+    eventDate: _form.eventDate == null
+        ? '—'
+        : _form.formatDate(_form.eventDate!),
+    registrationDeadline: _form.registrationDeadline != null
+        ? _form.formatDate(_form.registrationDeadline!)
+        : null,
+    bracketPublishDate: _form.bracketPublishDate != null
+        ? _form.formatDate(_form.bracketPublishDate!)
+        : null,
+    location: _form.locationController.text.trim().isEmpty
+        ? '—'
+        : _form.locationController.text.trim(),
+    hasCoordinates: _form.latitude != null && _form.longitude != null,
+    maxParticipants: _form.maxParticipantsController.text.trim().isEmpty
+        ? '—'
+        : _form.maxParticipantsController.text.trim(),
+    membersPerTeam: _form.isTeamSport
+        ? (_form.membersPerTeamController.text.trim().isEmpty
+              ? '—'
+              : _form.membersPerTeamController.text.trim())
+        : null,
+    accessType: _form.selectedAccessType?.label ?? '—',
+    rulesPreview: _form.rulesController.text.trim().isEmpty
+        ? '—'
+        : _form.rulesController.text.trim(),
+    contactEmail: _form.contactEmailController.text.trim().isEmpty
+        ? '—'
+        : _form.contactEmailController.text.trim(),
+    contactPhone: _form.contactPhoneController.text.trim().isEmpty
+        ? null
+        : _form.contactPhoneController.text.trim(),
+    contactLinks: _form.contactLinks,
+    admins: ['Tú (creador)', ..._form.extraAdmins.map((a) => a.label)],
+  );
 
   // ── Step page wrapper ──
 
@@ -807,8 +827,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
   // ── Navigation buttons ──
 
   Widget _buildNavButtons() {
-    final isLast =
-        _form.currentStep == TournamentFormController.totalSteps - 1;
+    final isLast = _form.currentStep == TournamentFormController.totalSteps - 1;
 
     return Row(
       children: [

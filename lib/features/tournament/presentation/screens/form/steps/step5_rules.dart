@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import '../widgets/step_card.dart';
-import '../widgets/form_fields.dart';
 
-/// Paso 5 — Reglamento: Editor de texto enriquecido para reglas, datos
+import '../widgets/form_fields.dart';
+import '../widgets/step_card.dart';
+
+/// Paso 5 - Reglamento: Editor de texto enriquecido para reglas, datos
 /// adicionales y detalles técnicos del torneo.
 class Step5Rules extends StatelessWidget {
   const Step5Rules({
@@ -26,29 +27,31 @@ class Step5Rules extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Barra de formato decorativa (hint visual)
           Container(
             margin: const EdgeInsets.only(bottom: 14),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(10),
               color: Colors.white.withValues(alpha: 0.04),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.08),
-              ),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
             ),
-            child: Row(
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                _FormatHint(icon: Icons.format_bold_rounded, label: 'Negrita'),
-                const SizedBox(width: 12),
-                _FormatHint(
-                    icon: Icons.format_list_bulleted_rounded,
-                    label: 'Listas'),
-                const SizedBox(width: 12),
-                _FormatHint(
-                    icon: Icons.format_list_numbered_rounded,
-                    label: 'Secciones'),
-                const Spacer(),
+                const _FormatHint(
+                  icon: Icons.format_bold_rounded,
+                  label: 'Negrita',
+                ),
+                const _FormatHint(
+                  icon: Icons.format_list_bulleted_rounded,
+                  label: 'Listas',
+                ),
+                const _FormatHint(
+                  icon: Icons.format_list_numbered_rounded,
+                  label: 'Secciones',
+                ),
                 Text(
                   'Usa saltos de línea para organizar',
                   style: TextStyle(
@@ -88,6 +91,7 @@ class Step5Rules extends StatelessWidget {
 
 class _FormatHint extends StatelessWidget {
   const _FormatHint({required this.icon, required this.label});
+
   final IconData icon;
   final String label;
 
