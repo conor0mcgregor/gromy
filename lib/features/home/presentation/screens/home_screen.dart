@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import 'package:gromy/features/tournament/data/model/app_tournament.dart';
+import '../../../inscription/screen/preinscription_screen.dart';
 import '../controllers/home_controller.dart';
 import '../widgets/tournament_card.dart';
 
@@ -205,6 +206,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           itemBuilder: (context, index) {
                             return TournamentCard(
                               tournament: tournaments[index],
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => DemoEnrollScreen(
+                                      tournament: tournaments[index],
+                                    ),
+                                  ),
+                                );
+                              },
                               // Entrada escalonada: cada card aparece 80ms después
                               animationDelay:
                               Duration(milliseconds: 80 * index),

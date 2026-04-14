@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
@@ -54,22 +55,33 @@ class FirebaseAuthService implements AuthRepository {
   }
 
   // ── Google ──────────────────────────────────────────────────────────────────
-
   @override
   Future<AuthResult> signInWithGoogle() async {
     try {
-      // google_sign_in v7+: singleton + authenticate()
-      final googleUser = await GoogleSignIn.instance.authenticate();
-      final idToken = googleUser.authentication.idToken;
+      UserCredential userCredential;
 
-      if (idToken == null) {
-        return AuthFailure('No se pudo obtener el token de Google.');
+      if (kIsWeb) {
+        // 🌐 LÓGICA PARA WEB (Chrome, Edge, Safari...)
+        // Abre el clásico popup de Google del navegador sin usar el paquete google_sign_in
+        final googleProvider = GoogleAuthProvider();
+        userCredential = await _auth.signInWithPopup(googleProvider);
+
+      } else {
+        // 📱 LÓGICA PARA MÓVIL (Android / iOS)
+        final googleUser = await GoogleSignIn.instance.authenticate();
+
+        final idToken = googleUser.authentication.idToken;
+        if (idToken == null) {
+          return AuthFailure('No se pudo obtener el token de Google.');
+        }
+
+        final credential = GoogleAuthProvider.credential(idToken: idToken);
+        userCredential = await _auth.signInWithCredential(credential);
       }
 
-      final credential = GoogleAuthProvider.credential(idToken: idToken);
-      final userCredential = await _auth.signInWithCredential(credential);
       final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
       return AuthSuccess(isNewUser: isNewUser);
+
     } on GoogleSignInException catch (e) {
       if (e.code == GoogleSignInExceptionCode.canceled) {
         return AuthFailure('Inicio de sesión con Google cancelado.');
@@ -77,7 +89,9 @@ class FirebaseAuthService implements AuthRepository {
       return AuthFailure('Error con Google Sign‑In: ${e.description}');
     } on FirebaseAuthException catch (e) {
       return AuthFailure(_emailErrorMessage(e.code));
-    } catch (_) {
+    } catch (e) {
+      // Es buena práctica imprimir el error original en consola para depurar
+      debugPrint('Error general en Google SignIn: $e');
       return AuthFailure('No se pudo iniciar sesión con Google.');
     }
   }

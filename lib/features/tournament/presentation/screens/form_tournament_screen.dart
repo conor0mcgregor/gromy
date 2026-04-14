@@ -205,7 +205,12 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     );
 
     if (success) {
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        setState(() {
+          _canPop = true;
+        });
+        Navigator.pop(context);
+      }
       _showSnackBar('Torneo creado con éxito!', isError: false);
     } else {
       _showSnackBar(
@@ -217,7 +222,9 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
 
   // ── Diálogos ───────────────────────────────────────────────
 
-  Future<void> _confirmDiscard() async {
+  bool _canPop = false;
+
+  Future<bool> _showExitDialog() async {
     FocusScope.of(context).unfocus();
     final bool? confirm = await showDialog<bool>(
       context: context,
@@ -260,7 +267,15 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       ),
     );
 
-    if (confirm == true && mounted) {
+    return confirm == true;
+  }
+
+  Future<void> _confirmDiscard() async {
+    final bool shouldPop = await _showExitDialog();
+    if (shouldPop && mounted) {
+      setState(() {
+        _canPop = true;
+      });
       Navigator.pop(context);
     }
   }
@@ -424,8 +439,22 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
+    return PopScope(
+      canPop: _canPop,
+      onPopInvoked: (bool didPop) async {
+        if (didPop) return;
+        final bool shouldPop = await _showExitDialog();
+        if (shouldPop) {
+          if (context.mounted) {
+            setState(() {
+              _canPop = true;
+            });
+            Navigator.pop(context);
+          }
+        }
+      },
+      child: Scaffold(
+        body: Stack(
         fit: StackFit.expand,
         children: [
           // Fondo
@@ -521,7 +550,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
           ),
         ],
       ),
-    );
+    ));
   }
 
   // ── Header con barra de progreso ──
@@ -706,6 +735,9 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     longitude: _form.longitude,
     suggestions: _form.locationSuggestions,
     isSearching: _form.isSearchingLocation,
+    resolvedAddress: _form.locationController.text.trim().isNotEmpty
+        ? _form.locationController.text.trim()
+        : null,
     onQueryChanged: (query) {
       _form.clearFieldError('location');
       _form.onLocationQueryChanged(query);

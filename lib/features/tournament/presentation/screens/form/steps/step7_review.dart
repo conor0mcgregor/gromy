@@ -158,9 +158,7 @@ class Step7Review extends StatelessWidget {
           children: [
             InfoField(
               label: 'Reglas del torneo',
-              value: rulesPreview.length > 200
-                  ? '${rulesPreview.substring(0, 200)}…'
-                  : rulesPreview.isEmpty
+              value: rulesPreview.isEmpty
                   ? '—'
                   : rulesPreview,
               multiline: true,

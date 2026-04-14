@@ -4,7 +4,7 @@ import 'package:gromy/app/app_shell.dart';
 import 'package:gromy/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:gromy/features/events/presentation/screens/events_screen.dart';
 import 'package:gromy/features/home/presentation/screens/home_screen.dart';
-import 'package:gromy/features/notidications/presentation/screens/notifications_screen.dart';
+import 'package:gromy/features/notifications/presentation/screens/notifications_screen.dart';
 import 'package:gromy/features/profile/presentation/screens/profile_screen.dart';
 import 'package:gromy/features/tournament/presentation/screens/create_tournament_screen.dart';
 

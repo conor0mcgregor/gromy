@@ -6,7 +6,7 @@ import '../core/widgets/tourney_nav_bar.dart';
 import '../features/auth/presentation/controllers/auth_controller.dart';
 import '../features/events/presentation/screens/events_screen.dart';
 import '../features/home/presentation/screens/home_screen.dart';
-import '../features/notidications/presentation/screens/notifications_screen.dart';
+import '../features/notifications/presentation/screens/notifications_screen.dart';
 import '../features/profile/presentation/screens/profile_screen.dart';
 import '../features/tournament/presentation/screens/create_tournament_screen.dart';
 

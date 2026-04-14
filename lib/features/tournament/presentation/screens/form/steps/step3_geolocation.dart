@@ -14,6 +14,11 @@ import '../widgets/step_card.dart';
 const LatLng _fallbackMapCenter = LatLng(28.1235, -15.4363);
 
 /// Paso 3 - Geolocalización: búsqueda + selector preciso en mapa.
+///
+/// Cuando el usuario toca un punto del mapa, se realiza reverse geocoding
+/// a través de `onMapTap`, que el padre conecta con
+/// `TournamentFormController.onMapTap` (ya incluye reverse geocoding vía
+/// Nominatim/MapTiler).
 class Step3Geolocation extends StatefulWidget {
   const Step3Geolocation({
     super.key,
@@ -26,6 +31,7 @@ class Step3Geolocation extends StatefulWidget {
     required this.onQueryChanged,
     required this.onSuggestionSelected,
     required this.onMapTap,
+    this.resolvedAddress,
   });
 
   final TextEditingController locationController;
@@ -37,6 +43,10 @@ class Step3Geolocation extends StatefulWidget {
   final ValueChanged<String> onQueryChanged;
   final ValueChanged<GeocodingResult> onSuggestionSelected;
   final FutureOr<void> Function(double lat, double lng) onMapTap;
+
+  /// Dirección resuelta por reverse geocoding (se muestra debajo
+  /// de las coordenadas en el footer).
+  final String? resolvedAddress;
 
   @override
   State<Step3Geolocation> createState() => _Step3GeolocationState();
@@ -127,6 +137,7 @@ class _Step3GeolocationState extends State<Step3Geolocation> {
           latitude: widget.latitude,
           longitude: widget.longitude,
           hasSelection: widget.latitude != null && widget.longitude != null,
+          resolvedAddress: widget.resolvedAddress,
         ),
       ],
     );
@@ -143,11 +154,13 @@ class _MapFooter extends StatelessWidget {
     required this.latitude,
     required this.longitude,
     required this.hasSelection,
+    this.resolvedAddress,
   });
 
   final double? latitude;
   final double? longitude;
   final bool hasSelection;
+  final String? resolvedAddress;
 
   @override
   Widget build(BuildContext context) {
@@ -181,25 +194,56 @@ class _MapFooter extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFCBD5E1)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.gps_fixed_rounded,
-            color: Color(0xFF2563EB),
-            size: 15,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}',
-              style: const TextStyle(
-                color: Color(0xFF0F172A),
-                fontSize: 12,
-                fontFamily: 'monospace',
-                fontWeight: FontWeight.w600,
+          Row(
+            children: [
+              const Icon(
+                Icons.gps_fixed_rounded,
+                color: Color(0xFF2563EB),
+                size: 15,
               ),
-            ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}',
+                  style: const TextStyle(
+                    color: Color(0xFF0F172A),
+                    fontSize: 12,
+                    fontFamily: 'monospace',
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
+          if (resolvedAddress != null && resolvedAddress!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(
+                  Icons.place_rounded,
+                  color: Color(0xFF16A34A),
+                  size: 15,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    resolvedAddress!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF334155),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      height: 1.3,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

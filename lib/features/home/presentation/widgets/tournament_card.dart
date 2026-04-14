@@ -3,6 +3,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/getColors/getter_colors.dart';
+import '../../../../core/widgets/imagen_frame.dart';
 import '../../../tournament/data/model/app_tournament.dart';
 
 // ════════════════════════════════════════════════════════════════
@@ -107,33 +109,13 @@ class _TournamentCardState extends State<TournamentCard>
           widget.tournament.maxParticipants
           : 0;
 
-  Color get _occupancyColor {
-    if (_occupancy >= 0.8) return const Color(0xFFFF4D6A);
-    if (_occupancy >= 0.6) return const Color(0xFFFFB347);
-    return const Color(0xFF22C55E);
-  }
-
   String get _occupancyLabel {
     if (_occupancy >= 0.8) return 'Casi lleno';
     if (_occupancy >= 0.6) return 'Bastantes plazas';
     return 'Plazas disponibles';
   }
 
-  Color get _sportAccent => _sportColor(widget.tournament.sport);
-
-  Color _sportColor(dynamic sport) {
-    // Devuelve un color distinto por deporte para el borde izquierdo
-    final name = sport.label.toLowerCase();
-    if (name.contains('futbol')) return const Color(0xFF4961DD);
-    if (name.contains('baloncesto')) return const Color(0xFFFFB347);
-    if (name.contains('voleibol')) return const Color(0xFFD627F5);
-    if (name.contains('tenis')) return const Color(0xFF44C831);
-    if (name.contains('padel')) return const Color(0xFFFF6B9D);
-    if (name.contains('karate')) {
-      return const Color(0xFFB0A8FF);
-    }
-    return const Color(0xFFB10F0F);
-  }
+  Color get _sportAccent => sportColor(widget.tournament.sport);
 
   // ──────────────────────────────────────────────────────────────
   //  BUILD
@@ -226,7 +208,7 @@ class _TournamentCardState extends State<TournamentCard>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _CoverHeader(
+                              ImageFrame(
                                 coverUrl: widget.tournament.portadaUrl,
                                 accent: _sportAccent,
                               ),
@@ -247,7 +229,7 @@ class _TournamentCardState extends State<TournamentCard>
                                     _ParticipantsBadge(
                                       current: widget.tournament.participantCount,
                                       max: widget.tournament.maxParticipants,
-                                      occupancyColor: _occupancyColor,
+                                      occupancyColor: occupancyColor(_occupancy),
                                     ),
                                   ],
                                 ),
@@ -318,7 +300,7 @@ class _TournamentCardState extends State<TournamentCard>
                               // Barra de ocupación
                               _OccupancyBar(
                                 occupancy: _occupancy,
-                                color: _occupancyColor,
+                                color: occupancyColor(_occupancy),
                                 label: _occupancyLabel,
                                 current: widget.tournament.participantCount,
                                 max: widget.tournament.maxParticipants,
@@ -341,48 +323,22 @@ class _TournamentCardState extends State<TournamentCard>
                               const SizedBox(height: 14),
 
                               // Fecha + lugar + flecha
-                              Row(
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start, // Optional: aligns the wrap to the left
                                 children: [
-                                  Expanded(
-                                    child: Wrap(
-                                      spacing: 16,
-                                      runSpacing: 8,
-                                      children: [
-                                        _InfoChip(
-                                          icon: Icons.calendar_month_rounded,
-                                          label: dateStr,
-                                        ),
-                                        _InfoChip(
-                                          icon: Icons.location_on_rounded,
-                                          label: widget.tournament.location,
-                                          maxWidth: 140,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  // Flecha de navegación
-                                  Container(
-                                    width: 34,
-                                    height: 34,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          _sportAccent.withValues(alpha: 0.25),
-                                          _sportAccent.withValues(alpha: 0.1),
-                                        ],
+                                  Wrap(
+                                    spacing: 16,
+                                    runSpacing: 8,
+                                    children: [
+                                      _InfoChip(
+                                        icon: Icons.calendar_month_rounded,
+                                        label: dateStr,
                                       ),
-                                      border: Border.all(
-                                        color: _sportAccent
-                                            .withValues(alpha: 0.3),
-                                        width: 1,
+                                      _InfoChip(
+                                        icon: Icons.location_on_rounded,
+                                        label: widget.tournament.location,
                                       ),
-                                    ),
-                                    child: Icon(
-                                      Icons.arrow_forward_rounded,
-                                      color: _sportAccent,
-                                      size: 16,
-                                    ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -406,95 +362,6 @@ class _TournamentCardState extends State<TournamentCard>
 //  SUB-WIDGETS DE LA CARD
 // ════════════════════════════════════════════════════════════════
 
-class _CoverHeader extends StatelessWidget {
-  const _CoverHeader({
-    required this.coverUrl,
-    required this.accent,
-  });
-
-  final String? coverUrl;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: SizedBox(
-        height: 118,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            _CoverImage(url: coverUrl, accent: accent),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.25),
-                    Colors.black.withValues(alpha: 0.55),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-class _CoverImage extends StatelessWidget {
-  const _CoverImage({required this.url, required this.accent});
-
-  final String? url;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    final uri = url?.trim();
-    final hasUrl = uri != null && uri.isNotEmpty;
-
-    // Widget base para el estado de carga o espera
-    Widget loadingPlaceholder() {
-      return Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              accent.withValues(alpha: 0.22),
-              Colors.white.withValues(alpha: 0.02),
-            ],
-          ),
-        ),
-        child: Center(
-          child: SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(accent),
-              strokeWidth: 2.5,
-            ),
-          ),
-        ),
-      );
-    }
-
-    // Si no hay URL, ahora mostramos el cargando en lugar del logo
-    if (!hasUrl) return loadingPlaceholder();
-
-    return Image.network(
-      uri,
-      fit: BoxFit.cover,
-      filterQuality: FilterQuality.low,
-      loadingBuilder: (context, child, progress) {
-        if (progress == null) return child;
-        return loadingPlaceholder();
-      },
-      errorBuilder: (context, error, stackTrace) => loadingPlaceholder(),
-    );
-  }
-}
 /// Badge del deporte con shimmer animado
 class _AnimatedSportBadge extends StatelessWidget {
   const _AnimatedSportBadge({
@@ -736,7 +603,6 @@ class _InfoChip extends StatelessWidget {
     }
 
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           width: 26,
@@ -748,7 +614,7 @@ class _InfoChip extends StatelessWidget {
           child: Icon(icon, size: 13, color: const Color(0xFF00D4FF)),
         ),
         const SizedBox(width: 7),
-        text,
+        Expanded(child: text)
       ],
     );
   }
