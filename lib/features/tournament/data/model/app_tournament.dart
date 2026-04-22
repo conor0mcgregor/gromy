@@ -30,6 +30,7 @@ class AppTournament {
     this.contactEmail,
     this.contactPhone,
     this.contactLinks = const [],
+    this.categories = const [],
   });
 
   final String id;
@@ -71,6 +72,9 @@ class AppTournament {
   final String? contactPhone;
   final List<String> contactLinks;
 
+  /// Categorías opcionales del torneo (ej. 'Sub-18', 'Femenino', 'Amateur').
+  final List<String> categories;
+
 
   Map<String, dynamic> toMap() {
     return {
@@ -102,6 +106,7 @@ class AppTournament {
       'contactEmail': contactEmail,
       'contactPhone': contactPhone,
       'contactLinks': contactLinks,
+      'categories': categories,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -140,6 +145,10 @@ class AppTournament {
           (map['contactLinks'] as List<dynamic>? ?? const <dynamic>[])
               .map((value) => value.toString())
               .toList(),
+      categories:
+          (map['categories'] as List<dynamic>? ?? const <dynamic>[])
+              .map((value) => value.toString())
+              .toList(),
       createdAt: _dateFromValue(map['createdAt']),
       updatedAt: _dateFromValue(map['updatedAt']),
     );
@@ -172,6 +181,7 @@ class AppTournament {
     String? contactEmail,
     String? contactPhone,
     List<String>? contactLinks,
+    List<String>? categories,
   }) {
     return AppTournament(
       id: id ?? this.id,
@@ -200,6 +210,7 @@ class AppTournament {
       contactEmail: contactEmail ?? this.contactEmail,
       contactPhone: contactPhone ?? this.contactPhone,
       contactLinks: contactLinks ?? this.contactLinks,
+      categories: categories ?? this.categories,
     );
   }
 

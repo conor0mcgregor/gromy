@@ -73,7 +73,13 @@ class TournamentFormController extends ChangeNotifier {
   final rulesController = TextEditingController();
   String? rulesError;
 
-  // Step 6: Staff y Soporte
+  // Step 6: Categorías
+  /// Controller del campo de texto para introducir el nombre de la categoría.
+  final categoryController = TextEditingController();
+  /// Lista de categorías añadidas por el usuario (opcional).
+  final List<String> categories = [];
+
+  // Step 7: Staff y Soporte
   final adminController = TextEditingController();
   final contactEmailController = TextEditingController();
   final contactPhoneController = TextEditingController();
@@ -86,7 +92,7 @@ class TournamentFormController extends ChangeNotifier {
   String? contactEmailError;
 
   // Navegación
-  static const int totalSteps = 8;
+  static const int totalSteps = 9;
   int currentStep = 0;
 
   bool isTeamSport = false;
@@ -132,8 +138,11 @@ class TournamentFormController extends ChangeNotifier {
       case 5:
         return _validateRules();
       case 6:
-        return _validateStaff();
+        // Categorías es opcional: siempre se puede avanzar.
+        return true;
       case 7:
+        return _validateStaff();
+      case 8:
         return true;
       default:
         return true;
@@ -360,6 +369,25 @@ class TournamentFormController extends ChangeNotifier {
       .where((value) => value.isNotEmpty)
       .toList();
 
+  // Categorías
+  /// Añade una categoría si no está vacía y no existe ya.
+  /// Devuelve [true] si se añadió, [false] si se rechazó (vacía o duplicada).
+  bool addCategory(String name) {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return false;
+    final lowerTrimmed = trimmed.toLowerCase();
+    if (categories.any((c) => c.toLowerCase() == lowerTrimmed)) return false;
+    categories.add(trimmed);
+    notifyListeners();
+    return true;
+  }
+
+  /// Elimina la categoría con ese nombre exacto.
+  void removeCategory(String name) {
+    categories.remove(name);
+    notifyListeners();
+  }
+
   // Helpers
   void clearFieldError(String field) {
     switch (field) {
@@ -435,6 +463,7 @@ class TournamentFormController extends ChangeNotifier {
     maxParticipantsController.dispose();
     membersPerTeamController.dispose();
     rulesController.dispose();
+    categoryController.dispose();
     adminController.dispose();
     contactEmailController.dispose();
     contactPhoneController.dispose();

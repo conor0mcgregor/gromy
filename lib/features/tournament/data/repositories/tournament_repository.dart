@@ -1,12 +1,20 @@
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../database/participant/models/app_participant.dart';
 import '../model/app_tournament.dart';
 
-/// Contrato de acceso a datos para torneos.
-///
-/// OCP: se extiende con nuevos métodos sin modificar los existentes ni romper
-/// implementaciones anteriores.
+// ─────────────────────────────────────────────────────────────────────────────
+//  TournamentRepository  ·  Contrato de dominio
+//
+//  OCP: se extiende con nuevos métodos sin modificar los existentes ni romper
+//  implementaciones anteriores.
+//  ISP: los métodos de participantes se delegan a [ParticipantRepository]; aquí
+//  sólo se exponen conveniencias de alto nivel que combinan torneo+participante.
+// ─────────────────────────────────────────────────────────────────────────────
+
 abstract interface class TournamentRepository {
+  // ── Creación ───────────────────────────────────────────────────────────────
+
   /// Crea un torneo sin imagen de portada.
   Future<AppTournament> createTournament(AppTournament tournament);
 
@@ -19,6 +27,8 @@ abstract interface class TournamentRepository {
     required XFile coverImage,
   });
 
+  // ── Lectura ────────────────────────────────────────────────────────────────
+
   /// Devuelve un stream en tiempo real con todos los torneos.
   Stream<List<AppTournament>> watchTournaments();
 
@@ -27,4 +37,24 @@ abstract interface class TournamentRepository {
 
   /// Devuelve un stream con los torneos en los que [uid] es administrador.
   Stream<List<AppTournament>> watchTournamentsAdmin(String uid);
+
+  // ── Participantes (conveniencias de alto nivel) ────────────────────────────
+
+  /// Inscribe una entidad al torneo.
+  ///
+  /// Devuelve el [AppParticipant] persistido.
+  /// Lanza [Exception] si la entidad ya está inscrita o el torneo está lleno.
+  Future<AppParticipant> joinTournament({
+    required String tournamentId,
+    required String entityId,
+    required ParticipantEntityType entityType,
+    ParticipantStatus status,
+    String? categoryId,
+  });
+
+  /// Devuelve todos los participantes del torneo (lectura puntual).
+  Future<List<AppParticipant>> getParticipants(String tournamentId);
+
+  /// Devuelve un stream en tiempo real con los participantes del torneo.
+  Stream<List<AppParticipant>> watchParticipants(String tournamentId);
 }

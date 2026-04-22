@@ -241,3 +241,71 @@ class AdminChip extends StatelessWidget {
     );
   }
 }
+
+/// Chip reutilizable para mostrar una categoría añadida en el formulario.
+/// Mismo estilo pill que [AdminChip] pero con icono de etiqueta.
+class CategoryChip extends StatelessWidget {
+  const CategoryChip({
+    super.key,
+    required this.label,
+    required this.onRemove,
+  });
+
+  final String label;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF6C63FF).withValues(alpha: 0.18),
+            const Color(0xFF00D4FF).withValues(alpha: 0.10),
+          ],
+        ),
+        border: Border.all(
+          color: const Color(0xFF6C63FF).withValues(alpha: 0.35),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.label_rounded,
+            color: Color(0xFFB0A8FF),
+            size: 15,
+          ),
+          const SizedBox(width: 7),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 200),
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          InkWell(
+            onTap: onRemove,
+            borderRadius: BorderRadius.circular(999),
+            child: Padding(
+              padding: const EdgeInsets.all(2),
+              child: Icon(
+                Icons.close_rounded,
+                color: Colors.white.withValues(alpha: 0.65),
+                size: 15,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

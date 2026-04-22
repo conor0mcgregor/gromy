@@ -58,6 +58,7 @@ class CreateTournamentController extends ChangeNotifier {
     String? contactEmail,
     String? contactPhone,
     List<String> contactLinks = const [],
+    List<String> categories = const [],
   }) async {
     _setSubmitting(true);
     _clearError();
@@ -134,6 +135,7 @@ class CreateTournamentController extends ChangeNotifier {
         contactEmail: contactEmail?.trim(),
         contactPhone: contactPhone?.trim(),
         contactLinks: contactLinks,
+        categories: categories,
         createdAt: now,
         updatedAt: now,
       );
@@ -143,7 +145,7 @@ class CreateTournamentController extends ChangeNotifier {
             await _tournamentRepository.createTournamentWithCover(
           tournament: tournament,
           coverImage: coverImage,
-        );
+        ); // named params — consistent with TournamentRepository interface
       } else {
         _lastCreatedTournament =
             await _tournamentRepository.createTournament(tournament);

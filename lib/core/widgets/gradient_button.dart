@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../getColors/getter_colors.dart';
+
 /// Botón reutilizable con degradado animado y efecto de brillo al pulsar.
 ///
 /// Ejemplo de uso:
@@ -225,37 +227,3 @@ class _GradientButtonState extends State<GradientButton>
 // ──────────────────────────────────────────────────────────────────────────────
 
 enum GradientButtonSize { small, medium, large }
-
-enum GradientButtonVariant {
-  /// Violeta → cian  (por defecto, ideal para acciones principales)
-  violet(
-    colors: [Color(0xFF6C63FF), Color(0xFFA855F7), Color(0xFF00D4FF)],
-    shadowColor: Color(0xFF6C63FF),
-  ),
-
-  /// Naranja → rosa → violeta  (energético, CTA destacado)
-  sunset(
-    colors: [Color(0xFFF97316), Color(0xFFEC4899), Color(0xFF8B5CF6)],
-    shadowColor: Color(0xFFEC4899),
-  ),
-
-  /// Cian → azul → índigo  (tecnológico, confianza)
-  ocean(
-    colors: [Color(0xFF06B6D4), Color(0xFF3B82F6), Color(0xFF6366F1)],
-    shadowColor: Color(0xFF3B82F6),
-  ),
-
-  /// Verde esmeralda → lima  (éxito, confirmación)
-  forest(
-    colors: [Color(0xFF10B981), Color(0xFF22C55E), Color(0xFF84CC16)],
-    shadowColor: Color(0xFF10B981),
-  );
-
-  const GradientButtonVariant({
-    required this.colors,
-    required this.shadowColor,
-  });
-
-  final List<Color> colors;
-  final Color shadowColor;
-}

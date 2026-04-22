@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:gromy/core/widgets/gradient_button.dart';
 import 'package:gromy/features/tournament/presentation/screens/form_tournament_screen.dart';
 
+import '../../../../core/getColors/getter_colors.dart';
 import '../controllers/create_tournament_controller.dart';
 
 class CreateTournamentScreen extends StatefulWidget {

@@ -2,38 +2,47 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../database/participant/models/app_participant.dart';
+import '../../../../database/participant/repositories/participant_repository.dart';
+import '../../../../database/participant/services/firestore_participant_service.dart';
 import '../model/app_tournament.dart';
 import '../repositories/tournament_repository.dart';
 import 'firebase_tournament_storage_service.dart';
 import 'tournament_storage_service.dart';
 
-/// Implementación de [TournamentRepository] usando Firestore como backend.
-///
-/// SRP: delega la gestión de Storage en [TournamentStorageService] y se
-///       centra exclusivamente en las operaciones de Firestore.
-/// DIP: depende de la abstracción [TournamentStorageService], no de la
-///       implementación concreta.
+// ─────────────────────────────────────────────────────────────────────────────
+//  FirestoreTournamentService  ·  Capa de datos
+//
+//  Implementa [TournamentRepository] usando Firestore como backend.
+//
+//  SRP: delega la gestión de Storage en [TournamentStorageService] y la de
+//       participantes en [ParticipantRepository].
+//  DIP: depende de abstracciones, no de implementaciones concretas.
+// ─────────────────────────────────────────────────────────────────────────────
+
 class FirestoreTournamentService implements TournamentRepository {
   FirestoreTournamentService({
     FirebaseFirestore? firestore,
     TournamentStorageService? storageService,
+    ParticipantRepository? participantRepository,
   })  : _db = firestore ??
             FirebaseFirestore.instanceFor(
               app: Firebase.app(),
               databaseId: 'gromy-db',
             ),
         _storageService =
-            storageService ?? FirebaseTournamentStorageService();
+            storageService ?? FirebaseTournamentStorageService(),
+        _participantRepo =
+            participantRepository ?? FirestoreParticipantService();
 
   final FirebaseFirestore _db;
   final TournamentStorageService _storageService;
+  final ParticipantRepository _participantRepo;
 
   CollectionReference<Map<String, dynamic>> get _tournaments =>
       _db.collection('tournaments');
 
-  // ──────────────────────────────────────────────────────────────
-  //  TournamentRepository impl
-  // ──────────────────────────────────────────────────────────────
+  // ── Creación ───────────────────────────────────────────────────────────────
 
   @override
   Future<AppTournament> createTournament(AppTournament tournament) async {
@@ -78,6 +87,8 @@ class FirestoreTournamentService implements TournamentRepository {
     return tournamentToSave;
   }
 
+  // ── Lectura ────────────────────────────────────────────────────────────────
+
   @override
   Stream<List<AppTournament>> watchTournaments() {
     return _tournaments.snapshots().map((snapshot) {
@@ -97,32 +108,46 @@ class FirestoreTournamentService implements TournamentRepository {
 
   @override
   Stream<List<AppTournament>> watchMyTournaments(String uid) {
-    // Filtramos del lado del cliente para evitar índices compuestos en
-    // Firestore. En un proyecto de mayor escala se usaría una query de
-    // tipo array-contains con un índice.
     return watchTournaments().map(
-      (tournaments) => tournaments
-          .where(
-            (t) =>
-                t.organizerUid == uid,
-          )
-          .toList(),
+      (tournaments) =>
+          tournaments.where((t) => t.organizerUid == uid).toList(),
     );
   }
+
   @override
   Stream<List<AppTournament>> watchTournamentsAdmin(String uid) {
-    // Filtramos del lado del cliente para evitar índices compuestos en
-    // Firestore. En un proyecto de mayor escala se usaría una query de
-    // tipo array-contains con un índice.
     return watchTournaments().map(
-      (tournaments) => tournaments
-          .where(
-            (t) =>
-                t.adminIds.contains(uid),
-          )
-          .toList(),
+      (tournaments) =>
+          tournaments.where((t) => t.adminIds.contains(uid)).toList(),
     );
   }
 
+  // ── Participantes (delegación en ParticipantRepository) ───────────────────
 
+  @override
+  Future<AppParticipant> joinTournament({
+    required String tournamentId,
+    required String entityId,
+    required ParticipantEntityType entityType,
+    ParticipantStatus status = ParticipantStatus.pending,
+    String? categoryId,
+  }) {
+    return _participantRepo.joinTournament(
+      tournamentId: tournamentId,
+      entityId: entityId,
+      entityType: entityType,
+      status: status,
+      categoryId: categoryId,
+    );
+  }
+
+  @override
+  Future<List<AppParticipant>> getParticipants(String tournamentId) {
+    return _participantRepo.getParticipants(tournamentId);
+  }
+
+  @override
+  Stream<List<AppParticipant>> watchParticipants(String tournamentId) {
+    return _participantRepo.watchParticipants(tournamentId);
+  }
 }

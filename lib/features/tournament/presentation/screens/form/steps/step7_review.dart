@@ -25,6 +25,7 @@ class Step7Review extends StatelessWidget {
     required this.membersPerTeam,
     required this.accessType,
     required this.rulesPreview,
+    required this.categories,
     required this.contactEmail,
     required this.contactPhone,
     required this.contactLinks,
@@ -44,6 +45,7 @@ class Step7Review extends StatelessWidget {
   final String? membersPerTeam;
   final String accessType;
   final String rulesPreview;
+  final List<String> categories;
   final String contactEmail;
   final String? contactPhone;
   final List<String> contactLinks;
@@ -165,6 +167,21 @@ class Step7Review extends StatelessWidget {
             ),
           ],
         ),
+
+        // ── Categorías (condicional) ─────────────────────────────
+        if (categories.isNotEmpty)
+          InfoSection(
+            icon: Icons.label_rounded,
+            title: 'Categorías',
+            accentColor: const Color(0xFFB0A8FF),
+            children: [
+              InfoField(
+                label: 'Categorías añadidas',
+                value: categories.join(' • '),
+                multiline: true,
+              ),
+            ],
+          ),
 
         // ── Staff y Soporte ───────────────────────────────────────
         InfoSection(

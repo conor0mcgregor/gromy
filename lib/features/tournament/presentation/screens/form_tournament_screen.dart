@@ -2,19 +2,21 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../core/getColors/getter_colors.dart';
 import '../../../../core/widgets/glow_orb.dart';
 import '../../../../core/widgets/gradient_button.dart';
 import '../../../user/data/services/firestore_user_service.dart';
 import '../controllers/create_tournament_controller.dart';
 import '../controllers/tournament_form_controller.dart';
 
-// Importación de los 8 pasos
+// Importación de los 9 pasos
 import 'form/steps/step0_identity.dart';
 import 'form/steps/step1_discipline.dart';
 import 'form/steps/step2_schedule.dart';
 import 'form/steps/step3_geolocation.dart';
 import 'form/steps/step4_logistics.dart';
 import 'form/steps/step5_rules.dart';
+import 'form/steps/step6_categories.dart';
 import 'form/steps/step6_staff.dart';
 import 'form/steps/step7_review.dart';
 
@@ -202,6 +204,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       contactEmail: _form.contactEmailController.text.trim(),
       contactPhone: _form.contactPhoneController.text.trim(),
       contactLinks: _form.contactLinks,
+      categories: _form.categories,
     );
 
     if (success) {
@@ -411,6 +414,25 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     });
   }
 
+  void _addCategory() {
+    final raw = _form.categoryController.text.trim();
+    if (raw.isEmpty) {
+      _showSnackBar('Escribe el nombre de la categoría primero.', isError: true);
+      return;
+    }
+    final added = _form.addCategory(raw);
+    if (added) {
+      _form.categoryController.clear();
+      FocusScope.of(context).unfocus();
+    } else {
+      _showSnackBar('Esa categoría ya ha sido añadida.', isError: true);
+    }
+  }
+
+  void _removeCategory(String name) {
+    _form.removeCategory(name);
+  }
+
   void _showSnackBar(String message, {bool isError = true}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -525,8 +547,9 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
                               _buildStepPage(_buildStep3()),
                               _buildStepPage(_buildStep4()),
                               _buildStepPage(_buildStep5()),
-                              _buildStepPage(_buildStep6()),
-                              _buildStepPage(_buildStep7()),
+                              _buildStepPage(_buildStep6Categories()),
+                              _buildStepPage(_buildStep7Staff()),
+                              _buildStepPage(_buildStep8Review()),
                             ],
                           ),
                         ),
@@ -563,6 +586,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       'Geolocalización',
       'Logística y Privacidad',
       'Reglamento',
+      'Categorías',
       'Staff y Soporte',
       'Review',
     ];
@@ -774,7 +798,14 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     onRulesChanged: (_) => _form.clearFieldError('rules'),
   );
 
-  Widget _buildStep6() => Step6Staff(
+  Widget _buildStep6Categories() => Step6Categories(
+    categoryController: _form.categoryController,
+    categories: _form.categories,
+    onAddCategory: _addCategory,
+    onRemoveCategory: _removeCategory,
+  );
+
+  Widget _buildStep7Staff() => Step6Staff(
     adminController: _form.adminController,
     adminError: _form.adminError,
     isAddingAdmin: _form.isAddingAdmin,
@@ -792,7 +823,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     onRemoveContactLink: (i) => setState(() => _form.removeContactLink(i)),
   );
 
-  Widget _buildStep7() => Step7Review(
+  Widget _buildStep8Review() => Step7Review(
     coverBytes: _form.coverBytes,
     name: _form.nameController.text.trim().isEmpty
         ? '—'
@@ -826,6 +857,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     rulesPreview: _form.rulesController.text.trim().isEmpty
         ? '—'
         : _form.rulesController.text.trim(),
+    categories: _form.categories,
     contactEmail: _form.contactEmailController.text.trim().isEmpty
         ? '—'
         : _form.contactEmailController.text.trim(),
