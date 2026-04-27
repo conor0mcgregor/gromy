@@ -3,8 +3,8 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-import '../../controllers/team_form_controller.dart';
-import '../../widgets/team_member_tile.dart';
+import '../../../controllers/team_form_controller.dart';
+import '../../../widgets/team_member_tile.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Step2 · Resumen / Review del equipo
@@ -193,12 +193,12 @@ class Step2TeamReview extends StatelessWidget {
                     const SizedBox(height: 8),
                     _buildInfoChip(
                       Icons.people_rounded,
-                      '${members.length + 1} miembro${members.length != 0 ? 's' : ''}',
+                      '${members.length + 1} miembro${members.isNotEmpty ? 's' : ''}',
                     ),
                     const SizedBox(height: 4),
                     _buildInfoChip(
                       Icons.admin_panel_settings_rounded,
-                      '${members.where((m) => m.isAdmin).length + 1} admin${members.where((m) => m.isAdmin).length != 0 ? 's' : ''}',
+                      '${members.where((m) => m.isAdmin).length + 1} admin${members.where((m) => m.isAdmin).isNotEmpty ? 's' : ''}',
                     ),
                   ],
                 ),

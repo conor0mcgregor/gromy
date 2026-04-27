@@ -119,7 +119,7 @@ class TeamCard extends StatelessWidget {
             ? Image.network(
                 team.photoUrl!,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Center(
+                errorBuilder: (_, _, _) => Center(
                   child: Text(
                     initials,
                     style: const TextStyle(

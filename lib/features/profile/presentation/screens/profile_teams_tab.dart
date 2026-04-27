@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../core/getColors/getter_colors.dart';
 import '../../../../core/widgets/gradient_button.dart';
 import '../../../../database/team/services/firestore_team_service.dart';
 import '../../../../database/team/models/app_team.dart';
@@ -75,7 +76,7 @@ class ProfileTeamsTab extends StatelessWidget {
                 Expanded(
                   child: ListView.separated(
                     itemCount: teams.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
                     padding: const EdgeInsets.only(bottom: 80),
                     itemBuilder: (context, index) {
                       final team = teams[index];

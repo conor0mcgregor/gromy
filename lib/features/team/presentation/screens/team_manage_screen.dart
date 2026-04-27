@@ -1,9 +1,8 @@
 import 'dart:ui';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../../../../core/widgets/field_label.dart';
+import '../../../../core/getColors/getter_colors.dart';
 import '../../../../core/widgets/glass_text_field.dart';
 import '../../../../core/widgets/glow_orb.dart';
 import '../../../../core/widgets/gradient_button.dart';
@@ -53,7 +52,6 @@ class _TeamManageScreenState extends State<TeamManageScreen>
   late final AnimationController _fadeController;
   late final Animation<double> _fadeAnimation;
 
-  String get _currentUid => FirebaseAuth.instance.currentUser?.uid ?? '';
 
   @override
   void initState() {

@@ -2,12 +2,13 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../../../../../../core/getColors/getter_colors.dart';
 import '../../../../../../core/widgets/field_label.dart';
 import '../../../../../../core/widgets/glass_text_field.dart';
 import '../../../../../../core/widgets/gradient_button.dart';
 import '../../../../../../core/widgets/toggle_switch.dart';
-import '../../controllers/team_form_controller.dart';
-import '../../widgets/team_member_tile.dart';
+import '../../../controllers/team_form_controller.dart';
+import '../../../widgets/team_member_tile.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Step1 · Añadir miembros al equipo

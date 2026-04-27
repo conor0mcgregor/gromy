@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../core/getColors/getter_colors.dart';
 import '../../../../core/widgets/glow_orb.dart';
 import '../../../../core/widgets/gradient_button.dart';
 import '../../../../database/team/models/app_team.dart';
@@ -322,7 +323,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen>
             ? Image.network(
                 _team.photoUrl!,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Center(
+                errorBuilder: (_, _, _) => Center(
                   child: Text(
                     initial,
                     style: const TextStyle(
