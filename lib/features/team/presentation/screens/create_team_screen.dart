@@ -230,14 +230,20 @@ class _CreateTeamScreenState extends State<CreateTeamScreen>
       if (picked == null) return;
       final bytes = await picked.readAsBytes();
       if (!mounted) return;
-      setState(() => _form.coverBytes = bytes);
+      setState(() {
+        _form.coverImage = picked;
+        _form.coverBytes = bytes;
+      });
     } catch (_) {
       _showSnackBar('No se pudo seleccionar la imagen.', isError: true);
     }
   }
 
   void _removePhoto() {
-    setState(() => _form.coverBytes = null);
+    setState(() {
+      _form.coverImage = null;
+      _form.coverBytes = null;
+    });
   }
 
   // ── Miembros ───────────────────────────────────────────────────────────────

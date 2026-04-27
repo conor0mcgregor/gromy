@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/getColors/getter_colors.dart';
 import '../../../../core/widgets/glass_text_field.dart';
@@ -9,6 +10,7 @@ import '../../../../core/widgets/gradient_button.dart';
 import '../../../../core/widgets/toggle_switch.dart';
 import '../../../../database/team/models/app_team.dart';
 import '../../../../database/team/services/firestore_team_service.dart';
+import '../../data/services/team_storage_service.dart';
 import '../../../user/data/models/app_user.dart';
 import '../../../user/data/services/firestore_user_service.dart';
 import '../widgets/team_member_tile.dart';
@@ -37,6 +39,8 @@ class _TeamManageScreenState extends State<TeamManageScreen>
   late AppTeam _team;
   final _teamService = FirestoreTeamService();
   final _userService = FirestoreUserService();
+  final _storageService = TeamStorageService();
+  final _imagePicker = ImagePicker();
 
   final _nameController = TextEditingController();
   final _memberController = TextEditingController();
@@ -44,6 +48,7 @@ class _TeamManageScreenState extends State<TeamManageScreen>
   String? _memberError;
   bool _isSearching = false;
   bool _isSavingName = false;
+  bool _isUploadingPhoto = false;
   bool _isDeleting = false;
 
   final Map<String, AppUser?> _userCache = {};
@@ -125,6 +130,36 @@ class _TeamManageScreenState extends State<TeamManageScreen>
       _showSnackBar('Error al actualizar el nombre.', isError: true);
     } finally {
       if (mounted) setState(() => _isSavingName = false);
+    }
+  }
+
+  Future<void> _changePhoto() async {
+    FocusScope.of(context).unfocus();
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 800,
+      );
+      if (picked == null) return;
+
+      setState(() => _isUploadingPhoto = true);
+
+      final photoUrl = await _storageService.uploadTeamPhoto(
+        teamId: _team.id,
+        imageFile: picked,
+      );
+
+      final updated = _team.copyWith(photoUrl: photoUrl);
+      await _teamService.updateTeam(updated);
+      setState(() => _team = updated);
+      _showSnackBar('Foto actualizada.', isError: false);
+    } on TeamStorageException catch (e) {
+      _showSnackBar('Error al subir la foto: ${e.message}', isError: true);
+    } catch (_) {
+      _showSnackBar('No se pudo cambiar la foto.', isError: true);
+    } finally {
+      if (mounted) setState(() => _isUploadingPhoto = false);
     }
   }
 
@@ -394,6 +429,8 @@ class _TeamManageScreenState extends State<TeamManageScreen>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              _buildPhotoSection(),
+                              const SizedBox(height: 28),
                               _buildNameSection(),
                               const SizedBox(height: 28),
                               _buildAddMemberSection(),
@@ -412,6 +449,127 @@ class _TeamManageScreenState extends State<TeamManageScreen>
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  // ── Sección: foto del equipo ──
+
+  Widget _buildPhotoSection() {
+    final hasPhoto = _team.photoUrl != null && _team.photoUrl!.isNotEmpty;
+    final initial = _team.name.isNotEmpty ? _team.name[0].toUpperCase() : '?';
+
+    return _buildSectionCard(
+      icon: Icons.camera_alt_rounded,
+      title: 'Foto del equipo',
+      child: Column(
+        children: [
+          const SizedBox(height: 16),
+          Center(
+            child: GestureDetector(
+              onTap: _isUploadingPhoto ? null : _changePhoto,
+              child: Stack(
+                children: [
+                  Container(
+                    width: 90,
+                    height: 90,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: hasPhoto
+                          ? null
+                          : const LinearGradient(
+                              colors: [Color(0xFF6C63FF), Color(0xFF00D4FF)],
+                            ),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        width: 2.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF6C63FF).withValues(alpha: 0.3),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: ClipOval(
+                      child: hasPhoto
+                          ? Image.network(
+                              _team.photoUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => Center(
+                                child: Text(
+                                  initial,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : Center(
+                              child: Text(
+                                initial,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 36,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                    ),
+                  ),
+                  // Overlay de cámara
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6C63FF), Color(0xFF00D4FF)],
+                        ),
+                        border: Border.all(
+                          color: const Color(0xFF0A0A1A),
+                          width: 2.5,
+                        ),
+                      ),
+                      child: _isUploadingPhoto
+                          ? const Padding(
+                              padding: EdgeInsets.all(6),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.camera_alt_rounded,
+                              color: Colors.white,
+                              size: 14,
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Center(
+            child: Text(
+              _isUploadingPhoto
+                  ? 'Subiendo foto...'
+                  : 'Toca la imagen para cambiarla',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.4),
+                fontSize: 12.5,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
         ],
       ),
     );

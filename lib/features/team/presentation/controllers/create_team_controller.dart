@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../database/team/models/app_team.dart';
 import '../../../../database/team/services/firestore_team_service.dart';
+import '../../data/services/team_storage_service.dart';
 import 'team_form_controller.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -10,13 +11,23 @@ import 'team_form_controller.dart';
 //
 //  Sigue el patrón de CreateTournamentController: recibe los datos del
 //  formulario y orquesta la escritura en la base de datos.
+//
+//  Flujo de la imagen:
+//  1. Se crea el equipo en Firestore (sin foto) para obtener el ID
+//  2. Si hay imagen, se sube a Firebase Storage con el teamId
+//  3. Se obtiene la URL de descarga
+//  4. Se actualiza el equipo en Firestore con la URL de la foto
 // ─────────────────────────────────────────────────────────────────────────────
 
 class CreateTeamController extends ChangeNotifier {
-  CreateTeamController({FirestoreTeamService? teamService})
-      : _teamService = teamService ?? FirestoreTeamService();
+  CreateTeamController({
+    FirestoreTeamService? teamService,
+    TeamStorageService? storageService,
+  })  : _teamService = teamService ?? FirestoreTeamService(),
+        _storageService = storageService ?? TeamStorageService();
 
   final FirestoreTeamService _teamService;
+  final TeamStorageService _storageService;
 
   bool _isSubmitting = false;
   String? _error;
@@ -54,6 +65,7 @@ class CreateTeamController extends ChangeNotifier {
         }
       }
 
+      // 1. Crear el equipo en Firestore (sin foto, para obtener el ID)
       final team = AppTeam(
         id: '',
         name: teamName,
@@ -61,10 +73,28 @@ class CreateTeamController extends ChangeNotifier {
         members: memberUids,
         adminIds: adminUids,
         createdAt: DateTime.now(),
-        // photoUrl se dejará null por ahora (sin Storage)
       );
 
-      final created = await _teamService.createTeam(team);
+      var created = await _teamService.createTeam(team);
+
+      // 2. Si hay imagen, subirla a Storage y actualizar el equipo
+      if (form.coverImage != null) {
+        try {
+          final photoUrl = await _storageService.uploadTeamPhoto(
+            teamId: created.id,
+            imageFile: form.coverImage!,
+          );
+
+          // 3. Actualizar el equipo con la URL de la foto
+          created = created.copyWith(photoUrl: photoUrl);
+          await _teamService.updateTeam(created);
+        } catch (e) {
+          // La imagen falló pero el equipo se creó → no es un error fatal
+          // El usuario puede cambiar la foto más tarde desde gestión
+          debugPrint('Error subiendo foto del equipo: $e');
+        }
+      }
+
       return created;
     } catch (e) {
       _error = 'No se pudo crear el equipo. Inténtalo de nuevo.';

@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../features/user/data/models/user_public_profile.dart';
 
@@ -56,6 +57,7 @@ class TeamFormController extends ChangeNotifier {
   // ── Step 0: Identidad ──
   final nameController = TextEditingController();
   String? nameError;
+  XFile? coverImage;
   Uint8List? coverBytes;
 
   // ── Step 1: Miembros ──
