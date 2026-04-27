@@ -44,6 +44,14 @@ class FirestoreTeamService implements TeamRepository {
   }
 
   @override
+  Future<void> updateTeam(AppTeam team) async {
+    await _teams
+        .doc(team.id)
+        .set(team.toMap())
+        .timeout(const Duration(seconds: 10));
+  }
+
+  @override
   Future<AppTeam?> getTeam(String teamId) async {
     final doc = await _teams
         .doc(teamId)
@@ -87,6 +95,26 @@ class FirestoreTeamService implements TeamRepository {
   }) async {
     await _teams.doc(teamId).update({
       'members': FieldValue.arrayRemove([userId]),
+    }).timeout(const Duration(seconds: 10));
+  }
+
+  @override
+  Future<void> addAdmin({
+    required String teamId,
+    required String userId,
+  }) async {
+    await _teams.doc(teamId).update({
+      'adminIds': FieldValue.arrayUnion([userId]),
+    }).timeout(const Duration(seconds: 10));
+  }
+
+  @override
+  Future<void> removeAdmin({
+    required String teamId,
+    required String userId,
+  }) async {
+    await _teams.doc(teamId).update({
+      'adminIds': FieldValue.arrayRemove([userId]),
     }).timeout(const Duration(seconds: 10));
   }
 

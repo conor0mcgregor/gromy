@@ -12,6 +12,9 @@ abstract interface class TeamRepository {
   /// Crea un nuevo equipo. Si [team.id] está vacío se genera automáticamente.
   Future<AppTeam> createTeam(AppTeam team);
 
+  /// Actualiza los datos del equipo (nombre, foto, etc.).
+  Future<void> updateTeam(AppTeam team);
+
   /// Devuelve el equipo con [teamId], o null si no existe.
   Future<AppTeam?> getTeam(String teamId);
 
@@ -26,6 +29,12 @@ abstract interface class TeamRepository {
 
   /// Elimina [userId] del equipo [teamId].
   Future<void> removeMember({required String teamId, required String userId});
+
+  /// Añade [userId] como administrador del equipo [teamId].
+  Future<void> addAdmin({required String teamId, required String userId});
+
+  /// Elimina [userId] de los administradores del equipo [teamId].
+  Future<void> removeAdmin({required String teamId, required String userId});
 
   /// Elimina el equipo [teamId] y todos sus datos asociados.
   Future<void> deleteTeam(String teamId);
