@@ -17,17 +17,15 @@ class LocationPickerController extends ChangeNotifier {
     this.fallbackZoom = 11,
     this.focusedZoom = 16,
   }) : _locationService = locationService ?? LocationService(),
-       _onLocationConfirmed = onLocationConfirmed,
-       _fallbackCenter = fallbackCenter,
-       _cameraCenter = initialPoint ?? fallbackCenter,
-       _zoom = initialPoint != null ? focusedZoom : fallbackZoom,
-       _selectedPoint = initialPoint,
-       _status = initialPoint != null
-           ? LocationPickerStatus.success
-           : LocationPickerStatus.loading,
-       _message = initialPoint != null
-           ? 'Ubicación lista. Toca otro punto del mapa si quieres cambiarla.'
-           : 'Obteniendo tu ubicación actual...';
+        _onLocationConfirmed = onLocationConfirmed,
+        _fallbackCenter = fallbackCenter,
+        _cameraCenter = initialPoint ?? fallbackCenter,
+        _zoom = initialPoint != null ? focusedZoom : fallbackZoom,
+        _selectedPoint = initialPoint,
+        _status = LocationPickerStatus.success,
+        _message = initialPoint != null
+            ? 'Ubicación lista. Toca otro punto del mapa si quieres cambiarla.'
+            : 'Explora el mapa y toca para fijar la ubicación.';
 
   final LocationService _locationService;
   final Future<void> Function(LatLng point) _onLocationConfirmed;
@@ -87,14 +85,14 @@ class LocationPickerController extends ChangeNotifier {
       _status = LocationPickerStatus.success;
       _issue = null;
       _message =
-          'Selecciona una sugerencia o toca el mapa para fijar el punto.';
+      'Selecciona una sugerencia o toca el mapa para fijar el punto.';
       notifyListeners();
       return;
     }
 
     final alreadySynced =
         _selectedPoint?.latitude == point.latitude &&
-        _selectedPoint?.longitude == point.longitude;
+            _selectedPoint?.longitude == point.longitude;
     if (alreadySynced) return;
 
     _selectedPoint = point;
@@ -148,7 +146,7 @@ class LocationPickerController extends ChangeNotifier {
       _status = LocationPickerStatus.error;
       _issue = LocationIssue.unavailable;
       _message =
-          'No se pudo obtener tu ubicación real. Puedes elegir el punto manualmente.';
+      'No se pudo obtener tu ubicación real. Puedes elegir el punto manualmente.';
 
       if (_selectedPoint == null) {
         _cameraCenter = _fallbackCenter;
@@ -195,7 +193,7 @@ class LocationPickerController extends ChangeNotifier {
   Future<void> _commitSelection(LatLng point, {required String message}) async {
     final didChange =
         _selectedPoint?.latitude != point.latitude ||
-        _selectedPoint?.longitude != point.longitude;
+            _selectedPoint?.longitude != point.longitude;
 
     _selectedPoint = point;
     _status = LocationPickerStatus.success;

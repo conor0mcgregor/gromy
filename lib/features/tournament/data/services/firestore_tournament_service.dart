@@ -150,4 +150,11 @@ class FirestoreTournamentService implements TournamentRepository {
   Stream<List<AppParticipant>> watchParticipants(String tournamentId) {
     return _participantRepo.watchParticipants(tournamentId);
   }
+
+  @override
+  Future<void> incrementParticipantCount(String tournamentId) async {
+    await _tournaments.doc(tournamentId).update({
+      'participantCount': FieldValue.increment(1),
+    }).timeout(const Duration(seconds: 10));
+  }
 }

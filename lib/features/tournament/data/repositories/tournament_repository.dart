@@ -57,4 +57,7 @@ abstract interface class TournamentRepository {
 
   /// Devuelve un stream en tiempo real con los participantes del torneo.
   Stream<List<AppParticipant>> watchParticipants(String tournamentId);
+
+  /// Incrementa de forma atómica el contador de participantes del torneo.
+  Future<void> incrementParticipantCount(String tournamentId);
 }

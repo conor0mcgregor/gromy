@@ -12,6 +12,7 @@ import '../../participants/data/models/participant_display.dart';
 import '../../participants/data/services/participant_display_service.dart';
 import '../../participants/presentation/screens/participants_screen.dart';
 import '../../tournament/data/model/app_tournament.dart';
+import 'inscription_screen.dart';
 
 // ════════════════════════════════════════════════════════════════
 //  PREINSCRIPTION SCREEN
@@ -1075,7 +1076,15 @@ class _StickyEnrollBar extends StatelessWidget {
         child: GradientButton(
           label: isFull ? 'Torneo completo' : 'Inscribirse al torneo',
           icon: isFull ? Icons.block_rounded : Icons.how_to_reg_rounded,
-          onPressed: isFull ? null : () {/* TODO: lógica de inscripción */},
+          onPressed: isFull
+              ? null
+              : () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          InscriptionScreen(tournament: tournament),
+                    ),
+                  ),
           variant: isFull
               ? GradientButtonVariant.sunset
               : GradientButtonVariant.violet,

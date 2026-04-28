@@ -17,7 +17,8 @@ class TournamentCard extends StatefulWidget {
     required this.tournament,
     this.animationDelay = Duration.zero,
     this.onTap,
-    this.isMyTournament
+    this.isMyTournament,
+    this.distanceKm,
   });
 
   final AppTournament tournament;
@@ -28,6 +29,8 @@ class TournamentCard extends StatefulWidget {
   final VoidCallback? onTap;
 
   final bool? isMyTournament;
+
+  final double? distanceKm;
 
   @override
   State<TournamentCard> createState() => _TournamentCardState();
@@ -237,35 +240,35 @@ class _TournamentCardState extends State<TournamentCard>
                               const SizedBox(height: 16),
 
                               if (widget.isMyTournament == true) Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(999),
-                                color: Colors.white.withValues(alpha: 0.06),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.12),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(999),
+                                  color: Colors.white.withValues(alpha: 0.06),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.12),
+                                  ),
                                 ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.verified_user_outlined,
-                                      color: Color(0xFFB0A8FF), size: 16),
-                                  const SizedBox(width: 8),
-                                  ConstrainedBox(
-                                    constraints: const BoxConstraints(maxWidth: 200),
-                                    child: Text(
-                                      "Creador",
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w700,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.verified_user_outlined,
+                                        color: Color(0xFFB0A8FF), size: 16),
+                                    const SizedBox(width: 8),
+                                    ConstrainedBox(
+                                      constraints: const BoxConstraints(maxWidth: 200),
+                                      child: Text(
+                                        "Creador",
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w700,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
 
 
                               const SizedBox(height: 16),
@@ -338,6 +341,12 @@ class _TournamentCardState extends State<TournamentCard>
                                         icon: Icons.location_on_rounded,
                                         label: widget.tournament.location,
                                       ),
+                                      if (widget.distanceKm != null)
+                                        _InfoChip(
+                                          icon: Icons.map_rounded,
+                                          label: 'A ${widget.distanceKm!.toStringAsFixed(1)} km',
+                                          colorOverride: const Color(0xFF6C63FF),
+                                        ),
                                     ],
                                   ),
                                 ],
@@ -580,11 +589,13 @@ class _InfoChip extends StatelessWidget {
     required this.icon,
     required this.label,
     this.maxWidth,
+    this.colorOverride,
   });
 
   final IconData icon;
   final String label;
   final double? maxWidth;
+  final Color? colorOverride;
 
   @override
   Widget build(BuildContext context) {
@@ -609,9 +620,9 @@ class _InfoChip extends StatelessWidget {
           height: 26,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            color: const Color(0xFF00D4FF).withValues(alpha: 0.1),
+            color: (colorOverride ?? const Color(0xFF00D4FF)).withValues(alpha: 0.1),
           ),
-          child: Icon(icon, size: 13, color: const Color(0xFF00D4FF)),
+          child: Icon(icon, size: 13, color: colorOverride ?? const Color(0xFF00D4FF)),
         ),
         const SizedBox(width: 7),
         Expanded(child: text)

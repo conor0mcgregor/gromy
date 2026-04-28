@@ -113,7 +113,6 @@ class ProfileTeamsTab extends StatelessWidget {
             child: const Icon(
               Icons.groups_rounded,
               size: 64,
-              color: Colors.white,
             ),
           ),
           const SizedBox(height: 16),

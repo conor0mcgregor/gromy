@@ -3,9 +3,12 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import 'package:gromy/features/tournament/data/model/app_tournament.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../inscription/screen/preinscription_screen.dart';
 import '../controllers/home_controller.dart';
 import '../widgets/tournament_card.dart';
+import '../widgets/filter_bottom_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,6 +29,49 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final _searchController = TextEditingController();
   String _searchQuery = '';
   String? _selectedSport; // null = todos
+
+  final List<String> _sports = [
+    'Fútbol',
+    'Baloncesto',
+    'Tenis',
+    'Pádel',
+    'Voleibol',
+  ];
+
+  // Filtros avanzados
+  DateTimeRange? _filterDateRange;
+  LatLng? _filterLocation;
+  double? _filterRadiusKm;
+  int? _filterParticipants;
+
+  LatLng? get _referencePosition => _filterLocation;
+
+  void _openFilterSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return FilterBottomSheet(
+          availableSports: _sports,
+          initialSport: _selectedSport,
+          initialDateRange: _filterDateRange,
+          initialLocation: _filterLocation,
+          initialRadius: _filterRadiusKm,
+          initialParticipants: _filterParticipants,
+          onApply: (sport, dateRange, locationCoord, radius, participants) {
+            setState(() {
+              _selectedSport = sport;
+              _filterDateRange = dateRange;
+              _filterLocation = locationCoord;
+              _filterRadiusKm = radius;
+              _filterParticipants = participants;
+            });
+          },
+        );
+      },
+    );
+  }
 
   @override
   void initState() {
@@ -58,15 +104,42 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   List<AppTournament> _filter(List<AppTournament> all) {
-    return all.where((t) {
+    final filtered = all.where((t) {
       final matchesSearch = _searchQuery.isEmpty ||
           t.name.toLowerCase().contains(_searchQuery) ||
-          t.location.toLowerCase().contains(_searchQuery) ||
           t.sport.label.toLowerCase().contains(_searchQuery);
+
       final matchesSport =
           _selectedSport == null || t.sport.label == _selectedSport || _selectedSport == "";
-      return matchesSearch && matchesSport;
+
+      final matchesDate = _filterDateRange == null ||
+          (t.scheduledAt.isAfter(_filterDateRange!.start.subtract(const Duration(days: 1))) &&
+              t.scheduledAt.isBefore(_filterDateRange!.end.add(const Duration(days: 1))));
+
+      final matchesParticipants = _filterParticipants == null ||
+          t.maxParticipants <= _filterParticipants!;
+
+      bool matchesRadius = true;
+      if (_referencePosition != null && _filterRadiusKm != null && t.latitude != null && t.longitude != null) {
+        final dist = Geolocator.distanceBetween(_referencePosition!.latitude, _referencePosition!.longitude, t.latitude!, t.longitude!) / 1000.0;
+        if (dist > _filterRadiusKm!) matchesRadius = false;
+      }
+
+      return matchesSearch && matchesSport && matchesDate && matchesParticipants && matchesRadius;
     }).toList();
+
+    // Ordenar por distancia si hay una referencia geográfica disponible
+    if (_referencePosition != null) {
+      filtered.sort((a, b) {
+        if (a.latitude == null || a.longitude == null) return 1;
+        if (b.latitude == null || b.longitude == null) return -1;
+        final distA = Geolocator.distanceBetween(_referencePosition!.latitude, _referencePosition!.longitude, a.latitude!, a.longitude!);
+        final distB = Geolocator.distanceBetween(_referencePosition!.latitude, _referencePosition!.longitude, b.latitude!, b.longitude!);
+        return distA.compareTo(distB);
+      });
+    }
+
+    return filtered;
   }
 
   @override
@@ -129,8 +202,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ),
                       const SizedBox(height: 20),
 
-                      // ── Barra de búsqueda ──
-                      _SearchBar(controller: _searchController),
+                      // ── Barra de búsqueda y Filtros ──
+                      Row(
+                        children: [
+                          Expanded(child: _SearchBar(controller: _searchController)),
+                          const SizedBox(width: 12),
+                          _FilterButton(
+                            onTap: () => _openFilterSheet(context),
+                            isActive: _filterDateRange != null || _filterLocation != null || _filterParticipants != null,
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -204,14 +286,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           const EdgeInsets.fromLTRB(20, 0, 20, 100),
                           itemCount: tournaments.length,
                           itemBuilder: (context, index) {
+                            final t = tournaments[index];
+                            double? distanceKm;
+                            if (_referencePosition != null && t.latitude != null && t.longitude != null) {
+                              distanceKm = Geolocator.distanceBetween(_referencePosition!.latitude, _referencePosition!.longitude, t.latitude!, t.longitude!) / 1000.0;
+                            }
                             return TournamentCard(
-                              tournament: tournaments[index],
+                              tournament: t,
+                              distanceKm: distanceKm,
                               onTap: () {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => DemoEnrollScreen(
-                                      tournament: tournaments[index],
+                                      tournament: t,
                                     ),
                                   ),
                                 );
@@ -571,6 +659,43 @@ class _ErrorState extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.4), fontSize: 13),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Botón para abrir filtros avanzados
+class _FilterButton extends StatelessWidget {
+  const _FilterButton({required this.onTap, required this.isActive});
+
+  final VoidCallback onTap;
+  final bool isActive;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            height: 50,
+            width: 50,
+            decoration: BoxDecoration(
+              color: isActive ? const Color(0xFF6C63FF).withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isActive ? const Color(0xFF6C63FF) : Colors.white.withValues(alpha: 0.1),
+              ),
+            ),
+            child: Icon(
+              Icons.tune_rounded,
+              color: isActive ? const Color(0xFFB0A8FF) : Colors.white.withValues(alpha: 0.4),
+              size: 24,
+            ),
+          ),
         ),
       ),
     );
