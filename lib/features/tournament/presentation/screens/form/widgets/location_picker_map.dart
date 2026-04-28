@@ -7,170 +7,211 @@ import '../../../../config/map_provider_config.dart';
 import '../../../controllers/location_picker_controller.dart';
 
 class LocationPickerMap extends StatelessWidget {
-  const LocationPickerMap({super.key, required this.controller});
+  const LocationPickerMap({super.key, required this.controller, this.radiusKm});
 
   final LocationPickerController controller;
+  final double? radiusKm;
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final mapHeight = constraints.maxWidth >= 560 ? 430.0 : 370.0;
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final mapHeight = constraints.maxWidth >= 560 ? 430.0 : 370.0;
 
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(28),
-          child: Container(
-            height: mapHeight,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8F5F0),
+            return ClipRRect(
               borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: const Color(0xFFD8D2C7)),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x1A0F172A),
-                  blurRadius: 30,
-                  offset: Offset(0, 18),
-                ),
-              ],
-            ),
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: FlutterMap(
-                    mapController: controller.mapController,
-                    options: MapOptions(
-                      initialCenter: controller.cameraCenter,
-                      initialZoom: controller.zoom,
-                      minZoom: 3,
-                      maxZoom: 20,
-                      backgroundColor: const Color(0xFFF4F2EE),
-                      interactionOptions: const InteractionOptions(
-                        flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-                      ),
-                      onTap: (_, point) => controller.handleMapTap(point),
-                      onPositionChanged: controller.handlePositionChanged,
+              child: Container(
+                height: mapHeight,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F5F0),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: const Color(0xFFD8D2C7)),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x1A0F172A),
+                      blurRadius: 30,
+                      offset: Offset(0, 18),
                     ),
-                    children: [
-                      TileLayer(
-                        urlTemplate:
+                  ],
+                ),
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: FlutterMap(
+                        mapController: controller.mapController,
+                        options: MapOptions(
+                          initialCenter: controller.cameraCenter,
+                          initialZoom: controller.zoom,
+                          minZoom: 3,
+                          maxZoom: 20,
+                          backgroundColor: const Color(0xFFF4F2EE),
+                          interactionOptions: const InteractionOptions(
+                            flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                          ),
+                          onTap: (_, point) => controller.handleMapTap(point),
+                          onPositionChanged: controller.handlePositionChanged,
+                        ),
+                        children: [
+                          TileLayer(
+                            urlTemplate:
                             TournamentMapProviderConfig.stadiaTileUrlTemplate,
-                        userAgentPackageName:
+                            userAgentPackageName:
                             TournamentMapProviderConfig.userAgentPackageName,
-                        retinaMode: MediaQuery.devicePixelRatioOf(context) > 1,
-                        keepBuffer: 4,
-                        panBuffer: 2,
-                        maxNativeZoom: 20,
-                        maxZoom: 20,
-                        tileDisplay: const TileDisplay.fadeIn(
-                          duration: Duration(milliseconds: 120),
-                        ),
-                      ),
-                      if (controller.selectedPoint != null)
-                        MarkerLayer(
-                          markers: [
-                            Marker(
-                              point: controller.selectedPoint!,
-                              width: 96,
-                              height: 118,
-                              alignment: Alignment.topCenter,
-                              child: const _DynamicLocationPin(),
-                            ),
-                          ],
-                        ),
-                      RichAttributionWidget(
-                        alignment: AttributionAlignment.bottomLeft,
-                        showFlutterMapAttribution: false,
-                        permanentHeight: 20,
-                        popupInitialDisplayDuration: const Duration(seconds: 3),
-                        popupBackgroundColor: Colors.white.withValues(
-                          alpha: 0.97,
-                        ),
-                        attributions: const [
-                          TextSourceAttribution(
-                            'Stadia Maps',
-                            textStyle: TextStyle(
-                              color: Color(0xFF475569),
-                              fontSize: 11.5,
+                            retinaMode: MediaQuery.devicePixelRatioOf(context) > 1,
+                            keepBuffer: 4,
+                            panBuffer: 2,
+                            maxNativeZoom: 20,
+                            maxZoom: 20,
+                            tileDisplay: const TileDisplay.fadeIn(
+                              duration: Duration(milliseconds: 120),
                             ),
                           ),
-                          TextSourceAttribution(
-                            'OpenMapTiles',
-                            textStyle: TextStyle(
-                              color: Color(0xFF475569),
-                              fontSize: 11.5,
+                          if (controller.selectedPoint != null && radiusKm != null)
+                            CircleLayer(
+                              circles: [
+                                CircleMarker(
+                                  point: controller.selectedPoint!,
+                                  color: const Color(0xFF6C63FF).withValues(alpha: 0.15),
+                                  borderColor: const Color(0xFF6C63FF).withValues(alpha: 0.5),
+                                  borderStrokeWidth: 2,
+                                  radius: radiusKm! * 1000, // radio en metros
+                                  useRadiusInMeter: true,
+                                ),
+                              ],
                             ),
-                          ),
-                          TextSourceAttribution(
-                            'OpenStreetMap contributors',
-                            textStyle: TextStyle(
-                              color: Color(0xFF475569),
-                              fontSize: 11.5,
+                          if (controller.selectedPoint != null)
+                            MarkerLayer(
+                              markers: [
+                                Marker(
+                                  point: controller.selectedPoint!,
+                                  width: 96,
+                                  height: 118,
+                                  alignment: Alignment.topCenter,
+                                  child: const _DynamicLocationPin(),
+                                ),
+                              ],
                             ),
+                          RichAttributionWidget(
+                            alignment: AttributionAlignment.bottomLeft,
+                            showFlutterMapAttribution: false,
+                            permanentHeight: 20,
+                            popupInitialDisplayDuration: const Duration(seconds: 3),
+                            popupBackgroundColor: Colors.white.withValues(
+                              alpha: 0.97,
+                            ),
+                            attributions: const [
+                              TextSourceAttribution(
+                                'Stadia Maps',
+                                textStyle: TextStyle(
+                                  color: Color(0xFF475569),
+                                  fontSize: 11.5,
+                                ),
+                              ),
+                              TextSourceAttribution(
+                                'OpenMapTiles',
+                                textStyle: TextStyle(
+                                  color: Color(0xFF475569),
+                                  fontSize: 11.5,
+                                ),
+                              ),
+                              TextSourceAttribution(
+                                'OpenStreetMap contributors',
+                                textStyle: TextStyle(
+                                  color: Color(0xFF475569),
+                                  fontSize: 11.5,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-                Positioned(
-                  top: 14,
-                  left: 14,
-                  right: 14,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: _MapStatusPill(
-                          message: controller.message,
-                          hasSelection: controller.hasSelection,
-                          hasError: controller.hasError,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      _MapActionButton(
-                        icon: Icons.my_location_rounded,
-                        tooltip: 'Centrar en mi ubicación',
-                        onPressed: controller.centerOnUserLocation,
-                      ),
-                    ],
-                  ),
-                ),
-                if (controller.hasError && !controller.isLoading)
-                  Positioned(
-                    left: 18,
-                    right: 18,
-                    bottom: 54,
-                    child: _MapIssueCard(
-                      text: controller.message,
-                      actionLabel: controller.issueActionLabel,
-                      onPressed: controller.handleIssueAction,
                     ),
-                  )
-                else if (!controller.hasSelection && !controller.isLoading)
-                  const Positioned(
-                    left: 18,
-                    right: 18,
-                    bottom: 54,
-                    child: _MapHintCard(
-                      icon: Icons.touch_app_rounded,
-                      text:
+                    Positioned(
+                      top: 14,
+                      left: 14,
+                      right: 14,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: _MapStatusPill(
+                              message: controller.message,
+                              hasSelection: controller.hasSelection,
+                              hasError: controller.hasError,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Column(
+                            children: [
+                              _MapActionButton(
+                                icon: Icons.my_location_rounded,
+                                tooltip: 'Centrar en mi ubicación',
+                                onPressed: controller.centerOnUserLocation,
+                              ),
+                              const SizedBox(height: 10),
+                              _MapActionButton(
+                                icon: Icons.add,
+                                tooltip: 'Acercar',
+                                onPressed: () async {
+                                  final currentZoom = controller.mapController.camera.zoom;
+                                  controller.mapController.move(controller.mapController.camera.center, currentZoom + 1);
+                                },
+                              ),
+                              const SizedBox(height: 10),
+                              _MapActionButton(
+                                icon: Icons.remove,
+                                tooltip: 'Alejar',
+                                onPressed: () async {
+                                  final currentZoom = controller.mapController.camera.zoom;
+                                  controller.mapController.move(controller.mapController.camera.center, currentZoom - 1);
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (controller.hasError && !controller.isLoading)
+                      Positioned(
+                        left: 18,
+                        right: 18,
+                        bottom: 54,
+                        child: _MapIssueCard(
+                          text: controller.message,
+                          actionLabel: controller.issueActionLabel,
+                          onPressed: controller.handleIssueAction,
+                        ),
+                      )
+                    else if (!controller.hasSelection && !controller.isLoading)
+                      const Positioned(
+                        left: 18,
+                        right: 18,
+                        bottom: 54,
+                        child: _MapHintCard(
+                          icon: Icons.touch_app_rounded,
+                          text:
                           'Explora el mapa libremente y toca el punto exacto donde quieres colocar el torneo.',
-                    ),
-                  ),
-                if (controller.isLoading)
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.72),
                         ),
-                        child: const Center(child: _MapLoadingState()),
                       ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
+                    if (controller.isLoading)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.72),
+                            ),
+                            child: const Center(child: _MapLoadingState()),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
         );
       },
     );
