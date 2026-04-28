@@ -143,4 +143,25 @@ class FirestoreParticipantService implements ParticipantRepository {
         .timeout(const Duration(seconds: 10));
     return snapshot.docs.isNotEmpty;
   }
+
+  @override
+  Stream<List<AppParticipant>> watchEnrolledParticipants(String entityId) {
+    return _db
+        .collectionGroup('participants')
+        .where('entityId', isEqualTo: entityId)
+        .snapshots()
+        .map((snapshot) {
+      final list = <AppParticipant>[];
+      for (final doc in snapshot.docs) {
+        try {
+          list.add(AppParticipant.fromMap(doc.data()));
+        } catch (e) {
+          // ignore: avoid_print
+          print('Error mapeando participante inscrito: $e');
+        }
+      }
+      list.sort((a, b) => b.enrolledAt.compareTo(a.enrolledAt));
+      return list;
+    });
+  }
 }

@@ -77,7 +77,7 @@ class _EventsScreenState extends State<EventsScreen> {
                   children: [
                     MyTournamentsTab(controller: _controller),
                     AdminTournamentsTab(controller: _controller),
-                    const InscribedTournamentsTab(),
+                    InscribedTournamentsTab(controller: _controller),
                   ],
                 ),
               ),

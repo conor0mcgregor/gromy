@@ -45,4 +45,24 @@ class EventsController {
     if (uid == null) return const Stream.empty();
     return _tournamentRepository.watchTournamentsAdmin(uid);
   }
+
+  /// Stream con los torneos en los que el usuario autenticado está inscrito.
+  Stream<List<AppTournament>> watchEnrolledTournaments() {
+    final uid = currentUid;
+    if (uid == null) return const Stream.empty();
+    return _tournamentRepository.watchEnrolledTournaments(uid);
+  }
+
+  /// Cancela la inscripción del usuario en un torneo.
+  ///
+  /// Lanza [Exception] si la inscripción ya no existe.
+  Future<void> cancelInscription({
+    required String tournamentId,
+    required String participantId,
+  }) {
+    return _tournamentRepository.cancelInscription(
+      tournamentId: tournamentId,
+      participantId: participantId,
+    );
+  }
 }

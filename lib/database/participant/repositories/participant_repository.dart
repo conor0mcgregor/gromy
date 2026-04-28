@@ -46,4 +46,10 @@ abstract interface class ParticipantRepository {
     required String tournamentId,
     required String entityId,
   });
+
+  /// Stream en tiempo real con todos los [AppParticipant] de cualquier torneo
+  /// donde `entityId` == [entityId].
+  ///
+  /// Usa collectionGroup para cruzar todas las subcolecciones `participants`.
+  Stream<List<AppParticipant>> watchEnrolledParticipants(String entityId);
 }
