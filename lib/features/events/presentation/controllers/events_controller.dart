@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../tournament/data/model/app_tournament.dart';
 import '../../../tournament/data/repositories/tournament_repository.dart';
 import '../../../tournament/data/services/firestore_tournament_service.dart';
+import '../../../inscription/domain/use_cases/cancel_enrollment_use_case.dart';
 
 class EventsController {
   EventsController({
@@ -55,12 +56,13 @@ class EventsController {
 
   /// Cancela la inscripción del usuario en un torneo.
   ///
-  /// Lanza [Exception] si la inscripción ya no existe.
+  /// Lanza [Exception] si la inscripción ya no existe o hay problemas de concurrencia.
   Future<void> cancelInscription({
     required String tournamentId,
     required String participantId,
   }) {
-    return _tournamentRepository.cancelInscription(
+    final useCase = CancelEnrollmentUseCase(_tournamentRepository);
+    return useCase.execute(
       tournamentId: tournamentId,
       participantId: participantId,
     );

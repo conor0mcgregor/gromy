@@ -150,4 +150,71 @@ class FirestoreTournamentService implements TournamentRepository {
   Stream<List<AppParticipant>> watchParticipants(String tournamentId) {
     return _participantRepo.watchParticipants(tournamentId);
   }
+
+  @override
+  Stream<List<AppTournament>> watchEnrolledTournaments(String uid) {
+    return _participantRepo.watchEnrolledParticipants(uid).asyncMap((participants) async {
+      final tournaments = <AppTournament>[];
+      for (final p in participants) {
+        try {
+          final doc = await _tournaments.doc(p.tournamentId).get();
+          if (doc.exists && doc.data() != null) {
+            tournaments.add(AppTournament.fromMap(doc.data()!));
+          }
+        } catch (e) {
+          // ignore: avoid_print
+          print('Error fetching tournament for participant: $e');
+        }
+      }
+      return tournaments;
+    });
+  }
+
+  @override
+  Future<void> cancelInscription({
+    required String tournamentId,
+    required String participantId,
+  }) async {
+    final tournamentRef = _tournaments.doc(tournamentId);
+    final participantRef = tournamentRef.collection('participants').doc(participantId);
+
+    await _db.runTransaction((transaction) async {
+      // 1. Verificar si el participante existe
+      final participantDoc = await transaction.get(participantRef);
+      if (!participantDoc.exists) {
+        throw Exception('El participante ya no está inscrito o la inscripción ya fue cancelada.');
+      }
+
+      // 2. Obtener el documento del torneo para modificar el contador
+      final tournamentDoc = await transaction.get(tournamentRef);
+      if (!tournamentDoc.exists) {
+        throw Exception('El torneo no existe.');
+      }
+
+      final data = tournamentDoc.data();
+      final currentCount = data?['participantCount'] as int? ?? 0;
+
+      // 3. Eliminar el participante
+      transaction.delete(participantRef);
+
+      // 4. Decrementar el contador asegurando que no sea negativo
+      if (currentCount > 0) {
+        transaction.update(tournamentRef, {'participantCount': currentCount - 1});
+      }
+    });
+  }
+
+  @override
+  Future<void> incrementParticipantCount(String tournamentId) async {
+    await _tournaments.doc(tournamentId).update({
+      'participantCount': FieldValue.increment(1),
+    });
+  }
+
+  @override
+  Future<void> decrementParticipantCount(String tournamentId) async {
+    await _tournaments.doc(tournamentId).update({
+      'participantCount': FieldValue.increment(-1),
+    });
+  }
 }

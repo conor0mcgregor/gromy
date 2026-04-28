@@ -6,8 +6,15 @@ import '../../../core/getColors/getter_colors.dart';
 import '../../../core/widgets/bar_small_botton.dart';
 import '../../../core/widgets/expandable_card.dart';
 import '../../../core/widgets/gradient_button.dart';
+import '../../../core/widgets/participant_card.dart';
 import '../../../core/widgets/static_location_map.dart';
+import '../../participants/data/models/participant_display.dart';
+import '../../participants/data/repositories/participant_display_repository.dart';
+import '../../participants/data/services/participant_display_service.dart';
+import '../../participants/presentation/screens/participants_screen.dart';
 import '../../tournament/data/model/app_tournament.dart';
+import '../../../../database/participant/models/app_participant.dart';
+import 'inscription_screen.dart';
 
 // ════════════════════════════════════════════════════════════════
 //  PREINSCRIPTION SCREEN
@@ -28,8 +35,17 @@ import '../../tournament/data/model/app_tournament.dart';
 
 class DemoEnrollScreen extends StatelessWidget {
   final AppTournament tournament;
+  final bool isEnrolled;
+  final AppParticipant? participant;
+  final Future<void> Function()? onCancelInscription;
 
-  const DemoEnrollScreen({super.key, required this.tournament});
+  const DemoEnrollScreen({
+    super.key,
+    required this.tournament,
+    this.isEnrolled = false,
+    this.participant,
+    this.onCancelInscription,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +66,11 @@ class DemoEnrollScreen extends StatelessWidget {
       ),
 
       // ── Botón de inscripción fijo ──
-      bottomNavigationBar: _StickyEnrollBar(tournament: tournament),
+      bottomNavigationBar: _StickyEnrollBar(
+        tournament: tournament,
+        isEnrolled: isEnrolled,
+        onCancelInscription: onCancelInscription,
+      ),
 
       // ── Contenido scrollable ──
       body: SingleChildScrollView(
@@ -328,14 +348,48 @@ class _OrganizerChip extends StatelessWidget {
 //  3. PARTICIPANTES — barra de progreso visual
 // ════════════════════════════════════════════════════════════════
 
-class _ParticipantsSection extends StatelessWidget {
+class _ParticipantsSection extends StatefulWidget {
   const _ParticipantsSection({required this.tournament});
   final AppTournament tournament;
 
   @override
+  State<_ParticipantsSection> createState() => _ParticipantsSectionState();
+}
+
+class _ParticipantsSectionState extends State<_ParticipantsSection> {
+  final ParticipantDisplayRepository _repository = ParticipantDisplayService();
+  List<ParticipantDisplay> _preview = [];
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPreview();
+  }
+
+  Future<void> _loadPreview() async {
+    try {
+      final data = await _repository.getParticipantsPreview(
+        widget.tournament.id,
+        limit: 5,
+      );
+      if (mounted) {
+        setState(() {
+          _preview = data;
+          _loaded = true;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loaded = true);
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final current = tournament.participantCount;
-    final max = tournament.maxParticipants;
+    final current = widget.tournament.participantCount;
+    final max = widget.tournament.maxParticipants;
     final ratio = max > 0 ? (current / max).clamp(0.0, 1.0) : 0.0;
     final percentage = (ratio * 100).round();
 
@@ -346,107 +400,245 @@ class _ParticipantsSection extends StatelessWidget {
             ? const Color(0xFFFFB347)
             : const Color(0xFF22C55E);
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            color: Colors.white.withValues(alpha: 0.05),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(11),
-                      color: barColor.withValues(alpha: 0.15),
-                    ),
-                    child: Icon(
-                      Icons.groups_2_rounded,
-                      size: 18,
-                      color: barColor,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Participantes',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.1,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '$current / $max',
-                    style: TextStyle(
-                      color: barColor,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ParticipantsScreen(
+                tournamentId: widget.tournament.id,
+                tournamentName: widget.tournament.name,
+                isTeamTournament: (widget.tournament.membersPerTeam ?? 1) > 1,
+                categories: widget.tournament.categories,
               ),
-              const SizedBox(height: 14),
-
-              // Barra de progreso
-              ClipRRect(
-                borderRadius: BorderRadius.circular(99),
-                child: Stack(
-                  children: [
-                    Container(
-                      height: 6,
-                      color: Colors.white.withValues(alpha: 0.08),
-                    ),
-                    TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0, end: ratio),
-                      duration: const Duration(milliseconds: 800),
-                      curve: Curves.easeOutCubic,
-                      builder: (_, value, child) => FractionallySizedBox(
-                        widthFactor: value,
-                        child: Container(
-                          height: 6,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                barColor.withValues(alpha: 0.7),
-                                barColor,
-                              ],
-                            ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(20),
+        splashColor: barColor.withValues(alpha: 0.1),
+        highlightColor: barColor.withValues(alpha: 0.05),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                color: Colors.white.withValues(alpha: 0.05),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(11),
+                          color: barColor.withValues(alpha: 0.15),
+                        ),
+                        child: Icon(
+                          Icons.groups_2_rounded,
+                          size: 18,
+                          color: barColor,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Participantes',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.1,
                           ),
                         ),
                       ),
+                      Text(
+                        '$current / $max',
+                        style: TextStyle(
+                          color: barColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 18,
+                        color: Colors.white.withValues(alpha: 0.3),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Barra de progreso
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(99),
+                    child: Stack(
+                      children: [
+                        Container(
+                          height: 6,
+                          color: Colors.white.withValues(alpha: 0.08),
+                        ),
+                        TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0, end: ratio),
+                          duration: const Duration(milliseconds: 800),
+                          curve: Curves.easeOutCubic,
+                          builder: (_, value, child) => FractionallySizedBox(
+                            widthFactor: value,
+                            child: Container(
+                              height: 6,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    barColor.withValues(alpha: 0.7),
+                                    barColor,
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Texto complementario
+                  Text(
+                    percentage < 100
+                        ? 'Quedan ${max - current} plazas disponibles'
+                        : 'Torneo completo',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.4),
+                      fontSize: 12,
+                    ),
+                  ),
+
+                  // Vista previa de avatares
+                  if (_loaded && _preview.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    _AvatarPreviewRow(
+                      participants: _preview,
+                      totalCount: current,
+                      accentColor: barColor,
                     ),
                   ],
-                ),
+                ],
               ),
-              const SizedBox(height: 8),
-
-              // Texto complementario
-              Text(
-                percentage < 100
-                    ? 'Quedan ${max - current} plazas disponibles'
-                    : 'Torneo completo',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.4),
-                  fontSize: 12,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  AVATAR PREVIEW ROW — fila de avatares superpuestos
+// ════════════════════════════════════════════════════════════════
+
+class _AvatarPreviewRow extends StatelessWidget {
+  const _AvatarPreviewRow({
+    required this.participants,
+    required this.totalCount,
+    required this.accentColor,
+  });
+
+  final List<ParticipantDisplay> participants;
+  final int totalCount;
+  final Color accentColor;
+
+  static const double _avatarSize = 32;
+  static const double _overlap = 10;
+
+  String _photoUrl(ParticipantDisplay p) => switch (p) {
+    UserParticipantDisplay(:final user) => user.photoUrl ?? '',
+    TeamParticipantDisplay(:final team) => team.photoUrl ?? '',
+  };
+
+  String _nickname(ParticipantDisplay p) => switch (p) {
+    UserParticipantDisplay(:final user) => user.nickname,
+    TeamParticipantDisplay(:final team) => team.name,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final overflow = totalCount - participants.length;
+    final showOverflow = overflow > 0;
+    final totalWidth = participants.length * (_avatarSize - _overlap)
+        + _overlap
+        + (showOverflow ? _avatarSize + 4 : 0);
+
+    return Row(
+      children: [
+        SizedBox(
+          height: _avatarSize,
+          width: totalWidth,
+          child: Stack(
+            children: [
+              // Avatares superpuestos (de derecha a izquierda para el z-order)
+              ...List.generate(participants.length, (i) {
+                final p = participants[i];
+                return Positioned(
+                  left: i * (_avatarSize - _overlap),
+                  child: ParticipantAvatar(
+                    photoUrl: _photoUrl(p),
+                    nickname: _nickname(p),
+                    size: _avatarSize,
+                    borderColor: const Color(0xFF0F172A),
+                  ),
+                );
+              }),
+
+              // Indicador +X
+              if (showOverflow)
+                Positioned(
+                  left: participants.length * (_avatarSize - _overlap),
+                  child: Container(
+                    width: _avatarSize,
+                    height: _avatarSize,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: accentColor.withValues(alpha: 0.2),
+                      border: Border.all(
+                        color: const Color(0xFF0F172A),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '+$overflow',
+                        style: TextStyle(
+                          color: accentColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          'Ver todos',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.35),
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -873,13 +1065,82 @@ class _AddressCard extends StatelessWidget {
 //  8. STICKY ENROLL BAR — botón fijo inferior
 // ════════════════════════════════════════════════════════════════
 
-class _StickyEnrollBar extends StatelessWidget {
-  const _StickyEnrollBar({required this.tournament});
+class _StickyEnrollBar extends StatefulWidget {
+  const _StickyEnrollBar({
+    required this.tournament,
+    this.isEnrolled = false,
+    this.onCancelInscription,
+  });
   final AppTournament tournament;
+  final bool isEnrolled;
+  final Future<void> Function()? onCancelInscription;
+
+  @override
+  State<_StickyEnrollBar> createState() => _StickyEnrollBarState();
+}
+
+class _StickyEnrollBarState extends State<_StickyEnrollBar> {
+  bool _isCancelling = false;
+
+  Future<void> _handleCancel() async {
+    if (_isCancelling || widget.onCancelInscription == null) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        title: const Text('¿Cancelar inscripción?', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          '¿Seguro que quieres cancelar la inscripción? Perderás tu plaza en el torneo.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Atrás', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Confirmar', style: TextStyle(color: Color(0xFFFF4D6A), fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isCancelling = true);
+
+    try {
+      await widget.onCancelInscription!();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Inscripción cancelada correctamente'),
+            backgroundColor: Color(0xFF22C55E),
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cancelar: $e'),
+            backgroundColor: const Color(0xFFFF4D6A),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isCancelling = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final isFull = tournament.participantCount >= tournament.maxParticipants;
+    final isFull = widget.tournament.participantCount >= widget.tournament.maxParticipants;
 
     return Container(
       padding: EdgeInsets.only(
@@ -905,15 +1166,31 @@ class _StickyEnrollBar extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
-        child: GradientButton(
-          label: isFull ? 'Torneo completo' : 'Inscribirse al torneo',
-          icon: isFull ? Icons.block_rounded : Icons.how_to_reg_rounded,
-          onPressed: isFull ? null : () {/* TODO: lógica de inscripción */},
-          variant: isFull
-              ? GradientButtonVariant.sunset
-              : GradientButtonVariant.violet,
-          size: GradientButtonSize.large,
-        ),
+        child: widget.isEnrolled
+            ? GradientButton(
+                label: _isCancelling ? 'Cancelando...' : 'Cancelar inscripción',
+                icon: _isCancelling ? Icons.hourglass_top_rounded : Icons.cancel_rounded,
+                onPressed: _isCancelling ? null : _handleCancel,
+                variant: GradientButtonVariant.sunset,
+                size: GradientButtonSize.large,
+              )
+            : GradientButton(
+                label: isFull ? 'Torneo completo' : 'Inscribirse al torneo',
+                icon: isFull ? Icons.block_rounded : Icons.how_to_reg_rounded,
+                onPressed: isFull
+                    ? null
+                    : () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                InscriptionScreen(tournament: widget.tournament),
+                          ),
+                        ),
+                variant: isFull
+                    ? GradientButtonVariant.sunset
+                    : GradientButtonVariant.violet,
+                size: GradientButtonSize.large,
+              ),
       ),
     );
   }

@@ -57,4 +57,19 @@ abstract interface class TournamentRepository {
 
   /// Devuelve un stream en tiempo real con los participantes del torneo.
   Stream<List<AppParticipant>> watchParticipants(String tournamentId);
+
+  /// Devuelve un stream con los torneos en los que [uid] está inscrito.
+  Stream<List<AppTournament>> watchEnrolledTournaments(String uid);
+
+  /// Cancela la inscripción de un participante en un torneo.
+  Future<void> cancelInscription({
+    required String tournamentId,
+    required String participantId,
+  });
+
+  /// Incrementa el contador de participantes del torneo.
+  Future<void> incrementParticipantCount(String tournamentId);
+
+  /// Decrementa el contador de participantes del torneo.
+  Future<void> decrementParticipantCount(String tournamentId);
 }

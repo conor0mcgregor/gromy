@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:gromy/core/widgets/glass_tab_bar.dart';
 
@@ -129,6 +128,7 @@ class EventsErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print(message);
     return EventsEmptyState(
       title: 'Ups…',
       message: message,
