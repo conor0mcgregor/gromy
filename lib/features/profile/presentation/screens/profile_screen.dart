@@ -33,30 +33,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ShaderMask(
-                      shaderCallback: (b) => const LinearGradient(
-                        colors: [Color(0xFFFFFFFF), Color(0xFFB0A8FF)],
-                      ).createShader(b),
-                      child: const Text(
-                        'Perfil',
-                        style: TextStyle(
-                          fontSize: 30,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          letterSpacing: -0.8,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Gestiona tus datos y equipos',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white.withValues(alpha: 0.45),
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
                     const GlassTabBar(
                       tabs: [
                         GlassTab(label: 'Perfil', icon: Icons.person_rounded),
