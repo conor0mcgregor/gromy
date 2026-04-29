@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:rxdart/rxdart.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -45,6 +46,34 @@ class EventsController {
     final uid = currentUid;
     if (uid == null) return const Stream.empty();
     return _tournamentRepository.watchTournamentsAdmin(uid);
+  }
+
+  /// Combina los torneos creados por el usuario y aquellos en los que es administrador.
+  Stream<List<AppTournament>> watchAllAdministeredTournaments() {
+    final uid = currentUid;
+    if (uid == null) return const Stream.empty();
+
+    return Rx.combineLatest2<List<AppTournament>, List<AppTournament>,
+        List<AppTournament>>(
+      _tournamentRepository.watchMyTournaments(uid),
+      _tournamentRepository.watchTournamentsAdmin(uid),
+      (myList, adminList) {
+        // Combinamos ambas listas y eliminamos duplicados por ID
+        final combined = [...myList, ...adminList];
+        final uniqueIds = <String>{};
+        final result = <AppTournament>[];
+
+        for (final t in combined) {
+          if (uniqueIds.add(t.id)) {
+            result.add(t);
+          }
+        }
+
+        // Ordenamos por fecha (más recientes primero)
+        result.sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
+        return result;
+      },
+    ).distinct();
   }
 
   /// Stream con los torneos en los que el usuario autenticado está inscrito.

@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 class GlassTextField extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
-  final IconData icon;
+  final IconData? icon;
   final double? iconSize;
   final bool obscureText;
   final Widget? suffixIcon;
@@ -25,7 +25,7 @@ class GlassTextField extends StatelessWidget {
     super.key,
     required this.controller,
     required this.hint,
-    required this.icon,
+    this.icon,
     this.iconSize,
     this.obscureText = false,
     this.suffixIcon,
@@ -73,11 +73,12 @@ class GlassTextField extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.3),
                   fontSize: 15,
                 ),
-                prefixIcon: Icon(
+                prefixIcon: icon != null
+                    ? Icon(
                   icon,
                   color: Colors.white38,
                   size: iconSize ?? 20,
-                ),
+                ) : null,
                 suffixIcon: suffixIcon,
                 filled: true,
                 fillColor: errorText != null

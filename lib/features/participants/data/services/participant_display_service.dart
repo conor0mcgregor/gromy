@@ -25,10 +25,10 @@ class ParticipantDisplayService implements ParticipantDisplayRepository {
     FirestoreParticipantService? participantService,
     FirestoreUserService? userService,
     FirestoreTeamService? teamService,
-  })  : _participantService =
-            participantService ?? FirestoreParticipantService(),
-        _userService = userService ?? FirestoreUserService(),
-        _teamService = teamService ?? FirestoreTeamService();
+  }) : _participantService =
+           participantService ?? FirestoreParticipantService(),
+       _userService = userService ?? FirestoreUserService(),
+       _teamService = teamService ?? FirestoreTeamService();
 
   final FirestoreParticipantService _participantService;
   final FirestoreUserService _userService;
@@ -37,11 +37,10 @@ class ParticipantDisplayService implements ParticipantDisplayRepository {
   // ── ParticipantDisplayRepository impl ─────────────────────────────────────
 
   @override
-  Future<List<ParticipantDisplay>> getParticipants(
-    String tournamentId,
-  ) async {
-    final participants =
-        await _participantService.getParticipants(tournamentId);
+  Future<List<ParticipantDisplay>> getParticipants(String tournamentId) async {
+    final participants = await _participantService.getParticipants(
+      tournamentId,
+    );
     return _resolveAll(participants);
   }
 
@@ -75,6 +74,8 @@ class ParticipantDisplayService implements ParticipantDisplayRepository {
           if (user == null) return null;
           return UserParticipantDisplay(
             participantId: participant.id,
+            entityId: participant.entityId,
+            entityType: participant.entityType,
             categoryId: participant.categoryId,
             user: user,
           );
@@ -84,13 +85,17 @@ class ParticipantDisplayService implements ParticipantDisplayRepository {
           if (team == null) return null;
           return TeamParticipantDisplay(
             participantId: participant.id,
+            entityId: participant.entityId,
+            entityType: participant.entityType,
             categoryId: participant.categoryId,
             team: team,
           );
       }
     } catch (e) {
       // ignore: avoid_print
-      print('[ParticipantDisplayService] Error resolviendo ${participant.entityId}: $e');
+      print(
+        '[ParticipantDisplayService] Error resolviendo ${participant.entityId}: $e',
+      );
       return null;
     }
   }

@@ -3,14 +3,18 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 class BarSmallBotton extends StatelessWidget {
-  const BarSmallBotton({super.key,
+  const BarSmallBotton({
+    super.key,
     required this.icon,
     required this.onTap,
+    this.iconColor = Colors.white,
+    this.backgroundColor,
   });
 
   final IconData icon;
   final VoidCallback onTap;
-
+  final Color iconColor;
+  final Color? backgroundColor;
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +26,7 @@ class BarSmallBotton extends StatelessWidget {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: Material(
-              color: Colors.black.withValues(alpha: 0.3),
+              color: backgroundColor ?? Colors.black.withValues(alpha: 0.3),
               shape: const CircleBorder(),
               child: InkWell(
                 customBorder: const CircleBorder(),
@@ -30,11 +34,7 @@ class BarSmallBotton extends StatelessWidget {
                 child: SizedBox(
                   width: 40,
                   height: 40,
-                  child: Icon(
-                    icon,
-                    color: Colors.white,
-                    size: 18,
-                  ),
+                  child: Icon(icon, color: iconColor, size: 18),
                 ),
               ),
             ),

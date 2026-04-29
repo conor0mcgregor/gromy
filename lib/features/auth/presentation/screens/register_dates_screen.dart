@@ -339,13 +339,15 @@ class _RegisterDatesScreenState extends State<RegisterDatesScreen>
                                         size: 18,
                                       ),
                                       const SizedBox(width: 12),
-                                      Text(
-                                        widget.email,
-                                        style: TextStyle(
-                                          color: Colors.white.withOpacity(0.4),
-                                          fontSize: 14,
+                                      Expanded(
+                                        child: Text(
+                                          widget.email,
+                                          style: TextStyle(
+                                            color: Colors.white.withOpacity(0.4),
+                                            fontSize: 14,
+                                          ),
                                         ),
-                                      ),
+                                      )
                                     ],
                                   ),
                                 ),

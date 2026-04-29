@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../adminTournament/presentation/screens/tournament_management_screen.dart';
 import '../../../home/presentation/widgets/tournament_card.dart';
 import '../../../tournament/data/model/app_tournament.dart';
 import '../controllers/events_controller.dart';
@@ -45,10 +46,19 @@ class MyTournamentsTab extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
           itemCount: myTournaments.length,
           itemBuilder: (context, index) {
+            final tournament = myTournaments[index];
             return TournamentCard(
-              tournament: myTournaments[index],
+              tournament: tournament,
               isMyTournament: true,
               animationDelay: Duration(milliseconds: 70 * index),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TournamentManagementScreen(
+                    tournament: tournament,
+                  ),
+                ),
+              ),
             );
           },
         );
