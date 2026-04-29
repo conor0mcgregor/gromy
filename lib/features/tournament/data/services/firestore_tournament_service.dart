@@ -217,4 +217,37 @@ class FirestoreTournamentService implements TournamentRepository {
       'participantCount': FieldValue.increment(-1),
     });
   }
+
+  // ── Validación de duplicados ───────────────────────────────────────────────
+
+  @override
+  Future<AppTournament?> findDuplicateTournament({
+    required DateTime scheduledAt,
+    required String location,
+  }) async {
+    // Rango del día natural seleccionado (00:00:00 → 23:59:59).
+    final dayStart = DateTime(scheduledAt.year, scheduledAt.month, scheduledAt.day);
+    final dayEnd   = dayStart.add(const Duration(days: 1));
+
+    final snapshot = await _tournaments
+        .where(
+          'scheduledAt',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(dayStart),
+        )
+        .where('scheduledAt', isLessThan: Timestamp.fromDate(dayEnd))
+        .get()
+        .timeout(const Duration(seconds: 10));
+
+    final normalizedLocation = location.trim().toLowerCase();
+
+    for (final doc in snapshot.docs) {
+      try {
+        final t = AppTournament.fromMap(doc.data());
+        if (t.location.trim().toLowerCase() == normalizedLocation) return t;
+      } catch (_) {
+        // Ignorar documentos con formato incorrecto.
+      }
+    }
+    return null;
+  }
 }

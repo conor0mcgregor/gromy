@@ -30,10 +30,21 @@ class CreateTournamentController extends ChangeNotifier {
   bool _isSubmitting = false;
   String? _errorMessage;
   AppTournament? _lastCreatedTournament;
+  AppTournament? _duplicateTournament;
 
   bool get isSubmitting => _isSubmitting;
   String? get errorMessage => _errorMessage;
   AppTournament? get lastCreatedTournament => _lastCreatedTournament;
+
+  /// Torneo existente que genera conflicto de duplicado.
+  /// Es `null` cuando no hay conflicto o tras llamar a [clearDuplicate].
+  AppTournament? get duplicateTournament => _duplicateTournament;
+
+  /// Limpia el estado de duplicado (p.ej. al cerrar el aviso).
+  void clearDuplicate() {
+    _duplicateTournament = null;
+    notifyListeners();
+  }
 
   /// Crea un torneo, con o sin imagen de portada.
   ///
@@ -110,6 +121,18 @@ class CreateTournamentController extends ChangeNotifier {
         currentUser.uid,
         ...extraAdminIds,
       }.toList();
+
+      // ── Verificación de duplicado ──────────────────────────────────────────
+      _duplicateTournament = await _tournamentRepository.findDuplicateTournament(
+        scheduledAt: normalizedDate,
+        location: normalizedLocation,
+      );
+
+      if (_duplicateTournament != null) {
+        // Duplicado detectado: no se crea el torneo, la UI mostrará el aviso.
+        return false;
+      }
+      // ─────────────────────────────────────────────────────────────────────
 
       final now = DateTime.now();
       final tournament = AppTournament(

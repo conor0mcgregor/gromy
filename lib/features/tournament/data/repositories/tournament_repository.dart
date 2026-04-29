@@ -72,4 +72,16 @@ abstract interface class TournamentRepository {
 
   /// Decrementa el contador de participantes del torneo.
   Future<void> decrementParticipantCount(String tournamentId);
+
+  // ── Validación de duplicados ───────────────────────────────────────────────
+
+  /// Busca un torneo existente que coincida exactamente en fecha (mismo día
+  /// natural) y lugar (cadena normalizada).
+  ///
+  /// Devuelve el [AppTournament] duplicado si existe, o `null` si no hay
+  /// conflicto. El creador puede así modificar fecha o lugar y volver a intentar.
+  Future<AppTournament?> findDuplicateTournament({
+    required DateTime scheduledAt,
+    required String location,
+  });
 }
