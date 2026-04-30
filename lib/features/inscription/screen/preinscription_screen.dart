@@ -13,7 +13,10 @@ import '../../participants/presentation/widgets/participants_section.dart';
 import '../../tournament/data/model/app_tournament.dart';
 import '../../../../database/participant/models/app_participant.dart';
 import '../../../../database/team/models/app_team.dart';
+import '../domain/models/enrollment_status.dart';
+import '../presentation/controllers/preinscription_controller.dart';
 import 'inscription_screen.dart';
+
 
 // ════════════════════════════════════════════════════════════════
 //  PREINSCRIPTION SCREEN
@@ -32,100 +35,166 @@ import 'inscription_screen.dart';
 //    8. Botón de inscripción (sticky / fixed)
 // ════════════════════════════════════════════════════════════════
 
-class DemoEnrollScreen extends StatelessWidget {
+class PreinscriptionScreen extends StatefulWidget {
   final AppTournament tournament;
-  final bool isEnrolled;
-  final AppParticipant? participant;
-  final Future<void> Function()? onCancelInscription;
-  final AppTeam? enrolledTeam;
-  final bool canCancelTeam;
+  
+  // Estos campos se mantienen para compatibilidad con navegación directa (ej. desde mis inscripciones)
+  final bool? initialIsEnrolled;
+  final AppParticipant? initialParticipant;
+  final AppTeam? initialEnrolledTeam;
+  final bool? initialCanCancelTeam;
 
-  const DemoEnrollScreen({
+  const PreinscriptionScreen({
     super.key,
     required this.tournament,
-    this.isEnrolled = false,
-    this.participant,
-    this.onCancelInscription,
-    this.enrolledTeam,
-    this.canCancelTeam = true,
+    this.initialIsEnrolled,
+    this.initialParticipant,
+    this.initialEnrolledTeam,
+    this.initialCanCancelTeam,
   });
 
   @override
+  State<PreinscriptionScreen> createState() => _PreinscriptionScreenState();
+}
+
+class _PreinscriptionScreenState extends State<PreinscriptionScreen> {
+  late final PreinscriptionController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PreinscriptionController(tournamentId: widget.tournament.id);
+    
+    // Si ya tenemos los datos (navegación desde "Mis torneos"), los usamos
+    if (widget.initialIsEnrolled != null) {
+      _controller.state = PreinscriptionState.loaded;
+      _controller.enrollmentStatus = EnrollmentStatus(
+        isEnrolled: widget.initialIsEnrolled!,
+        participant: widget.initialParticipant,
+        enrolledTeam: widget.initialEnrolledTeam,
+        canCancel: widget.initialCanCancelTeam ?? true,
+      );
+    } else {
+      // Si no, los buscamos (navegación desde Home)
+      _controller.checkEnrollment();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
-      extendBodyBehindAppBar: true,
+    return ListenableBuilder(
+      listenable: _controller,
+      builder: (context, _) {
+        final status = _controller.enrollmentStatus;
 
-      // ── AppBar transparente con botón back ──
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: _BackButton(),
-        actions: [
-          _ShareButton(),
-          const SizedBox(width: 8),
-        ],
-      ),
+        return Scaffold(
+          backgroundColor: const Color(0xFF0F172A),
+          extendBodyBehindAppBar: true,
 
-      // ── Botón de inscripción fijo ──
-      bottomNavigationBar: _StickyEnrollBar(
-        tournament: tournament,
-        isEnrolled: isEnrolled,
-        onCancelInscription: onCancelInscription,
-        enrolledTeam: enrolledTeam,
-        canCancelTeam: canCancelTeam,
-      ),
+          // ── AppBar transparente con botón back ──
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            leading: _BackButton(),
+            actions: [
+              _ShareButton(),
+              const SizedBox(width: 8),
+            ],
+          ),
 
-      // ── Contenido scrollable ──
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // 1. Portada hero
-            _CoverHero(tournament: tournament),
+          // ── Botón de inscripción fijo ──
+          bottomNavigationBar: _controller.state == PreinscriptionState.loading
+              ? const _LoadingBottomBar()
+              : _StickyEnrollBar(
+                  tournament: widget.tournament,
+                  isEnrolled: status.isEnrolled,
+                  onCancelInscription: status.isEnrolled ? _controller.cancelInscription : null,
+                  enrolledTeam: status.enrolledTeam,
+                  canCancelTeam: status.canCancel,
+                ),
 
-            // Contenido con padding
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 24),
+          // ── Contenido scrollable ──
+          body: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // 1. Portada hero
+                _CoverHero(tournament: widget.tournament),
 
-                  // 2. Información básica
-                  _TournamentHeader(tournament: tournament),
-                  const SizedBox(height: 28),
+                // Contenido con padding
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 24),
 
-                  // 3. Participantes
-                  ParticipantsSection(tournament: tournament),
-                  const SizedBox(height: 20),
+                      // 2. Información básica
+                      _TournamentHeader(tournament: widget.tournament),
+                      const SizedBox(height: 28),
 
-                  // 4. Fechas
-                  _DatesSection(tournament: tournament),
-                  const SizedBox(height: 16),
+                      // 3. Participantes
+                      ParticipantsSection(tournament: widget.tournament),
+                      const SizedBox(height: 20),
 
-                  // 5. Descripción completa
-                  _DescriptionSection(tournament: tournament),
-                  const SizedBox(height: 16),
+                      // 4. Fechas
+                      _DatesSection(tournament: widget.tournament),
+                      const SizedBox(height: 16),
 
-                  // 6. Contactos
-                  _ContactsSection(tournament: tournament),
-                  const SizedBox(height: 24),
+                      // 5. Descripción completa
+                      _DescriptionSection(tournament: widget.tournament),
+                      const SizedBox(height: 16),
 
-                  // 7. Ubicación
-                  _LocationSection(tournament: tournament),
-                  const SizedBox(height: 32),
-                ],
-              ),
+                      // 6. Contactos
+                      _ContactsSection(tournament: widget.tournament),
+                      const SizedBox(height: 24),
+
+                      // 7. Ubicación
+                      _LocationSection(tournament: widget.tournament),
+                      const SizedBox(height: 32),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _LoadingBottomBar extends StatelessWidget {
+  const _LoadingBottomBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 16,
+        bottom: MediaQuery.of(context).padding.bottom + 16,
+      ),
+      decoration: const BoxDecoration(
+        color: Color(0xFF0F172A),
+      ),
+      child: const Center(
+        child: CircularProgressIndicator(color: Color(0xFF6C63FF)),
       ),
     );
   }
 }
+
 
 // ════════════════════════════════════════════════════════════════
 //  1. COVER HERO
@@ -845,7 +914,8 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
             backgroundColor: Color(0xFF22C55E),
           ),
         );
-        Navigator.pop(context);
+        // Quitamos el Navigator.pop(context) para que la pantalla se actualice dinámicamente
+        // y el usuario pueda ver el botón de "Inscribirse" de nuevo si lo desea.
       }
     } catch (e) {
       if (mounted) {
@@ -901,6 +971,18 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
                       child: Text(
                         'Inscrito como: ${widget.enrolledTeam!.name}',
                         style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    const Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        'Ya estás inscrito en este torneo',
+                        style: TextStyle(
                           color: Colors.white70,
                           fontSize: 13,
                           fontWeight: FontWeight.w500,

@@ -638,13 +638,17 @@ class _TeamManageScreenState extends State<TeamManageScreen>
                           ),
                         ),
                       )
-                    : GradientButton(
-                        label: '',
-                        icon: Icons.person_add_rounded,
-                        variant: GradientButtonVariant.ocean,
-                        size: GradientButtonSize.medium,
+                    : ElevatedButton(
                         onPressed: _addMember,
-                      ),
+                        style: ElevatedButton.styleFrom(
+                          shape: const CircleBorder(),
+                          padding: const EdgeInsets.all(12), // Ajusta el tamaño del botón
+                          shadowColor: const Color(0xFF0DFF00),
+                          elevation: 2,
+                          backgroundColor: Colors.white,
+                        ),
+                        child: const Icon(Icons.person_add_rounded, color: Colors.black,),
+                    ),
               ),
             ],
           ),
@@ -826,7 +830,7 @@ class _TeamManageScreenState extends State<TeamManageScreen>
                 label: _isDeleting ? 'Eliminando...' : 'Eliminar equipo',
                 icon: Icons.delete_forever_rounded,
                 isLoading: _isDeleting,
-                variant: GradientButtonVariant.sunset,
+                variant: GradientButtonVariant.danger,
                 size: GradientButtonSize.medium,
                 onPressed: _deleteTeam,
               ),

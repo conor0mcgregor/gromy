@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gromy/features/team/presentation/widgets/admin_chip.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  TeamMemberTile  ·  Widget reutilizable para listar miembros
@@ -65,9 +66,9 @@ class TeamMemberTile extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (isAdmin && showAdminBadge) ...[
+                      if (isAdmin ) ...[
                         const SizedBox(width: 8),
-                        _buildAdminBadge(),
+                        AdminChip(small: !showAdminBadge),
                       ],
                     ],
                   ),
@@ -148,35 +149,4 @@ class TeamMemberTile extends StatelessWidget {
     );
   }
 
-  Widget _buildAdminBadge() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        color: const Color(0xFF6C63FF).withValues(alpha: 0.2),
-        border: Border.all(
-          color: const Color(0xFF6C63FF).withValues(alpha: 0.4),
-        ),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.admin_panel_settings_rounded,
-            size: 12,
-            color: Color(0xFFB0A8FF),
-          ),
-          SizedBox(width: 4),
-          Text(
-            'Admin',
-            style: TextStyle(
-              color: Color(0xFFB0A8FF),
-              fontSize: 10.5,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

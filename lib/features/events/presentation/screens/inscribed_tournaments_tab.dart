@@ -129,18 +129,12 @@ class _InscribedTournamentsTabState extends State<InscribedTournamentsTab> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => DemoEnrollScreen(
+        builder: (_) => PreinscriptionScreen(
           tournament: tournament,
-          isEnrolled: true,
-          participant: participant,
-          enrolledTeam: enrolledTeam,
-          canCancelTeam: canCancel,
-          onCancelInscription: (participant == null || !canCancel)
-              ? null
-              : () => widget.controller.cancelInscription(
-                    tournamentId: tournament.id,
-                    participantId: participant!.id,
-                  ),
+          initialIsEnrolled: true,
+          initialParticipant: participant,
+          initialEnrolledTeam: enrolledTeam,
+          initialCanCancelTeam: canCancel,
         ),
       ),
     );

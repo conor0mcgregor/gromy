@@ -298,7 +298,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => DemoEnrollScreen(
+                                    builder: (context) => PreinscriptionScreen(
                                       tournament: t,
                                     ),
                                   ),

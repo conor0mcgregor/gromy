@@ -38,6 +38,7 @@ class FirestoreParticipantService implements ParticipantRepository {
           .doc(tournamentId)
           .collection('participants');
 
+
   // ── ParticipantRepository impl ─────────────────────────────────────────────
 
   @override
@@ -144,6 +145,7 @@ class FirestoreParticipantService implements ParticipantRepository {
         .timeout(const Duration(seconds: 10));
     return snapshot.docs.isNotEmpty;
   }
+
 
   @override
   Stream<List<AppParticipant>> watchEnrolledParticipants(String entityId) {

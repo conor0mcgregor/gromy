@@ -238,3 +238,4 @@ class _GradientButtonState extends State<GradientButton>
 // ──────────────────────────────────────────────────────────────────────────────
 
 enum GradientButtonSize { small, medium, large }
+
