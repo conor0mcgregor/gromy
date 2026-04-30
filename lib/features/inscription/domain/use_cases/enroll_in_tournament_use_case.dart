@@ -35,7 +35,7 @@ class EnrollInTournamentUseCase {
     TournamentRepository? tournamentRepository,
     FirebaseAuth? auth,
   })  : _participantRepo =
-            participantRepository ?? FirestoreParticipantService(),
+      participantRepository ?? FirestoreParticipantService(),
         _teamRepo = teamRepository ?? FirestoreTeamService(),
         _userRepo = userRepository ?? FirestoreUserService(),
         _tournamentRepo =
@@ -122,7 +122,46 @@ class EnrollInTournamentUseCase {
     required ParticipantEntityType entityType,
     String? categoryId,
   }) async {
-    // 1. Comprobar duplicado antes de llamar a joinTournament.
+    // 1. Obtener todos los participantes actuales del torneo
+    final currentParticipants = await _participantRepo.getParticipants(tournament.id);
+
+    // 2. Extraer todos los userIds ya inscritos
+    final enrolledUserIds = <String>{};
+    for (final p in currentParticipants) {
+      if (p.entityType == ParticipantEntityType.user) {
+        enrolledUserIds.add(p.entityId);
+      } else if (p.entityType == ParticipantEntityType.team) {
+        final team = await _teamRepo.getTeam(p.entityId);
+        if (team != null) {
+          enrolledUserIds.addAll(team.members);
+        }
+      }
+    }
+
+    // 3. Obtener los userIds de la entidad que intenta inscribirse
+    final joiningUserIds = <String>{};
+    if (entityType == ParticipantEntityType.user) {
+      joiningUserIds.add(entityId);
+    } else if (entityType == ParticipantEntityType.team) {
+      final team = await _teamRepo.getTeam(entityId);
+      if (team != null) {
+        joiningUserIds.addAll(team.members);
+      } else {
+        throw Exception('El equipo no existe.');
+      }
+    }
+
+    // 4. Comprobar intersección para evitar duplicados a nivel de usuario
+    final duplicateUsers = joiningUserIds.intersection(enrolledUserIds);
+    if (duplicateUsers.isNotEmpty) {
+      if (entityType == ParticipantEntityType.team) {
+        throw Exception('No se puede inscribir el equipo porque cuenta con al menos un usuario ya inscrito en el torneo.');
+      } else {
+        throw AlreadyEnrolledException(tournamentId: tournament.id);
+      }
+    }
+
+    // 5. Comprobar duplicado a nivel de entidad (por seguridad adicional)
     final alreadyIn = await _participantRepo.isEnrolled(
       tournamentId: tournament.id,
       entityId: entityId,
@@ -131,12 +170,12 @@ class EnrollInTournamentUseCase {
       throw AlreadyEnrolledException(tournamentId: tournament.id);
     }
 
-    // 2. Determinar el estado inicial según el tipo de acceso del torneo.
+    // 6. Determinar el estado inicial según el tipo de acceso del torneo.
     final initialStatus = tournament.accessType.name == 'publicOpen'
         ? ParticipantStatus.approved
         : ParticipantStatus.pending;
 
-    // 3. Persistir la inscripción.
+    // 7. Persistir la inscripción.
     final participant = await _participantRepo.joinTournament(
       tournamentId: tournament.id,
       entityId: entityId,
@@ -145,7 +184,7 @@ class EnrollInTournamentUseCase {
       categoryId: categoryId,
     );
 
-    // 4. Incrementar el contador de participantes del torneo.
+    // 8. Incrementar el contador de participantes del torneo.
     await _tournamentRepo.incrementParticipantCount(tournament.id);
 
     return participant;
