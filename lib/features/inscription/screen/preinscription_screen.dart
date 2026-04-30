@@ -1,17 +1,14 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 
 import '../../../core/getColors/getter_colors.dart';
 import '../../../core/widgets/bar_small_botton.dart';
 import '../../../core/widgets/expandable_card.dart';
 import '../../../core/widgets/gradient_button.dart';
-import '../../../core/widgets/participant_card.dart';
 import '../../../core/widgets/static_location_map.dart';
-import '../../participants/data/models/participant_display.dart';
-import '../../participants/data/repositories/participant_display_repository.dart';
-import '../../participants/data/services/participant_display_service.dart';
-import '../../participants/presentation/screens/participants_screen.dart';
 import '../../participants/presentation/widgets/participants_section.dart';
 import '../../tournament/data/model/app_tournament.dart';
 import '../../../../database/participant/models/app_participant.dart';
@@ -557,18 +554,27 @@ class _ContactsSection extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
-                      link,
-                      style: const TextStyle(
-                        color: Color(0xFF00D4FF),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        decoration: TextDecoration.underline,
-                        decorationColor: Color(0xFF00D4FF),
+                    child: InkWell(
+                      onTap: () async {
+                        final uri = Uri.parse(link);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        }
+                      },
+                      child: Text(
+                        link,
+                        style: const TextStyle(
+                          color: Color(0xFF00D4FF),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          decoration: TextDecoration.underline,
+                          decorationColor: Color(0xFF00D4FF),
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
+                  )
+
                 ],
               ),
             ),

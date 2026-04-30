@@ -470,7 +470,7 @@ class _ParticipantManagementItem extends StatelessWidget {
     final isBusy = isRemoving || isUpdatingCategory;
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: switch (participant) {

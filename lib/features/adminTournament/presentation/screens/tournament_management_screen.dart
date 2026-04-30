@@ -7,8 +7,8 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/getColors/getter_colors.dart';
 import '../../../../core/widgets/bar_small_botton.dart';
+import '../../../../core/widgets/dividers.dart';
 import '../../../../core/widgets/glass_text_field.dart';
-import '../../../../core/widgets/glow_orb.dart';
 import '../../../../core/widgets/gradient_button.dart';
 import '../../../../core/widgets/participant_card.dart';
 import '../../../../core/widgets/static_location_map.dart';
@@ -189,6 +189,11 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
 
   Future<void> _handleSave() async {
     FocusScope.of(context).unfocus();
+    if (!_ctrl.validate()) {
+      _showSnack('Revisa los errores en el formulario', isError: true);
+      return;
+    }
+
     final confirmed = await _confirm(
       title: 'Guardar cambios',
       message: '¿Seguro que quieres guardar los cambios?',
@@ -318,22 +323,6 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
         fit: StackFit.expand,
         children: [
           const _Background(),
-          Positioned(
-            top: -80,
-            left: -60,
-            child: GlowOrb(
-              color: const Color(0xFF6C63FF).withValues(alpha: 0.35),
-              size: 280,
-            ),
-          ),
-          Positioned(
-            bottom: 60,
-            right: -80,
-            child: GlowOrb(
-              color: const Color(0xFF00D4FF).withValues(alpha: 0.25),
-              size: 240,
-            ),
-          ),
           AbsorbPointer(
             absorbing: _ctrl.isBusy,
             child: SafeArea(
@@ -352,6 +341,8 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                             const SizedBox(height: 24),
                             _buildInfoSection(),
                             const SizedBox(height: 20),
+                            _buildParticipantsSection(),
+                            const SizedBox(height: 20),
                             _buildScheduleSection(),
                             const SizedBox(height: 20),
                             _buildLogisticsSection(),
@@ -363,8 +354,6 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                             _buildLinksSection(),
                             const SizedBox(height: 20),
                             _buildCategoriesSection(),
-                            const SizedBox(height: 20),
-                            _buildParticipantsSection(),
                             const SizedBox(height: 20),
                             _buildAdminsSection(),
                             const SizedBox(height: 20),
@@ -517,6 +506,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           hint: 'Nombre del torneo',
           icon: Icons.emoji_events_rounded,
           textCapitalization: TextCapitalization.words,
+          errorText: _ctrl.nameError,
         ),
         const SizedBox(height: 12),
         GlassTextField(
@@ -525,6 +515,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           icon: Icons.notes_rounded,
           maxLines: 3,
           textCapitalization: TextCapitalization.sentences,
+          errorText: _ctrl.descriptionError,
         ),
         const SizedBox(height: 12),
         GlassTextField(
@@ -532,6 +523,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           hint: 'Reglamento / información adicional',
           maxLines: 5,
           textCapitalization: TextCapitalization.sentences,
+          errorText: _ctrl.allInfoError,
         ),
       ],
     );
@@ -546,6 +538,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
         _DatePickerField(
           label: 'Fecha del evento',
           value: _ctrl.edited.scheduledAt,
+          errorText: _ctrl.eventDateError,
           onPick: () async {
             final date = await _pickDate(initial: _ctrl.edited.scheduledAt);
             if (date != null) _ctrl.updateScheduledAt(date);
@@ -555,6 +548,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
         _DatePickerField(
           label: 'Límite de inscripción',
           value: _ctrl.edited.registrationDeadline,
+          errorText: _ctrl.registrationDeadlineError,
           optional: true,
           onPick: () async {
             final date = await _pickDate(
@@ -568,6 +562,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
         _DatePickerField(
           label: 'Publicación de cuadros',
           value: _ctrl.edited.bracketPublishDate,
+          errorText: _ctrl.bracketPublishDateError,
           optional: true,
           onPick: () async {
             final date = await _pickDate(
@@ -593,6 +588,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           icon: Icons.people_alt_rounded,
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          errorText: _ctrl.maxParticipantsError,
         ),
         const SizedBox(height: 12),
         GlassTextField(
@@ -601,6 +597,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           icon: Icons.group_rounded,
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          errorText: _ctrl.membersPerTeamError,
         ),
       ],
     );
@@ -636,6 +633,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           hint: 'Dirección / lugar',
           icon: Icons.place_rounded,
           textCapitalization: TextCapitalization.words,
+          errorText: _ctrl.locationError,
         ),
         const SizedBox(height: 12),
         GradientButton(
@@ -660,6 +658,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           hint: 'Email de contacto',
           icon: Icons.email_rounded,
           keyboardType: TextInputType.emailAddress,
+          errorText: _ctrl.contactEmailError,
         ),
         const SizedBox(height: 12),
         GlassTextField(
@@ -727,7 +726,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
               child: GlassTextField(
                 controller: _categoryCtrl,
                 hint: 'Nueva categoría',
-                icon: Icons.add_rounded,
+                icon: Icons.new_label_rounded,
                 textCapitalization: TextCapitalization.words,
               ),
             ),
@@ -759,7 +758,11 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
   }
 
   Widget _buildParticipantsSection() {
-    return ParticipantsSection(
+    return Column(
+      children: [
+        LineDivider(color: Colors.white),
+        const SizedBox(height: 32),
+        ParticipantsSection(
       tournament: _ctrl.edited,
       enableManagementNavigation: true,
       managementScreenBuilder: (_) => ParticipantsManagementScreen(
@@ -767,7 +770,9 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
         tournamentName: _ctrl.edited.name,
         isTeamTournament: _ctrl.isTeamTournament,
         categories: _ctrl.editedCategories,
-      ),
+        ),
+      )
+      ]
     );
   }
 
@@ -836,28 +841,44 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
   }
 
   Widget _buildDangerZone() {
-    return _buildSection(
-      icon: Icons.warning_amber_rounded,
-      title: 'Zona peligrosa',
-      color: const Color(0xFFFF4D6A),
-      children: [
-        Text(
-          'Eliminar el torneo es una acción permanente e irreversible.',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.55),
-            fontSize: 13,
+    return
+      ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              color: Colors.red.withValues(alpha: 0.08),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            child: _buildSection(
+              icon: Icons.warning_amber_rounded,
+              title: 'Zona peligrosa',
+              color: const Color(0xFFFF4D6A),
+              children: [
+                Text(
+                  'Eliminar el torneo es una acción permanente e irreversible.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.55),
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                GradientButton(
+                  label: _ctrl.isDeleting ? 'Eliminando...' : 'Eliminar torneo',
+                  icon: Icons.delete_forever_rounded,
+                  isLoading: _ctrl.isDeleting,
+                  onPressed: _ctrl.isDeleting ? null : _handleDelete,
+                  variant: GradientButtonVariant.danger,
+                ),
+              ],
+            )
           ),
         ),
-        const SizedBox(height: 16),
-        GradientButton(
-          label: _ctrl.isDeleting ? 'Eliminando...' : 'Eliminar torneo',
-          icon: Icons.delete_forever_rounded,
-          isLoading: _ctrl.isDeleting,
-          onPressed: _ctrl.isDeleting ? null : _handleDelete,
-          variant: GradientButtonVariant.danger,
-        ),
-      ],
-    );
+      );
+
   }
 
   Widget _buildSection({
@@ -866,50 +887,39 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
     required Color color,
     required List<Widget> children,
   }) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            color: Colors.white.withValues(alpha: 0.04),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      color: color.withValues(alpha: 0.15),
-                    ),
-                    child: Icon(icon, color: color, size: 18),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        LineDivider(color: color),
+        const SizedBox(height: 32),
+        Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                color: color.withValues(alpha: 0.15),
               ),
-              const SizedBox(height: 16),
-              ...children,
-            ],
-          ),
+              child: Icon(icon, color: color, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
         ),
-      ),
+        const SizedBox(height: 16),
+        ...children,
+        const SizedBox(height: 16),
+      ],
     );
   }
 
@@ -1240,6 +1250,7 @@ class _DatePickerField extends StatelessWidget {
     required this.onPick,
     this.optional = false,
     this.onClear,
+    this.errorText,
   });
 
   final String label;
@@ -1247,6 +1258,7 @@ class _DatePickerField extends StatelessWidget {
   final VoidCallback onPick;
   final bool optional;
   final VoidCallback? onClear;
+  final String? errorText;
 
   @override
   Widget build(BuildContext context) {
@@ -1254,67 +1266,102 @@ class _DatePickerField extends StatelessWidget {
         ? DateFormat("dd 'de' MMMM, yyyy", 'es').format(value!)
         : (optional ? 'Sin definir' : 'Seleccionar fecha');
 
-    return GestureDetector(
-      onTap: onPick,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          color: Colors.white.withValues(alpha: 0.07),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-        ),
-        child: Row(
-          children: [
-            const Icon(
-              Icons.calendar_month_rounded,
-              color: Colors.white38,
-              size: 20,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.4),
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    formatted,
-                    style: TextStyle(
-                      color: value != null
-                          ? Colors.white
-                          : Colors.white.withValues(alpha: 0.3),
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          onTap: onPick,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              color: errorText != null
+                  ? const Color(0xFFFF4D6A).withValues(alpha: 0.08)
+                  : Colors.white.withValues(alpha: 0.07),
+              border: Border.all(
+                color: errorText != null
+                    ? const Color(0xFFFF4D6A).withValues(alpha: 0.6)
+                    : Colors.white.withValues(alpha: 0.1),
+                width: errorText != null ? 1.5 : 1,
               ),
             ),
-            if (optional && value != null && onClear != null)
-              GestureDetector(
-                onTap: onClear,
-                child: Icon(
-                  Icons.close_rounded,
-                  color: Colors.white.withValues(alpha: 0.4),
-                  size: 18,
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.calendar_month_rounded,
+                  color: Colors.white38,
+                  size: 20,
                 ),
-              )
-            else
-              Icon(
-                Icons.chevron_right_rounded,
-                color: Colors.white.withValues(alpha: 0.3),
-                size: 20,
-              ),
-          ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.4),
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        formatted,
+                        style: TextStyle(
+                          color: value != null
+                              ? Colors.white
+                              : Colors.white.withValues(alpha: 0.3),
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (optional && value != null && onClear != null)
+                  GestureDetector(
+                    onTap: onClear,
+                    child: Icon(
+                      Icons.close_rounded,
+                      color: Colors.white.withValues(alpha: 0.4),
+                      size: 18,
+                    ),
+                  )
+                else
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: Colors.white.withValues(alpha: 0.3),
+                    size: 20,
+                  ),
+              ],
+            ),
+          ),
         ),
-      ),
+        if (errorText != null) ...[
+          const SizedBox(height: 5),
+          Row(
+            children: [
+              const Icon(
+                Icons.error_outline_rounded,
+                color: Color(0xFFFF4D6A),
+                size: 13,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  errorText!,
+                  style: const TextStyle(
+                    color: Color(0xFFFF4D6A),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 }

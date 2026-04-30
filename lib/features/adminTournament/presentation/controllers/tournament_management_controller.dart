@@ -105,7 +105,16 @@ class TournamentManagementController extends ChangeNotifier {
   String? _errorMessage;
   String? _successMessage;
   String? _adminError;
+  String? _nameError;
+  String? _descriptionError;
+  String? _allInfoError;
+  String? _eventDateError;
+  String? _registrationDeadlineError;
+  String? _bracketPublishDateError;
   String? _locationError;
+  String? _maxParticipantsError;
+  String? _membersPerTeamError;
+  String? _contactEmailError;
 
   List<ParticipantDisplay> _participants = [];
   List<TournamentAdminView> _adminUsers = [];
@@ -143,7 +152,16 @@ class TournamentManagementController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   String? get successMessage => _successMessage;
   String? get adminError => _adminError;
+  String? get nameError => _nameError;
+  String? get descriptionError => _descriptionError;
+  String? get allInfoError => _allInfoError;
+  String? get eventDateError => _eventDateError;
+  String? get registrationDeadlineError => _registrationDeadlineError;
+  String? get bracketPublishDateError => _bracketPublishDateError;
   String? get locationError => _locationError;
+  String? get maxParticipantsError => _maxParticipantsError;
+  String? get membersPerTeamError => _membersPerTeamError;
+  String? get contactEmailError => _contactEmailError;
   List<ParticipantDisplay> get participants => _participants;
   List<TournamentAdminView> get adminUsers => _adminUsers;
   List<String> get editedCategories => _editedCategories;
@@ -304,6 +322,161 @@ class TournamentManagementController extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool validate() {
+    _clearValidationErrors();
+
+    final infoOk = _validateInfo();
+    final datesOk = _validateDates();
+    final logisticsOk = _validateLogistics();
+    final contactOk = _validateContact();
+    final locationOk = _validateLocation();
+
+    notifyListeners();
+    return infoOk && datesOk && logisticsOk && contactOk && locationOk;
+  }
+
+  void _clearValidationErrors() {
+    _nameError = null;
+    _descriptionError = null;
+    _allInfoError = null;
+    _eventDateError = null;
+    _registrationDeadlineError = null;
+    _bracketPublishDateError = null;
+    _locationError = null;
+    _maxParticipantsError = null;
+    _membersPerTeamError = null;
+    _contactEmailError = null;
+  }
+
+  bool _validateInfo() {
+    final name = nameCtrl.text.trim();
+    final desc = descriptionCtrl.text.trim();
+    final info = allInfoCtrl.text.trim();
+
+    bool ok = true;
+
+    if (name.length < 3) {
+      _nameError = 'El nombre debe tener al menos 3 caracteres.';
+      ok = false;
+    }
+
+    if (desc.length < 10) {
+      _descriptionError = 'Añade una descripción un poco más larga (mín. 10).';
+      ok = false;
+    }
+
+    if (info.length < 100) {
+      _allInfoError =
+          'Añade más información sobre las reglas (mín. 100 caracteres).';
+      ok = false;
+    }
+
+    return ok;
+  }
+
+  bool _validateDates() {
+    final eventDate = _edited.scheduledAt;
+    final deadline = _edited.registrationDeadline;
+    final brackets = _edited.bracketPublishDate;
+
+    bool ok = true;
+
+    // La fecha del evento es obligatoria en el modelo, pero validamos que no sea pasada si se cambia
+    final today = DateTime.now();
+    final minDate = DateTime(today.year, today.month, today.day);
+
+    if (eventDate.isBefore(minDate)) {
+      _eventDateError = 'La fecha debe ser hoy o en el futuro.';
+      ok = false;
+    }
+
+    if (deadline != null && deadline.isAfter(eventDate)) {
+      _registrationDeadlineError =
+          'El límite de inscripción debe ser antes del evento.';
+      ok = false;
+    }
+
+    if (deadline != null && deadline.isBefore(minDate)) {
+      _registrationDeadlineError =
+      'El límite de inscripción debe ser hoy o en el futuro.';
+      ok = false;
+    }
+
+    if (brackets != null && brackets.isAfter(eventDate)) {
+      _bracketPublishDateError =
+          'Los cuadros deben publicarse antes del evento.';
+      ok = false;
+    }
+
+    if (brackets != null && brackets.isBefore(minDate)) {
+      _bracketPublishDateError =
+      'Los cuadros deben publicarse hoy o en el futuro.';
+      ok = false;
+    }
+
+
+    return ok;
+  }
+
+  bool _validateLogistics() {
+    final maxPart = int.tryParse(maxParticipantsCtrl.text.trim());
+    final members = int.tryParse(membersPerTeamCtrl.text.trim());
+
+    bool ok = true;
+
+    if (maxPart == null || maxPart < 2) {
+      _maxParticipantsError = 'Debe haber al menos 2 participantes.';
+      ok = false;
+    }
+
+    if (isTeamTournament) {
+      if (members == null || members < 2) {
+        _membersPerTeamError = 'Cada equipo debe tener al menos 2 miembros.';
+        ok = false;
+      } else if (maxPart != null && members > maxPart) {
+        _membersPerTeamError =
+            'Los miembros por equipo no pueden superar el total.';
+        ok = false;
+      }
+    }
+
+    return ok;
+  }
+
+  bool _validateContact() {
+    final email = contactEmailCtrl.text.trim();
+    if (email.isEmpty) {
+      _contactEmailError = 'El email de contacto es obligatorio.';
+      return false;
+    }
+
+    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+    if (!emailRegex.hasMatch(email)) {
+      _contactEmailError = 'Introduce un email válido.';
+      return false;
+    }
+
+    return true;
+  }
+
+  bool _validateLocation() {
+    final hasText = locationCtrl.text.trim().isNotEmpty;
+    final hasCoords = _edited.latitude != null && _edited.longitude != null;
+
+    if (!hasText) {
+      _locationError = '¿Dónde se juega? Indica el lugar.';
+      return false;
+    }
+
+    if (!hasCoords) {
+      _locationError = 'Selecciona una ubicación válida en el mapa.';
+      return false;
+    }
+
+    return true;
+  }
+
+
   Future<bool> addAdminFromInput() async {
     if (!isCreator) {
       _adminError = 'Solo el creador puede gestionar administradores';
@@ -446,6 +619,8 @@ class TournamentManagementController extends ChangeNotifier {
   }
 
   Future<bool> saveChanges() async {
+    if (!validate()) return false;
+
     _syncFromControllers();
     _isSaving = true;
     _errorMessage = null;
@@ -541,6 +716,7 @@ class TournamentManagementController extends ChangeNotifier {
     _errorMessage = null;
     _successMessage = null;
     _adminError = null;
+    _clearValidationErrors();
     notifyListeners();
   }
 
