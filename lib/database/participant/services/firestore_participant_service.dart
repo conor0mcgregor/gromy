@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:rxdart/rxdart.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import '../models/app_participant.dart';
@@ -146,22 +147,41 @@ class FirestoreParticipantService implements ParticipantRepository {
 
   @override
   Stream<List<AppParticipant>> watchEnrolledParticipants(String entityId) {
-    return _db
-        .collectionGroup('participants')
-        .where('entityId', isEqualTo: entityId)
+    // 1. Obtener los equipos donde el usuario es miembro
+    final teamsStream = _db
+        .collection('teams')
+        .where('members', arrayContains: entityId)
         .snapshots()
-        .map((snapshot) {
-      final list = <AppParticipant>[];
-      for (final doc in snapshot.docs) {
-        try {
-          list.add(AppParticipant.fromMap(doc.data()));
-        } catch (e) {
-          // ignore: avoid_print
-          print('Error mapeando participante inscrito: $e');
+        .map((snap) => snap.docs.map((d) => d.id).toList());
+
+    // 2. Por cada actualización de equipos, generar los streams de participantes
+    return teamsStream.switchMap((teamIds) {
+      final idsToQuery = [entityId, ...teamIds];
+      
+      // Creamos un stream por cada ID (usuario + equipos) para evadir el límite de 10 de whereIn
+      final streams = idsToQuery.map((id) => _db
+          .collectionGroup('participants')
+          .where('entityId', isEqualTo: id)
+          .snapshots()
+          .map((snapshot) {
+        final list = <AppParticipant>[];
+        for (final doc in snapshot.docs) {
+          try {
+            list.add(AppParticipant.fromMap(doc.data()));
+          } catch (e) {
+            // ignore: avoid_print
+            print('Error mapeando participante inscrito: $e');
+          }
         }
-      }
-      list.sort((a, b) => b.enrolledAt.compareTo(a.enrolledAt));
-      return list;
+        return list;
+      }));
+
+      // Combinamos todos los streams y aplanamos la lista
+      return Rx.combineLatestList(streams).map((lists) {
+        final combined = lists.expand((l) => l).toList();
+        combined.sort((a, b) => b.enrolledAt.compareTo(a.enrolledAt));
+        return combined;
+      });
     });
   }
 }

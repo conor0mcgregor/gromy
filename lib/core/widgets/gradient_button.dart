@@ -89,9 +89,9 @@ class _GradientButtonState extends State<GradientButton>
   };
 
   EdgeInsets get _padding => switch (widget.size) {
-    GradientButtonSize.small  => const EdgeInsets.symmetric(horizontal: 20),
-    GradientButtonSize.medium => const EdgeInsets.symmetric(horizontal: 28),
-    GradientButtonSize.large  => const EdgeInsets.symmetric(horizontal: 36),
+    GradientButtonSize.small  => const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+    GradientButtonSize.medium => const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+    GradientButtonSize.large  => const EdgeInsets.symmetric(horizontal: 36, vertical: 18),
   };
 
   List<Color> get _colors => widget.variant.colors;
@@ -124,47 +124,49 @@ class _GradientButtonState extends State<GradientButton>
             scale: _isPressed ? 0.97 : 1.0,
             duration: const Duration(milliseconds: 120),
             curve: Curves.easeOut,
-            child: SizedBox(
-              width: widget.width,
-              height: _height,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(_borderRadius),
-                  gradient: LinearGradient(
-                    begin: begin,
-                    end: end,
-                    colors: _disabled
-                        ? _colors.map((c) => c.withValues(alpha: 0.5)).toList()
-                        : _colors,
-                  ),
-                  boxShadow: _disabled
-                      ? []
-                      : [
-                    BoxShadow(
-                      color: _shadowColor.withValues(
-                        alpha: _isPressed ? 0.5 : 0.32,
-                      ),
-                      blurRadius: _isPressed ? 28 : 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(_borderRadius),
-                  child: InkWell(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: _height),
+              child: SizedBox(
+                width: widget.width,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(_borderRadius),
-                    splashColor: Colors.white.withValues(alpha: 0.08),
-                    highlightColor: Colors.white.withValues(alpha: 0.05),
-                    onTap: _disabled ? null : widget.onPressed,
-                    child: Padding(
-                      padding: _padding,
-                      child: _buildContent(),
+                    gradient: LinearGradient(
+                      begin: begin,
+                      end: end,
+                      colors: _disabled
+                          ? _colors.map((c) => c.withValues(alpha: 0.5)).toList()
+                          : _colors,
+                    ),
+                    boxShadow: _disabled
+                        ? []
+                        : [
+                      BoxShadow(
+                        color: _shadowColor.withValues(
+                          alpha: _isPressed ? 0.5 : 0.32,
+                        ),
+                        blurRadius: _isPressed ? 28 : 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(_borderRadius),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(_borderRadius),
+                      splashColor: Colors.white.withValues(alpha: 0.08),
+                      highlightColor: Colors.white.withValues(alpha: 0.05),
+                      onTap: _disabled ? null : widget.onPressed,
+                      child: Padding(
+                        padding: _padding,
+                        child: _buildContent(),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
+              ),  // SizedBox
+            ),    // ConstrainedBox
           ),
         );
       },
@@ -188,11 +190,14 @@ class _GradientButtonState extends State<GradientButton>
           Flexible(
             child: Text(
               widget.label,
+              textAlign: TextAlign.center,
+              softWrap: true,
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.8),
                 fontSize: _fontSize,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.2,
+                height: 1.35,
               ),
             ),
           ),
@@ -203,18 +208,24 @@ class _GradientButtonState extends State<GradientButton>
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         if (widget.icon != null) ...[
           Icon(widget.icon, color: Colors.white, size: _iconSize),
           const SizedBox(width: 10),
         ],
-        Text(
-          widget.label,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: _fontSize,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.2,
+        Flexible(
+          child: Text(
+            widget.label,
+            textAlign: TextAlign.center,
+            softWrap: true,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: _fontSize,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.2,
+              height: 1.35,
+            ),
           ),
         ),
       ],

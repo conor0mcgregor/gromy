@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../adminTournament/presentation/screens/tournament_management_screen.dart';
 import '../../../home/presentation/widgets/tournament_card.dart';
 import '../../../tournament/data/model/app_tournament.dart';
 import '../controllers/events_controller.dart';
@@ -20,10 +21,9 @@ class AdminTournamentsTab extends StatelessWidget {
       );
     }
 
-    // Aprovechamos watchTournamentsAdmin, pero lo filtramos localmente 
-    // para excluir los torneos donde el usuario es organizador absoluto.
+    
     return StreamBuilder<List<AppTournament>>(
-      stream: controller.watchTournamentsAdmin(),
+      stream: controller.watchAllAdministeredTournaments(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const EventsLoadingState();
@@ -33,28 +33,35 @@ class AdminTournamentsTab extends StatelessWidget {
           return EventsErrorState(message: '${snapshot.error}');
         }
 
-        final allAdminTournaments = snapshot.data ?? [];
-        
-        final onlyAdminTournaments = allAdminTournaments
-            .where((t) => t.organizerUid != controller.currentUid)
-            .toList();
+        final managedTournaments = snapshot.data ?? [];
 
-        if (onlyAdminTournaments.isEmpty) {
+        if (managedTournaments.isEmpty) {
           return const EventsEmptyState(
-            title: 'No administras torneos',
-            message: 'Aún no has sido invitado a administrar ningún torneo de terceros.',
+            title: 'Sin torneos para gestionar',
+            message: 'Aquí aparecerán los torneos que has creado o en los que eres administrador.',
             icon: Icons.admin_panel_settings_outlined,
           );
         }
 
         return ListView.builder(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
-          itemCount: onlyAdminTournaments.length,
+          itemCount: managedTournaments.length,
           itemBuilder: (context, index) {
+            final tournament = managedTournaments[index];
+            final isCreator = tournament.organizerUid == controller.currentUid;
+            
             return TournamentCard(
-              tournament: onlyAdminTournaments[index],
-              isMyTournament: false, // Puedes manejar el UI como consideres
+              tournament: tournament,
+              isMyTournament: isCreator,
               animationDelay: Duration(milliseconds: 70 * index),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TournamentManagementScreen(
+                    tournament: tournament,
+                  ),
+                ),
+              ),
             );
           },
         );

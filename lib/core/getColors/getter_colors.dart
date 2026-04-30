@@ -44,6 +44,16 @@ enum GradientButtonVariant {
   forest(
     colors: [Color(0xFF10B981), Color(0xFF22C55E), Color(0xFF84CC16)],
     shadowColor: Color(0xFF10B981),
+  ),
+
+  danger(
+    colors: [Color(0xFFFF0000), Color(0xFFD60000), Color(0xFFD60039)],
+    shadowColor: Color(0xFFFF8A8A),
+  ),
+
+  select(
+    colors: [Color(0xFF00A393), Color(0xFF00A341), Color(0xFF1000A3)],
+    shadowColor: Color(0xFF958AFF),
   );
 
 

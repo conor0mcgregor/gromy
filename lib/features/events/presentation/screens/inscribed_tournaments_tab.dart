@@ -5,6 +5,8 @@ import '../../../inscription/screen/preinscription_screen.dart';
 import '../../../tournament/data/model/app_tournament.dart';
 import '../../../../database/participant/models/app_participant.dart';
 import '../../../../database/participant/services/firestore_participant_service.dart';
+import '../../../../database/team/services/firestore_team_service.dart';
+import '../../../../database/team/models/app_team.dart';
 import '../controllers/events_controller.dart';
 import 'events_screen.dart';
 
@@ -91,15 +93,35 @@ class _InscribedTournamentsTabState extends State<InscribedTournamentsTab> {
     AppTournament tournament,
     String uid,
   ) async {
-    // Obtenemos el participante (lectura puntual, no hace falta stream aquí).
+    // Obtenemos el participante y equipo (lectura puntual).
     AppParticipant? participant;
+    AppTeam? enrolledTeam;
+    bool canCancel = false;
+
     try {
       final participants =
           await _participantService.getParticipants(tournament.id);
-      participant = participants.where((p) => p.entityId == uid).firstOrNull;
+      
+      // Buscar si el usuario está inscrito individualmente
+      participant = participants.where((p) => p.entityId == uid && p.entityType == ParticipantEntityType.user).firstOrNull;
+
+      if (participant != null) {
+        canCancel = true;
+      } else {
+        // Buscar si algún equipo del usuario está inscrito
+        final teamService = FirestoreTeamService();
+        final myTeams = await teamService.watchTeamsByMember(uid).first;
+        final myTeamIds = myTeams.map((t) => t.id).toSet();
+        
+        participant = participants.where((p) => myTeamIds.contains(p.entityId) && p.entityType == ParticipantEntityType.team).firstOrNull;
+        
+        if (participant != null) {
+          enrolledTeam = myTeams.firstWhere((t) => t.id == participant!.entityId);
+          canCancel = enrolledTeam.isAdmin(uid);
+        }
+      }
     } catch (_) {
-      // Si falla la carga del participante, navegamos igual pero sin
-      // poder cancelar (el botón quedará deshabilitado).
+      // Si falla, el botón quedará deshabilitado
     }
 
     if (!context.mounted) return;
@@ -111,7 +133,9 @@ class _InscribedTournamentsTabState extends State<InscribedTournamentsTab> {
           tournament: tournament,
           isEnrolled: true,
           participant: participant,
-          onCancelInscription: participant == null
+          enrolledTeam: enrolledTeam,
+          canCancelTeam: canCancel,
+          onCancelInscription: (participant == null || !canCancel)
               ? null
               : () => widget.controller.cancelInscription(
                     tournamentId: tournament.id,

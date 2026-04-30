@@ -4,7 +4,6 @@ import 'package:gromy/core/widgets/glass_tab_bar.dart';
 import '../controllers/events_controller.dart';
 import 'admin_tournaments_tab.dart';
 import 'inscribed_tournaments_tab.dart';
-import 'my_tournaments_tab.dart';
 
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
@@ -25,7 +24,7 @@ class _EventsScreenState extends State<EventsScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 2,
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: SafeArea(
@@ -63,7 +62,6 @@ class _EventsScreenState extends State<EventsScreen> {
                     const SizedBox(height: 16),
                     GlassTabBar(
                       tabs: const [
-                        GlassTab(label: 'Mis torneos',   icon: Icons.emoji_events_rounded),
                         GlassTab(label: 'Admin', icon: Icons.admin_panel_settings_outlined),
                         GlassTab(label: 'Inscripciones',    icon: Icons.person_rounded),
                       ],
@@ -74,7 +72,6 @@ class _EventsScreenState extends State<EventsScreen> {
               Expanded(
                 child: TabBarView(
                   children: [
-                    MyTournamentsTab(controller: _controller),
                     AdminTournamentsTab(controller: _controller),
                     InscribedTournamentsTab(controller: _controller),
                   ],
