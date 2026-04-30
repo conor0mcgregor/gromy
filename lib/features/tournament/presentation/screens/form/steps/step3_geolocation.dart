@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../../data/model/app_tournament.dart';
 import '../../../../data/services/geocoding_service.dart';
 import '../../../../data/services/location_service.dart';
 import '../../../controllers/location_picker_controller.dart';
@@ -32,6 +33,10 @@ class Step3Geolocation extends StatefulWidget {
     required this.onSuggestionSelected,
     required this.onMapTap,
     this.resolvedAddress,
+    this.duplicateTournament,
+    this.isCheckingDuplicate = false,
+    this.duplicateCheckErrorMessage,
+    this.onViewDuplicateTournament,
   });
 
   final TextEditingController locationController;
@@ -43,6 +48,10 @@ class Step3Geolocation extends StatefulWidget {
   final ValueChanged<String> onQueryChanged;
   final ValueChanged<GeocodingResult> onSuggestionSelected;
   final FutureOr<void> Function(double lat, double lng) onMapTap;
+  final AppTournament? duplicateTournament;
+  final bool isCheckingDuplicate;
+  final String? duplicateCheckErrorMessage;
+  final ValueChanged<AppTournament>? onViewDuplicateTournament;
 
   /// Dirección resuelta por reverse geocoding (se muestra debajo
   /// de las coordenadas en el footer).
@@ -120,6 +129,25 @@ class _Step3GeolocationState extends State<Step3Geolocation> {
                 onQueryChanged: widget.onQueryChanged,
                 onSuggestionSelected: widget.onSuggestionSelected,
               ),
+              if (widget.isCheckingDuplicate) ...[
+                const SizedBox(height: 12),
+                const _DuplicateCheckLoading(),
+              ] else if (widget.duplicateTournament != null) ...[
+                const SizedBox(height: 12),
+                _DuplicateTournamentWarning(
+                  duplicate: widget.duplicateTournament!,
+                  onViewTournament: widget.onViewDuplicateTournament == null
+                      ? null
+                      : () => widget.onViewDuplicateTournament!(
+                          widget.duplicateTournament!,
+                        ),
+                ),
+              ] else if (widget.duplicateCheckErrorMessage != null) ...[
+                const SizedBox(height: 12),
+                _DuplicateCheckSoftError(
+                  message: widget.duplicateCheckErrorMessage!,
+                ),
+              ],
             ],
           ),
         ),
@@ -146,6 +174,151 @@ class _Step3GeolocationState extends State<Step3Geolocation> {
   LatLng? _pointFrom(double? latitude, double? longitude) {
     if (latitude == null || longitude == null) return null;
     return LatLng(latitude, longitude);
+  }
+}
+
+class _DuplicateCheckLoading extends StatelessWidget {
+  const _DuplicateCheckLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 14,
+          height: 14,
+          child: CircularProgressIndicator(
+            strokeWidth: 1.5,
+            color: Colors.white.withValues(alpha: 0.45),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          'Comprobando torneos similares...',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.45),
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DuplicateTournamentWarning extends StatelessWidget {
+  const _DuplicateTournamentWarning({
+    required this.duplicate,
+    required this.onViewTournament,
+  });
+
+  final AppTournament duplicate;
+  final VoidCallback? onViewTournament;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFB347).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: const Color(0xFFFFB347).withValues(alpha: 0.32),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(
+                Icons.warning_amber_rounded,
+                color: Color(0xFFFFB347),
+                size: 18,
+              ),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Posible torneo duplicado',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Ya existe un torneo programado con la misma fecha, hora de inicio y ubicación. Puedes continuar, pero revisa el torneo existente si quieres evitar crear un duplicado.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.72),
+              fontSize: 12.5,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            duplicate.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (onViewTournament != null) ...[
+            const SizedBox(height: 10),
+            TextButton.icon(
+              onPressed: onViewTournament,
+              icon: const Icon(Icons.open_in_new_rounded, size: 16),
+              label: const Text('Ver torneo existente'),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFFFD38A),
+                padding: EdgeInsets.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                textStyle: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DuplicateCheckSoftError extends StatelessWidget {
+  const _DuplicateCheckSoftError({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Icon(
+          Icons.info_outline_rounded,
+          color: Color(0xFFFFB347),
+          size: 16,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            message,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.55),
+              fontSize: 12,
+              height: 1.3,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 

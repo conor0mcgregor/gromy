@@ -16,8 +16,8 @@ class CreateTournamentController extends ChangeNotifier {
   CreateTournamentController({
     TournamentRepository? tournamentRepository,
     FirebaseAuth? auth,
-  })  : _tournamentRepositoryOverride = tournamentRepository,
-        _authOverride = auth;
+  }) : _tournamentRepositoryOverride = tournamentRepository,
+       _authOverride = auth;
 
   TournamentRepository? _tournamentRepositoryOverride;
   FirebaseAuth? _authOverride;
@@ -28,12 +28,17 @@ class CreateTournamentController extends ChangeNotifier {
   FirebaseAuth get _auth => _authOverride ??= FirebaseAuth.instance;
 
   bool _isSubmitting = false;
+  bool _isCheckingDuplicate = false;
   String? _errorMessage;
+  String? _duplicateCheckErrorMessage;
   AppTournament? _lastCreatedTournament;
   AppTournament? _duplicateTournament;
+  int _duplicateCheckRequestId = 0;
 
   bool get isSubmitting => _isSubmitting;
+  bool get isCheckingDuplicate => _isCheckingDuplicate;
   String? get errorMessage => _errorMessage;
+  String? get duplicateCheckErrorMessage => _duplicateCheckErrorMessage;
   AppTournament? get lastCreatedTournament => _lastCreatedTournament;
 
   /// Torneo existente que genera conflicto de duplicado.
@@ -43,7 +48,44 @@ class CreateTournamentController extends ChangeNotifier {
   /// Limpia el estado de duplicado (p.ej. al cerrar el aviso).
   void clearDuplicate() {
     _duplicateTournament = null;
+    _duplicateCheckErrorMessage = null;
     notifyListeners();
+  }
+
+  /// Busca posibles duplicados para mostrar un aviso no bloqueante en el flujo.
+  Future<void> checkDuplicateTournament({
+    required DateTime scheduledAt,
+    required String location,
+  }) async {
+    final normalizedLocation = location.trim();
+    if (normalizedLocation.isEmpty) {
+      clearDuplicate();
+      return;
+    }
+
+    final requestId = ++_duplicateCheckRequestId;
+    _isCheckingDuplicate = true;
+    _duplicateCheckErrorMessage = null;
+    notifyListeners();
+
+    try {
+      final duplicate = await _tournamentRepository.findDuplicateTournament(
+        scheduledAt: scheduledAt,
+        location: normalizedLocation,
+      );
+      if (requestId != _duplicateCheckRequestId) return;
+      _duplicateTournament = duplicate;
+    } catch (_) {
+      if (requestId != _duplicateCheckRequestId) return;
+      _duplicateTournament = null;
+      _duplicateCheckErrorMessage =
+          'No se pudo verificar si ya existe un torneo similar. Puedes continuar.';
+    } finally {
+      if (requestId == _duplicateCheckRequestId) {
+        _isCheckingDuplicate = false;
+        notifyListeners();
+      }
+    }
   }
 
   /// Crea un torneo, con o sin imagen de portada.
@@ -117,22 +159,7 @@ class CreateTournamentController extends ChangeNotifier {
       }
 
       // El creador siempre es admin; se combinan los extras sin duplicados.
-      final allAdminIds = <String>{
-        currentUser.uid,
-        ...extraAdminIds,
-      }.toList();
-
-      // ── Verificación de duplicado ──────────────────────────────────────────
-      _duplicateTournament = await _tournamentRepository.findDuplicateTournament(
-        scheduledAt: normalizedDate,
-        location: normalizedLocation,
-      );
-
-      if (_duplicateTournament != null) {
-        // Duplicado detectado: no se crea el torneo, la UI mostrará el aviso.
-        return false;
-      }
-      // ─────────────────────────────────────────────────────────────────────
+      final allAdminIds = <String>{currentUser.uid, ...extraAdminIds}.toList();
 
       final now = DateTime.now();
       final tournament = AppTournament(
@@ -164,14 +191,15 @@ class CreateTournamentController extends ChangeNotifier {
       );
 
       if (coverImage != null) {
-        _lastCreatedTournament =
-            await _tournamentRepository.createTournamentWithCover(
-          tournament: tournament,
-          coverImage: coverImage,
-        ); // named params — consistent with TournamentRepository interface
+        _lastCreatedTournament = await _tournamentRepository
+            .createTournamentWithCover(
+              tournament: tournament,
+              coverImage: coverImage,
+            ); // named params — consistent with TournamentRepository interface
       } else {
-        _lastCreatedTournament =
-            await _tournamentRepository.createTournament(tournament);
+        _lastCreatedTournament = await _tournamentRepository.createTournament(
+          tournament,
+        );
       }
 
       return true;

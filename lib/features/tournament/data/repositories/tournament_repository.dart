@@ -75,11 +75,10 @@ abstract interface class TournamentRepository {
 
   // ── Validación de duplicados ───────────────────────────────────────────────
 
-  /// Busca un torneo existente que coincida exactamente en fecha (mismo día
-  /// natural) y lugar (cadena normalizada).
+  /// Busca un torneo existente que coincida exactamente en fecha/hora de inicio
+  /// y lugar (cadena normalizada).
   ///
-  /// Devuelve el [AppTournament] duplicado si existe, o `null` si no hay
-  /// conflicto. El creador puede así modificar fecha o lugar y volver a intentar.
+  /// Devuelve el [AppTournament] duplicado si existe, o `null` si no hay aviso.
   Future<AppTournament?> findDuplicateTournament({
     required DateTime scheduledAt,
     required String location,

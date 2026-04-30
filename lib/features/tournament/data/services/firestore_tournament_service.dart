@@ -25,15 +25,15 @@ class FirestoreTournamentService implements TournamentRepository {
     FirebaseFirestore? firestore,
     TournamentStorageService? storageService,
     ParticipantRepository? participantRepository,
-  })  : _db = firestore ??
-            FirebaseFirestore.instanceFor(
-              app: Firebase.app(),
-              databaseId: 'gromy-db',
-            ),
-        _storageService =
-            storageService ?? FirebaseTournamentStorageService(),
-        _participantRepo =
-            participantRepository ?? FirestoreParticipantService();
+  }) : _db =
+           firestore ??
+           FirebaseFirestore.instanceFor(
+             app: Firebase.app(),
+             databaseId: 'gromy-db',
+           ),
+       _storageService = storageService ?? FirebaseTournamentStorageService(),
+       _participantRepo =
+           participantRepository ?? FirestoreParticipantService();
 
   final FirebaseFirestore _db;
   final TournamentStorageService _storageService;
@@ -109,8 +109,7 @@ class FirestoreTournamentService implements TournamentRepository {
   @override
   Stream<List<AppTournament>> watchMyTournaments(String uid) {
     return watchTournaments().map(
-      (tournaments) =>
-          tournaments.where((t) => t.organizerUid == uid).toList(),
+      (tournaments) => tournaments.where((t) => t.organizerUid == uid).toList(),
     );
   }
 
@@ -153,7 +152,9 @@ class FirestoreTournamentService implements TournamentRepository {
 
   @override
   Stream<List<AppTournament>> watchEnrolledTournaments(String uid) {
-    return _participantRepo.watchEnrolledParticipants(uid).asyncMap((participants) async {
+    return _participantRepo.watchEnrolledParticipants(uid).asyncMap((
+      participants,
+    ) async {
       final tournaments = <AppTournament>[];
       for (final p in participants) {
         try {
@@ -176,13 +177,17 @@ class FirestoreTournamentService implements TournamentRepository {
     required String participantId,
   }) async {
     final tournamentRef = _tournaments.doc(tournamentId);
-    final participantRef = tournamentRef.collection('participants').doc(participantId);
+    final participantRef = tournamentRef
+        .collection('participants')
+        .doc(participantId);
 
     await _db.runTransaction((transaction) async {
       // 1. Verificar si el participante existe
       final participantDoc = await transaction.get(participantRef);
       if (!participantDoc.exists) {
-        throw Exception('El participante ya no está inscrito o la inscripción ya fue cancelada.');
+        throw Exception(
+          'El participante ya no está inscrito o la inscripción ya fue cancelada.',
+        );
       }
 
       // 2. Obtener el documento del torneo para modificar el contador
@@ -199,7 +204,9 @@ class FirestoreTournamentService implements TournamentRepository {
 
       // 4. Decrementar el contador asegurando que no sea negativo
       if (currentCount > 0) {
-        transaction.update(tournamentRef, {'participantCount': currentCount - 1});
+        transaction.update(tournamentRef, {
+          'participantCount': currentCount - 1,
+        });
       }
     });
   }
@@ -225,9 +232,14 @@ class FirestoreTournamentService implements TournamentRepository {
     required DateTime scheduledAt,
     required String location,
   }) async {
-    // Rango del día natural seleccionado (00:00:00 → 23:59:59).
-    final dayStart = DateTime(scheduledAt.year, scheduledAt.month, scheduledAt.day);
-    final dayEnd   = dayStart.add(const Duration(days: 1));
+    // Rango del día natural seleccionado para acotar la consulta; el filtrado
+    // final exige el mismo instante y la misma ubicación normalizada.
+    final dayStart = DateTime(
+      scheduledAt.year,
+      scheduledAt.month,
+      scheduledAt.day,
+    );
+    final dayEnd = dayStart.add(const Duration(days: 1));
 
     final snapshot = await _tournaments
         .where(
@@ -243,7 +255,12 @@ class FirestoreTournamentService implements TournamentRepository {
     for (final doc in snapshot.docs) {
       try {
         final t = AppTournament.fromMap(doc.data());
-        if (t.location.trim().toLowerCase() == normalizedLocation) return t;
+        final sameScheduledAt =
+            t.scheduledAt.millisecondsSinceEpoch ==
+            scheduledAt.millisecondsSinceEpoch;
+        final sameLocation =
+            t.location.trim().toLowerCase() == normalizedLocation;
+        if (sameScheduledAt && sameLocation) return t;
       } catch (_) {
         // Ignorar documentos con formato incorrecto.
       }

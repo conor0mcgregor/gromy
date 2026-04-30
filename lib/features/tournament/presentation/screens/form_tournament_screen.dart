@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -53,6 +55,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
 
   // ── Portada ──
   final _imagePicker = ImagePicker();
+  String? _lastDuplicateCheckKey;
 
   bool get _isSubmitting => _submitController.isSubmitting;
 
@@ -140,6 +143,10 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       return;
     }
 
+    if (_form.currentStep == 3) {
+      unawaited(_checkDuplicateTournamentIfReady(force: true));
+    }
+
     if (_form.currentStep < TournamentFormController.totalSteps - 1) {
       await _animateStepTransition(() {
         _form.currentStep++;
@@ -218,46 +225,39 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       }
       _showSnackBar('Torneo creado con éxito!', isError: false);
     } else {
-      // ── Duplicado detectado: mostrar aviso específico ────────────────────
-      final duplicate = _submitController.duplicateTournament;
-      if (duplicate != null && mounted) {
-        await _showDuplicateWarning(duplicate);
-      } else {
-        // Error genérico (Firebase, red, validación, etc.)
-        _showSnackBar(
-          _submitController.errorMessage ?? 'Error al crear el torneo.',
-          isError: true,
-        );
-      }
+      _showSnackBar(
+        _submitController.errorMessage ?? 'Error al crear el torneo.',
+        isError: true,
+      );
     }
   }
 
   // ── Diálogos ───────────────────────────────────────────────
 
-  /// Muestra el aviso de torneo duplicado en un bottom-sheet glass.
-  ///
-  /// Ofrece dos acciones:
-  /// 1. Ver el torneo existente → navega a [DemoEnrollScreen].
-  /// 2. Modificar datos → cierra el sheet (el formulario queda abierto).
-  Future<void> _showDuplicateWarning(AppTournament duplicate) async {
-    _submitController.clearDuplicate();
-    if (!mounted) return;
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _DuplicateWarningSheet(
-        duplicate: duplicate,
-        onViewTournament: () {
-          Navigator.pop(ctx); // cierra el sheet
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => DemoEnrollScreen(tournament: duplicate),
-            ),
-          );
-        },
-        onModify: () => Navigator.pop(ctx),
+  Future<void> _checkDuplicateTournamentIfReady({bool force = false}) async {
+    final eventDate = _form.eventDate;
+    final location = _form.locationController.text.trim();
+    if (eventDate == null || location.isEmpty) {
+      _lastDuplicateCheckKey = null;
+      _submitController.clearDuplicate();
+      return;
+    }
+
+    final key = '${eventDate.millisecondsSinceEpoch}|${location.toLowerCase()}';
+    if (!force && key == _lastDuplicateCheckKey) return;
+    _lastDuplicateCheckKey = key;
+
+    await _submitController.checkDuplicateTournament(
+      scheduledAt: eventDate,
+      location: location,
+    );
+  }
+
+  void _openDuplicateTournament(AppTournament duplicate) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DemoEnrollScreen(tournament: duplicate),
       ),
     );
   }
@@ -454,7 +454,10 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
   void _addCategory() {
     final raw = _form.categoryController.text.trim();
     if (raw.isEmpty) {
-      _showSnackBar('Escribe el nombre de la categoría primero.', isError: true);
+      _showSnackBar(
+        'Escribe el nombre de la categoría primero.',
+        isError: true,
+      );
       return;
     }
     final added = _form.addCategory(raw);
@@ -514,103 +517,104 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       },
       child: Scaffold(
         body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Fondo
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF0A0A1A),
-                  Color(0xFF0D0D2B),
-                  Color(0xFF12122E),
-                ],
+          fit: StackFit.expand,
+          children: [
+            // Fondo
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF0A0A1A),
+                    Color(0xFF0D0D2B),
+                    Color(0xFF12122E),
+                  ],
+                ),
               ),
             ),
-          ),
-          Positioned(
-            top: -80,
-            left: -60,
-            child: GlowOrb(
-              color: const Color(0xFF6C63FF).withValues(alpha: 0.35),
-              size: 280,
+            Positioned(
+              top: -80,
+              left: -60,
+              child: GlowOrb(
+                color: const Color(0xFF6C63FF).withValues(alpha: 0.35),
+                size: 280,
+              ),
             ),
-          ),
-          Positioned(
-            bottom: 60,
-            right: -80,
-            child: GlowOrb(
-              color: const Color(0xFF00D4FF).withValues(alpha: 0.25),
-              size: 240,
+            Positioned(
+              bottom: 60,
+              right: -80,
+              child: GlowOrb(
+                color: const Color(0xFF00D4FF).withValues(alpha: 0.25),
+                size: 240,
+              ),
             ),
-          ),
-          Positioned(
-            top: MediaQuery.of(context).size.height * 0.45,
-            left: MediaQuery.of(context).size.width * 0.3,
-            child: GlowOrb(
-              color: const Color(0xFFFF6B9D).withValues(alpha: 0.15),
-              size: 160,
+            Positioned(
+              top: MediaQuery.of(context).size.height * 0.45,
+              left: MediaQuery.of(context).size.width * 0.3,
+              child: GlowOrb(
+                color: const Color(0xFFFF6B9D).withValues(alpha: 0.15),
+                size: 160,
+              ),
             ),
-          ),
-          SafeArea(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: SlideTransition(
-                position: _slideAnimation,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isWide = constraints.maxWidth >= 860;
-                    return Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxWidth: isWide ? 880 : 620,
-                            ),
-                            child: _buildHeader(),
-                          ),
-                        ),
-                        Expanded(
-                          child: PageView(
-                            controller: _pageController,
-                            physics: const NeverScrollableScrollPhysics(),
-                            children: [
-                              _buildStepPage(_buildStep0()),
-                              _buildStepPage(_buildStep1()),
-                              _buildStepPage(_buildStep2()),
-                              _buildStepPage(_buildStep3()),
-                              _buildStepPage(_buildStep4()),
-                              _buildStepPage(_buildStep5()),
-                              _buildStepPage(_buildStep6Categories()),
-                              _buildStepPage(_buildStep7Staff()),
-                              _buildStepPage(_buildStep8Review()),
-                            ],
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-                          child: Center(
+            SafeArea(
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: SlideTransition(
+                  position: _slideAnimation,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isWide = constraints.maxWidth >= 860;
+                      return Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                             child: ConstrainedBox(
                               constraints: BoxConstraints(
                                 maxWidth: isWide ? 880 : 620,
                               ),
-                              child: _buildNavButtons(),
+                              child: _buildHeader(),
                             ),
                           ),
-                        ),
-                      ],
-                    );
-                  },
+                          Expanded(
+                            child: PageView(
+                              controller: _pageController,
+                              physics: const NeverScrollableScrollPhysics(),
+                              children: [
+                                _buildStepPage(_buildStep0()),
+                                _buildStepPage(_buildStep1()),
+                                _buildStepPage(_buildStep2()),
+                                _buildStepPage(_buildStep3()),
+                                _buildStepPage(_buildStep4()),
+                                _buildStepPage(_buildStep5()),
+                                _buildStepPage(_buildStep6Categories()),
+                                _buildStepPage(_buildStep7Staff()),
+                                _buildStepPage(_buildStep8Review()),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                            child: Center(
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxWidth: isWide ? 880 : 620,
+                                ),
+                                child: _buildNavButtons(),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ));
+    );
   }
 
   // ── Header con barra de progreso ──
@@ -761,7 +765,9 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
         setState(() {
           _form.eventDate = picked;
           _form.eventDateError = null;
+          _lastDuplicateCheckKey = null;
         });
+        _submitController.clearDuplicate();
       }
     },
     registrationDeadline: _form.registrationDeadline,
@@ -799,16 +805,24 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     resolvedAddress: _form.locationController.text.trim().isNotEmpty
         ? _form.locationController.text.trim()
         : null,
+    duplicateTournament: _submitController.duplicateTournament,
+    isCheckingDuplicate: _submitController.isCheckingDuplicate,
+    duplicateCheckErrorMessage: _submitController.duplicateCheckErrorMessage,
+    onViewDuplicateTournament: _openDuplicateTournament,
     onQueryChanged: (query) {
       _form.clearFieldError('location');
+      _lastDuplicateCheckKey = null;
+      _submitController.clearDuplicate();
       _form.onLocationQueryChanged(query);
     },
     onSuggestionSelected: (result) {
       _form.selectLocation(result);
       setState(() {});
+      unawaited(_checkDuplicateTournamentIfReady(force: true));
     },
-    onMapTap: (lat, lng) {
-      _form.onMapTap(lat, lng);
+    onMapTap: (lat, lng) async {
+      await _form.onMapTap(lat, lng);
+      await _checkDuplicateTournamentIfReady(force: true);
     },
   );
 
@@ -960,240 +974,5 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
         ),
       ],
     );
-  }
-}
-
-// ════════════════════════════════════════════════════════════════
-//  _DuplicateWarningSheet
-//
-//  Bottom-sheet que avisa al organizador de que ya existe un torneo
-//  con la misma fecha y lugar.  Ofrece dos acciones:
-//    1. Ver el torneo existente (navega a DemoEnrollScreen).
-//    2. Modificar datos (cierra el sheet).
-// ════════════════════════════════════════════════════════════════
-
-class _DuplicateWarningSheet extends StatelessWidget {
-  const _DuplicateWarningSheet({
-    required this.duplicate,
-    required this.onViewTournament,
-    required this.onModify,
-  });
-
-  final AppTournament duplicate;
-  final VoidCallback onViewTournament;
-  final VoidCallback onModify;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      // Empuja el sheet por encima del teclado si estuviese abierto.
-      padding: MediaQuery.viewInsetsOf(context),
-      child: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF0D0D2B),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-        ),
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 36),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Icono de advertencia
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFFFFB347).withValues(alpha: 0.25),
-                    const Color(0xFFFF4D6A).withValues(alpha: 0.15),
-                  ],
-                ),
-                border: Border.all(
-                  color: const Color(0xFFFFB347).withValues(alpha: 0.4),
-                ),
-              ),
-              child: const Icon(
-                Icons.warning_amber_rounded,
-                color: Color(0xFFFFB347),
-                size: 32,
-              ),
-            ),
-            const SizedBox(height: 18),
-
-            // Título
-            const Text(
-              'Torneo duplicado',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 10),
-
-            // Descripción
-            Text(
-              'Ya existe un torneo programado con la misma fecha y lugar.',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.65),
-                fontSize: 14,
-                height: 1.5,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Modifica la fecha o el lugar para poder continuar.',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.45),
-                fontSize: 13,
-                height: 1.4,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-
-            // Tarjeta del torneo en conflicto
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: Colors.white.withValues(alpha: 0.04),
-                border: Border.all(
-                  color: const Color(0xFFFFB347).withValues(alpha: 0.25),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.emoji_events_rounded,
-                        color: Color(0xFFFFB347),
-                        size: 16,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          duplicate.name,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.location_on_rounded,
-                        color: Colors.white.withValues(alpha: 0.4),
-                        size: 13,
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          duplicate.location,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.55),
-                            fontSize: 12.5,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.calendar_today_rounded,
-                        color: Colors.white.withValues(alpha: 0.4),
-                        size: 13,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _formatDate(duplicate.scheduledAt),
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.55),
-                          fontSize: 12.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Botón principal: ver torneo existente
-            SizedBox(
-              width: double.infinity,
-              child: GradientButton(
-                label: 'Ver torneo existente',
-                icon: Icons.open_in_new_rounded,
-                variant: GradientButtonVariant.sunset,
-                size: GradientButtonSize.large,
-                onPressed: onViewTournament,
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            // Botón secundario: modificar datos
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: onModify,
-                icon: const Icon(Icons.edit_rounded, size: 16),
-                label: const Text('Modificar fecha o lugar'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  textStyle: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    const months = [
-      'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
-    ];
-    return '${date.day} de ${months[date.month - 1]} de ${date.year}';
   }
 }
