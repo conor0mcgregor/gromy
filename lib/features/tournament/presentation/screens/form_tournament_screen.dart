@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -53,6 +55,8 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
 
   // ── Portada ──
   final _imagePicker = ImagePicker();
+  String? _acknowledgedDuplicateWarningKey;
+  bool _isShowingDuplicateWarningPopup = false;
 
   bool get _isSubmitting => _submitController.isSubmitting;
 
@@ -140,6 +144,16 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       return;
     }
 
+    if (_form.currentStep == 3) {
+      final duplicate = await _checkDuplicate();
+      if (duplicate != null) {
+        final acknowledged = await _showDuplicateWarningPopupIfNeeded(
+          duplicate,
+        );
+        if (!acknowledged) return;
+      }
+    }
+
     if (_form.currentStep < TournamentFormController.totalSteps - 1) {
       await _animateStepTransition(() {
         _form.currentStep++;
@@ -148,10 +162,10 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
           curve: Curves.easeInOutCubic,
         );
 
-        // Si entramos en el paso de geolocalización (paso 3) y ya tenemos 
+        // Si entramos en el paso de geolocalización (paso 3) y ya tenemos
         // fecha y lugar, disparamos la comprobación de duplicados.
         if (_form.currentStep == 3) {
-          _checkDuplicate();
+          unawaited(_checkDuplicateAndShowPopup());
         }
       });
     } else {
@@ -170,7 +184,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
         );
 
         if (_form.currentStep == 3) {
-          _checkDuplicate();
+          unawaited(_checkDuplicateAndShowPopup());
         }
       });
     }
@@ -255,6 +269,8 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _DuplicateWarningSheet(
         duplicate: duplicate,
@@ -268,6 +284,75 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
           );
         },
         onModify: () => Navigator.pop(ctx),
+      ),
+    );
+  }
+
+  Future<bool> _showDuplicateWarningPopupIfNeeded(
+    AppTournament duplicate,
+  ) async {
+    final eventDate = _form.eventDate;
+    final location = _form.locationController.text.trim();
+    if (eventDate == null || location.isEmpty) return true;
+
+    final key = _duplicateWarningKey(eventDate: eventDate, location: location);
+    if (_acknowledgedDuplicateWarningKey == key ||
+        _isShowingDuplicateWarningPopup ||
+        !mounted) {
+      return true;
+    }
+
+    _isShowingDuplicateWarningPopup = true;
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        isDismissible: false,
+        enableDrag: false,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => _DuplicateWarningSheet(
+          duplicate: duplicate,
+          onViewTournament: () {
+            _acknowledgedDuplicateWarningKey = key;
+            Navigator.pop(ctx);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PreinscriptionScreen(tournament: duplicate),
+              ),
+            );
+          },
+          onModify: () {
+            _acknowledgedDuplicateWarningKey = key;
+            Navigator.pop(ctx);
+          },
+        ),
+      );
+    } finally {
+      _isShowingDuplicateWarningPopup = false;
+    }
+    return _acknowledgedDuplicateWarningKey == key;
+  }
+
+  String _duplicateWarningKey({
+    required DateTime eventDate,
+    required String location,
+  }) {
+    return '${eventDate.millisecondsSinceEpoch}|${location.trim().toLowerCase()}';
+  }
+
+  Future<void> _checkDuplicateAndShowPopup() async {
+    final duplicate = await _checkDuplicate();
+    if (duplicate != null) {
+      await _showDuplicateWarningPopupIfNeeded(duplicate);
+    }
+  }
+
+  void _openExistingTournament(AppTournament duplicate) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PreinscriptionScreen(tournament: duplicate),
       ),
     );
   }
@@ -464,7 +549,10 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
   void _addCategory() {
     final raw = _form.categoryController.text.trim();
     if (raw.isEmpty) {
-      _showSnackBar('Escribe el nombre de la categoría primero.', isError: true);
+      _showSnackBar(
+        'Escribe el nombre de la categoría primero.',
+        isError: true,
+      );
       return;
     }
     final added = _form.addCategory(raw);
@@ -524,103 +612,104 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       },
       child: Scaffold(
         body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Fondo
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF0A0A1A),
-                  Color(0xFF0D0D2B),
-                  Color(0xFF12122E),
-                ],
+          fit: StackFit.expand,
+          children: [
+            // Fondo
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF0A0A1A),
+                    Color(0xFF0D0D2B),
+                    Color(0xFF12122E),
+                  ],
+                ),
               ),
             ),
-          ),
-          Positioned(
-            top: -80,
-            left: -60,
-            child: GlowOrb(
-              color: const Color(0xFF6C63FF).withValues(alpha: 0.35),
-              size: 280,
+            Positioned(
+              top: -80,
+              left: -60,
+              child: GlowOrb(
+                color: const Color(0xFF6C63FF).withValues(alpha: 0.35),
+                size: 280,
+              ),
             ),
-          ),
-          Positioned(
-            bottom: 60,
-            right: -80,
-            child: GlowOrb(
-              color: const Color(0xFF00D4FF).withValues(alpha: 0.25),
-              size: 240,
+            Positioned(
+              bottom: 60,
+              right: -80,
+              child: GlowOrb(
+                color: const Color(0xFF00D4FF).withValues(alpha: 0.25),
+                size: 240,
+              ),
             ),
-          ),
-          Positioned(
-            top: MediaQuery.of(context).size.height * 0.45,
-            left: MediaQuery.of(context).size.width * 0.3,
-            child: GlowOrb(
-              color: const Color(0xFFFF6B9D).withValues(alpha: 0.15),
-              size: 160,
+            Positioned(
+              top: MediaQuery.of(context).size.height * 0.45,
+              left: MediaQuery.of(context).size.width * 0.3,
+              child: GlowOrb(
+                color: const Color(0xFFFF6B9D).withValues(alpha: 0.15),
+                size: 160,
+              ),
             ),
-          ),
-          SafeArea(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: SlideTransition(
-                position: _slideAnimation,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isWide = constraints.maxWidth >= 860;
-                    return Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxWidth: isWide ? 880 : 620,
-                            ),
-                            child: _buildHeader(),
-                          ),
-                        ),
-                        Expanded(
-                          child: PageView(
-                            controller: _pageController,
-                            physics: const NeverScrollableScrollPhysics(),
-                            children: [
-                              _buildStepPage(_buildStep0()),
-                              _buildStepPage(_buildStep1()),
-                              _buildStepPage(_buildStep2()),
-                              _buildStepPage(_buildStep3()),
-                              _buildStepPage(_buildStep4()),
-                              _buildStepPage(_buildStep5()),
-                              _buildStepPage(_buildStep6Categories()),
-                              _buildStepPage(_buildStep7Staff()),
-                              _buildStepPage(_buildStep8Review()),
-                            ],
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-                          child: Center(
+            SafeArea(
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: SlideTransition(
+                  position: _slideAnimation,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isWide = constraints.maxWidth >= 860;
+                      return Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                             child: ConstrainedBox(
                               constraints: BoxConstraints(
                                 maxWidth: isWide ? 880 : 620,
                               ),
-                              child: _buildNavButtons(),
+                              child: _buildHeader(),
                             ),
                           ),
-                        ),
-                      ],
-                    );
-                  },
+                          Expanded(
+                            child: PageView(
+                              controller: _pageController,
+                              physics: const NeverScrollableScrollPhysics(),
+                              children: [
+                                _buildStepPage(_buildStep0()),
+                                _buildStepPage(_buildStep1()),
+                                _buildStepPage(_buildStep2()),
+                                _buildStepPage(_buildStep3()),
+                                _buildStepPage(_buildStep4()),
+                                _buildStepPage(_buildStep5()),
+                                _buildStepPage(_buildStep6Categories()),
+                                _buildStepPage(_buildStep7Staff()),
+                                _buildStepPage(_buildStep8Review()),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                            child: Center(
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxWidth: isWide ? 880 : 620,
+                                ),
+                                child: _buildNavButtons(),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ));
+    );
   }
 
   // ── Header con barra de progreso ──
@@ -771,6 +860,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
         setState(() {
           _form.eventDate = picked;
           _form.eventDateError = null;
+          _acknowledgedDuplicateWarningKey = null;
         });
       }
     },
@@ -812,10 +902,11 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     duplicateTournament: _submitController.duplicateTournament,
     isCheckingDuplicate: _submitController.isCheckingDuplicate,
     duplicateCheckErrorMessage: _submitController.duplicateCheckErrorMessage,
-    onViewDuplicateTournament: _showDuplicateWarning,
+    onViewDuplicateTournament: _openExistingTournament,
     onQueryChanged: (query) {
       _form.clearFieldError('location');
       _form.onLocationQueryChanged(query);
+      _acknowledgedDuplicateWarningKey = null;
       // Al cambiar la búsqueda, limpiamos el aviso de duplicado previo si lo hubiera
       if (_submitController.duplicateTournament != null) {
         _submitController.clearDuplicate();
@@ -823,22 +914,25 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     },
     onSuggestionSelected: (result) {
       _form.selectLocation(result);
-      _checkDuplicate();
+      unawaited(_checkDuplicateAndShowPopup());
       setState(() {});
     },
     onMapTap: (lat, lng) async {
       await _form.onMapTap(lat, lng);
-      _checkDuplicate();
+      await _checkDuplicateAndShowPopup();
     },
   );
 
-  void _checkDuplicate() {
-    if (_form.eventDate != null && _form.locationController.text.trim().isNotEmpty) {
-      _submitController.checkDuplicateTournament(
+  Future<AppTournament?> _checkDuplicate() async {
+    if (_form.eventDate != null &&
+        _form.locationController.text.trim().isNotEmpty) {
+      await _submitController.checkDuplicateTournament(
         scheduledAt: _form.eventDate!,
         location: _form.locationController.text,
       );
+      return _submitController.duplicateTournament;
     }
+    return null;
   }
 
   Widget _buildStep4() => Step4Logistics(
@@ -996,9 +1090,9 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
 //  _DuplicateWarningSheet
 //
 //  Bottom-sheet que avisa al organizador de que ya existe un torneo
-//  con la misma fecha y lugar.  Ofrece dos acciones:
-//    1. Ver el torneo existente (navega a DemoEnrollScreen).
-//    2. Modificar datos (cierra el sheet).
+//  con la misma fecha, hora de inicio y lugar. Ofrece dos acciones:
+//    1. Ver el torneo existente.
+//    2. Entendido, continuar (cierra el sheet).
 // ════════════════════════════════════════════════════════════════
 
 class _DuplicateWarningSheet extends StatelessWidget {
@@ -1077,7 +1171,7 @@ class _DuplicateWarningSheet extends StatelessWidget {
 
             // Descripción
             Text(
-              'Ya existe un torneo programado con la misma fecha y lugar.',
+              'Ya existe un torneo programado con la misma fecha, hora de inicio y lugar.',
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.65),
                 fontSize: 14,
@@ -1087,7 +1181,7 @@ class _DuplicateWarningSheet extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Modifica la fecha o el lugar para poder continuar.',
+              'Puedes continuar igualmente, pero confirma que has revisado este aviso para evitar crear un duplicado.',
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.45),
                 fontSize: 13,
@@ -1191,13 +1285,13 @@ class _DuplicateWarningSheet extends StatelessWidget {
             ),
             const SizedBox(height: 10),
 
-            // Botón secundario: modificar datos
+            // Botón secundario: continuar
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: onModify,
-                icon: const Icon(Icons.edit_rounded, size: 16),
-                label: const Text('Modificar fecha o lugar'),
+                icon: const Icon(Icons.check_rounded, size: 16),
+                label: const Text('Entendido, continuar'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.white,
                   side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
@@ -1220,8 +1314,18 @@ class _DuplicateWarningSheet extends StatelessWidget {
 
   String _formatDate(DateTime date) {
     const months = [
-      'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+      'enero',
+      'febrero',
+      'marzo',
+      'abril',
+      'mayo',
+      'junio',
+      'julio',
+      'agosto',
+      'septiembre',
+      'octubre',
+      'noviembre',
+      'diciembre',
     ];
     return '${date.day} de ${months[date.month - 1]} de ${date.year}';
   }
