@@ -4,14 +4,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../../core/getColors/getter_colors.dart';
-import '../../../../core/widgets/glow_orb.dart';
-import '../../../../core/widgets/gradient_button.dart';
-import '../../../inscription/screen/preinscription_screen.dart';
-import '../../../user/data/services/firestore_user_service.dart';
-import '../../data/model/app_tournament.dart';
-import '../controllers/create_tournament_controller.dart';
-import '../controllers/tournament_form_controller.dart';
+import '../../../../../core/getColors/getter_colors.dart';
+import '../../../../../core/widgets/glow_orb.dart';
+import '../../../../../core/widgets/gradient_button.dart';
+import '../../../../inscription/screen/preinscription_screen.dart';
+import '../../../../user/data/services/firestore_user_service.dart';
+import '../../../data/model/app_tournament.dart';
+import '../../controllers/create_tournament_controller.dart';
+import '../../controllers/tournament_form_controller.dart';
 
 // Importación de los 9 pasos
 import 'form/steps/step0_identity.dart';

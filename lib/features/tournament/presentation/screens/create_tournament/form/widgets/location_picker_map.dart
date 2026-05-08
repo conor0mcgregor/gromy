@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 
-import '../../../../config/map_provider_config.dart';
-import '../../../controllers/location_picker_controller.dart';
+import '../../../../../config/map_provider_config.dart';
+import '../../../../controllers/location_picker_controller.dart';
 
 class LocationPickerMap extends StatelessWidget {
   const LocationPickerMap({super.key, required this.controller, this.radiusKm});

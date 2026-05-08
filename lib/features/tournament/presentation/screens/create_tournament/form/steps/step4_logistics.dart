@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../../data/model/enums_tournament.dart';
+import '../../../../../data/model/enums_tournament.dart';
 import '../widgets/step_card.dart';
 import '../widgets/form_fields.dart';
 import '../widgets/form_helpers.dart';

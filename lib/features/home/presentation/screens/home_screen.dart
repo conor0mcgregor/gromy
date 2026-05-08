@@ -160,48 +160,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Saludo + avatar
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 2),
-                              ShaderMask(
-                                shaderCallback: (b) =>
-                                    const LinearGradient(
-                                      colors: [
-                                        Color(0xFFFFFFFF),
-                                        Color(0xFFB0A8FF),
-                                      ],
-                                    ).createShader(b),
-                                child: const Text(
-                                  'Explorar torneos',
-                                  style: TextStyle(
-                                    fontSize: 30,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
-                                    letterSpacing: -0.8,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          // Botón de notificaciones
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Encuentra y únete a los mejores eventos',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white.withValues(alpha: 0.45),
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
                       // ── Barra de búsqueda y Filtros ──
                       Row(
                         children: [

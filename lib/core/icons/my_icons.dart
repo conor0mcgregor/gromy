@@ -23,3 +23,16 @@ class MyFlutterApp {
 
   static const IconData logo_gromy = IconData(0xe801, fontFamily: _kFontFam, fontPackage: _kFontPkg);
 }
+
+class IconPack1 {
+  IconPack1._();
+
+  static const _kFontFam = 'IconPack1';
+  static const String? _kFontPkg = null;
+
+  static const IconData award = IconData(0xe800, fontFamily: _kFontFam, fontPackage: _kFontPkg);
+  static const IconData crown = IconData(0xe844, fontFamily: _kFontFam, fontPackage: _kFontPkg);
+  static const IconData crown_plus = IconData(0xe845, fontFamily: _kFontFam, fontPackage: _kFontPkg);
+  static const IconData crown_minus = IconData(0xe846, fontFamily: _kFontFam, fontPackage: _kFontPkg);
+  static const IconData trophy_1 = IconData(0xead7, fontFamily: _kFontFam, fontPackage: _kFontPkg);
+}

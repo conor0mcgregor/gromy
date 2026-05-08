@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../../../../core/widgets/toggle_switch.dart';
-import '../../../../data/model/enums_tournament.dart';
+import '../../../../../../../core/widgets/toggle_switch.dart';
+import '../../../../../data/model/enums_tournament.dart';
 import '../widgets/step_card.dart';
 import '../widgets/tournament_selectors.dart';
 import '../widgets/form_helpers.dart';

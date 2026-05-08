@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../../controllers/tournament_form_controller.dart';
+import '../../../../controllers/tournament_form_controller.dart';
 import '../widgets/step_card.dart';
 import '../widgets/form_fields.dart';
 import '../widgets/form_helpers.dart';

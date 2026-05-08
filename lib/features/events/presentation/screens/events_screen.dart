@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gromy/core/widgets/glass_tab_bar.dart';
 
 import '../controllers/events_controller.dart';
-import 'admin_tournaments_tab.dart';
+import 'save_tournaments_tab.dart';
 import 'inscribed_tournaments_tab.dart';
 
 class EventsScreen extends StatefulWidget {
@@ -36,33 +36,9 @@ class _EventsScreenState extends State<EventsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ShaderMask(
-                      shaderCallback: (b) => const LinearGradient(
-                        colors: [Color(0xFFFFFFFF), Color(0xFFB0A8FF)],
-                      ).createShader(b),
-                      child: const Text(
-                        'Eventos',
-                        style: TextStyle(
-                          fontSize: 30,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          letterSpacing: -0.8,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Gestiona tus torneos y tus inscripciones',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white.withValues(alpha: 0.45),
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
                     GlassTabBar(
                       tabs: const [
-                        GlassTab(label: 'Admin', icon: Icons.admin_panel_settings_outlined),
+                        GlassTab(label: 'Guardados', icon: Icons.bookmark),
                         GlassTab(label: 'Inscripciones',    icon: Icons.person_rounded),
                       ],
                     )
@@ -72,7 +48,7 @@ class _EventsScreenState extends State<EventsScreen> {
               Expanded(
                 child: TabBarView(
                   children: [
-                    AdminTournamentsTab(controller: _controller),
+                    SaveTournamentsTab(controller: _controller),
                     InscribedTournamentsTab(controller: _controller),
                   ],
                 ),

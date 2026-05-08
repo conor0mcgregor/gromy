@@ -16,7 +16,7 @@ import '../../../participants/data/models/participant_display.dart';
 import '../../../participants/presentation/widgets/participants_section.dart';
 import '../../../participants/presentation/widgets/team_card.dart';
 import '../../../tournament/data/model/app_tournament.dart';
-import '../../../tournament/presentation/screens/form/steps/step3_geolocation.dart';
+import '../../../tournament/presentation/screens/create_tournament/form/steps/step3_geolocation.dart';
 import '../controllers/tournament_management_controller.dart';
 import 'participants_management.dart';
 
@@ -1109,7 +1109,7 @@ class _AdminTile extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  isCreator ? 'Creador' : admin.uid,
+                  isCreator ? 'Creador' : 'Admin',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

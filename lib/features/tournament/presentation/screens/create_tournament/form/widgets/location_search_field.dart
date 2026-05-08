@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../data/services/geocoding_service.dart';
+import '../../../../../data/services/geocoding_service.dart';
 import 'form_fields.dart';
 
 /// Campo de búsqueda de ubicación con autocompletado usando Nominatim.

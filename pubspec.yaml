@@ -86,6 +86,9 @@ flutter:
     - family: MisIconos  # Este nombre DEBE coincidir con el que aparece en el archivo .dart
       fonts:
         - asset: assets/fonts/MisIconos.ttf
+    - family: IconPack1
+      fonts:
+        - asset: assets/fonts/IconsPack1.ttf
 
   assets:
 

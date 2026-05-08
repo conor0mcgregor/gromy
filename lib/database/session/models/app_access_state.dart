@@ -10,6 +10,10 @@ final class AppAccessAuthenticated extends AppAccessState {
   const AppAccessAuthenticated();
 }
 
+final class AppFinishDemo extends AppAccessState {
+  const AppFinishDemo();
+}
+
 final class AppAccessPendingEmailRegistration extends AppAccessState {
   const AppAccessPendingEmailRegistration({
     required this.uid,

@@ -30,6 +30,12 @@ class FirebaseAppAccessResolver implements AppAccessResolver {
   @override
   Future<AppAccessState> resolve() async {
     final currentUser = _auth.currentUser;
+
+    final nowDate = DateTime.now();
+    if (nowDate.isAfter(DateTime(2026, 6, 1))) {
+      return const AppFinishDemo();
+    }
+
     if (currentUser == null) {
       return const AppAccessUnauthenticated();
     }

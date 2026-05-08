@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gromy/features/posDemo/screen/finish_demo_screen.dart';
 
 import '../../../../app/app_shell.dart';
 import '../../../../database/session/models/app_access_state.dart';
@@ -58,6 +59,7 @@ class _AuthGateScreenState extends State<AuthGateScreen> {
               provider: provider,
               photoUrl: photoUrl,
             ),
+          AppFinishDemo() => const FinishDemoScreen(),
         };
       },
     );

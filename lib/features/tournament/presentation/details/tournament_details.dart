@@ -8,7 +8,7 @@ import '../../../../core/getColors/getter_colors.dart';
 import '../../../../core/widgets/gradient_button.dart';
 
 // Reutilizamos InfoSection e InfoField de step7_review
-import '../../presentation/screens/form/steps/step7_review.dart';
+import '../../presentation/screens/create_tournament/form/steps/step7_review.dart';
 
 // Mapa (se mantiene intacto)
 import 'widgets/tournament_map_section.dart';
@@ -406,46 +406,6 @@ class _CoverHero extends StatelessWidget {
           color: primaryColor.withValues(alpha: 0.5),
         ),
       ),
-    );
-  }
-}
-
-// ════════════════════════════════════════════════════════════════
-//  WIDGET: CTA Buttons
-// ════════════════════════════════════════════════════════════════
-
-class _CtaButtons extends StatelessWidget {
-  const _CtaButtons({
-    this.onRegisterPressed,
-    this.onMoreInfoPressed,
-  });
-
-  final VoidCallback? onRegisterPressed;
-  final VoidCallback? onMoreInfoPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        if (onRegisterPressed != null)
-          GradientButton(
-            label: 'Inscribirse al torneo',
-            icon: Icons.emoji_events_rounded,
-            onPressed: onRegisterPressed,
-            variant: GradientButtonVariant.violet,
-            size: GradientButtonSize.large,
-          ),
-        if (onRegisterPressed != null && onMoreInfoPressed != null)
-          const SizedBox(height: 12),
-        if (onMoreInfoPressed != null)
-          GradientButton(
-            label: 'Ver más información',
-            icon: Icons.info_outline_rounded,
-            onPressed: onMoreInfoPressed,
-            variant: GradientButtonVariant.ocean,
-            size: GradientButtonSize.medium,
-          ),
-      ],
     );
   }
 }

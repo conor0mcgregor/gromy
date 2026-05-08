@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../tournament/presentation/controllers/location_picker_controller.dart';
-import '../../../tournament/presentation/screens/form/widgets/location_picker_map.dart';
+import '../../../tournament/presentation/screens/create_tournament/form/widgets/location_picker_map.dart';
 
 class MapPickerScreen extends StatefulWidget {
   const MapPickerScreen({super.key, this.initialPoint, required this.initialRadius});

@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../../../../data/model/app_tournament.dart';
-import '../../../../data/services/geocoding_service.dart';
-import '../../../../data/services/location_service.dart';
-import '../../../controllers/location_picker_controller.dart';
+import '../../../../../data/model/app_tournament.dart';
+import '../../../../../data/services/geocoding_service.dart';
+import '../../../../../data/services/location_service.dart';
+import '../../../../controllers/location_picker_controller.dart';
 import '../widgets/form_helpers.dart';
 import '../widgets/location_picker_map.dart';
 import '../widgets/location_search_field.dart';

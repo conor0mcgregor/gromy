@@ -8,7 +8,7 @@ import '../features/events/presentation/screens/events_screen.dart';
 import '../features/home/presentation/screens/home_screen.dart';
 import '../features/notifications/presentation/screens/notifications_screen.dart';
 import '../features/profile/presentation/screens/profile_screen.dart';
-import '../features/tournament/presentation/screens/create_tournament_screen.dart';
+import '../features/tournament/presentation/screens/my_tournament_screen.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key, this.authController});
@@ -43,7 +43,7 @@ class _AppShellState extends State<AppShell> {
     return [
       const HomeScreen(),
       const EventsScreen(),
-      const CreateTournamentScreen(),
+      const MyTournamentScreen(),
       const NotificationsScreen(),
       ProfileScreen(authController: _authController),
     ];
@@ -110,10 +110,10 @@ class _AppShellState extends State<AppShell> {
             label: 'Eventos',
           ),
           NavItem(
-            icon: Icons.add,
-            activeIcon: Icons.add,
-            label: '',
-            isCentral: true,
+            icon: Icons.emoji_events_outlined,
+            activeIcon: IconPack1.trophy_1,
+            label: 'mis torneos',
+            isCentral: false,
           ),
           NavItem(
             icon: Icons.notifications_outlined,
