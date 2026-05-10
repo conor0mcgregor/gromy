@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -6,6 +7,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'features/auth/presentation/screens/auth_gate_screen.dart';
+import 'features/notifications/data/services/fcm_token_service.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -20,6 +22,19 @@ void main() async {
         ? '863422546089-pqpvbhcc7js8kan7b2j9t2rn73q3uagp.apps.googleusercontent.com'
         : null,
   );
+
+  // ── Notificaciones FCM ──────────────────────────────────────────────────
+  // 1. Solicitar permiso al sistema operativo
+  await FirebaseMessaging.instance.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+
+  // 2. Inicializar token FCM (persistencia en Firestore)
+  final fcmTokenService = FcmTokenService();
+  await fcmTokenService.initializeToken();
+
   runApp(const MyApp());
 }
 
