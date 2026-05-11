@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 
 import '../controllers/notifications_controller.dart';
 import '../navigation/notification_navigation_handler.dart';
+import '../widgets/admin_invitation_card.dart';
 import '../widgets/notification_card.dart';
 import '../../domain/entities/app_notification.dart';
+import '../../domain/entities/notification_type.dart';
+import 'admin_invitation_details_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  NotificationsScreen  ·  Pantalla principal de notificaciones
@@ -353,6 +356,17 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         itemCount: _controller.notifications.length,
         itemBuilder: (context, index) {
           final notification = _controller.notifications[index];
+
+          // Usar tarjeta especializada para invitaciones de administrador
+          if (notification.type == NotificationType.adminInvitation) {
+            return AdminInvitationCard(
+              notification: notification,
+              onTap: () => _handleNotificationTap(notification),
+              onDismiss: () =>
+                  _controller.removeNotification(notification.id),
+            );
+          }
+
           return NotificationCard(
             notification: notification,
             onTap: () => _handleNotificationTap(notification),
@@ -375,7 +389,19 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     }
     _controller.markNotificationAsClicked(notification.id);
 
-    // Intentar navegación contextual
+    // Navegación especializada para invitaciones de administrador
+    if (notification.type == NotificationType.adminInvitation) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              AdminInvitationDetailsScreen(notification: notification),
+        ),
+      );
+      return;
+    }
+
+    // Intentar navegación contextual genérica
     NotificationNavigationHandler.instance.navigate(context, notification);
   }
 

@@ -791,36 +791,80 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           ),
           const SizedBox(height: 12),
         ],
-        Row(
-          children: [
-            Expanded(
-              child: GlassTextField(
-                controller: _ctrl.adminLookupCtrl,
-                hint: 'UID, nickname o email',
-                icon: Icons.person_add_alt_1_rounded,
-                enabled: canManage && !_ctrl.isAddingAdmin,
+        // ── Campo de búsqueda + botón enviar invitación ─────────────────────
+        if (canManage) ...[
+          Row(
+            children: [
+              Expanded(
+                child: GlassTextField(
+                  controller: _ctrl.adminLookupCtrl,
+                  hint: 'UID, nickname o email',
+                  icon: Icons.person_add_alt_1_rounded,
+                  enabled: canManage && !_ctrl.isAddingAdmin,
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            _GlassIconButton(
-              icon: _ctrl.isAddingAdmin
-                  ? Icons.hourglass_top_rounded
-                  : Icons.add_rounded,
-              onTap: canManage && !_ctrl.isAddingAdmin
-                  ? _ctrl.addAdminFromInput
-                  : null,
-              color: const Color(0xFFF97316),
+              const SizedBox(width: 10),
+              _GlassIconButton(
+                icon: _ctrl.isAddingAdmin
+                    ? Icons.hourglass_top_rounded
+                    : Icons.send_rounded,
+                onTap: canManage && !_ctrl.isAddingAdmin
+                    ? () async {
+                        final ok = await _ctrl.addAdminFromInput();
+                        if (ok) {
+                          _showSnack('Invitación enviada correctamente');
+                        } else if (_ctrl.adminError != null) {
+                          _showSnack(_ctrl.adminError!, isError: true);
+                        }
+                      }
+                    : null,
+                color: const Color(0xFFF97316),
+              ),
+            ],
+          ),
+          if (_ctrl.adminError != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _ctrl.adminError!,
+              style: const TextStyle(color: Color(0xFFFF4D6A), fontSize: 12),
             ),
           ],
-        ),
-        if (_ctrl.adminError != null) ...[
-          const SizedBox(height: 8),
-          Text(
-            _ctrl.adminError!,
-            style: const TextStyle(color: Color(0xFFFF4D6A), fontSize: 12),
+          const SizedBox(height: 6),
+          // Nota explicativa
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: const Color(0xFFF97316).withValues(alpha: 0.08),
+              border: Border.all(
+                color: const Color(0xFFF97316).withValues(alpha: 0.15),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline_rounded,
+                  size: 14,
+                  color: const Color(0xFFF97316).withValues(alpha: 0.8),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Se enviará una invitación. El usuario debe aceptarla para ser admin.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.white.withValues(alpha: 0.5),
+                      height: 1.3,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
+          const SizedBox(height: 14),
         ],
-        const SizedBox(height: 14),
+
+        // ── Administradores activos ─────────────────────────────────────────
         if (_ctrl.loadingAdmins)
           const _SectionLoading(label: 'Cargando administradores...')
         else
@@ -836,9 +880,57 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
               ),
             ),
           ),
+
+        // ── Invitaciones pendientes ─────────────────────────────────────────
+        if (_ctrl.pendingInvitations.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                ),
+                child: const Text(
+                  'PENDIENTES',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFFF59E0B),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${_ctrl.pendingInvitations.length} invitación(es) enviada(s)',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.white.withValues(alpha: 0.4),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ..._ctrl.pendingInvitations.map(
+            (inv) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _PendingInvitationTile(
+                invitation: inv,
+                canCancel: canManage,
+                onCancel: () => _ctrl.cancelPendingInvitation(inv.userId),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
+
 
   Widget _buildDangerZone() {
     return
@@ -1125,6 +1217,84 @@ class _AdminTile extends StatelessWidget {
               icon: Icons.delete_outline_rounded,
               color: const Color(0xFFFF4D6A),
               onTap: onRemove,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PendingInvitationTile extends StatelessWidget {
+  const _PendingInvitationTile({
+    required this.invitation,
+    required this.canCancel,
+    required this.onCancel,
+  });
+
+  final PendingAdminInvitation invitation;
+  final bool canCancel;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: const Color(0xFFF59E0B).withValues(alpha: 0.06),
+        border: Border.all(
+          color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.pending_outlined,
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.8),
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  invitation.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Container(
+                  margin: const EdgeInsets.only(top: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(4),
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                  ),
+                  child: const Text(
+                    'Invitación enviada',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Color(0xFFF59E0B),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (canCancel)
+            _GlassIconButton(
+              icon: Icons.cancel_outlined,
+              color: const Color(0xFF64748B),
+              onTap: onCancel,
             ),
         ],
       ),

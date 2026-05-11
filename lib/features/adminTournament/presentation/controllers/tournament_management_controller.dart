@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../notifications/data/repository/admin_invitation_repository_impl.dart';
+import '../../../notifications/domain/use_cases/admin_invitation_use_cases.dart';
 import '../../../participants/data/models/participant_display.dart';
 import '../../../participants/data/services/participant_display_service.dart';
 import '../../../tournament/data/model/app_tournament.dart';
@@ -29,6 +31,23 @@ class TournamentAdminView {
 
   final String uid;
   final String label;
+  final String? email;
+}
+
+/// Representa una invitación pendiente que aún no ha sido aceptada.
+///
+/// El usuario NO es admin todavía. Se muestra en la UI con etiqueta "Pendiente".
+class PendingAdminInvitation {
+  const PendingAdminInvitation({
+    required this.userId,
+    required this.label,
+    this.notificationId,
+    this.email,
+  });
+
+  final String userId;
+  final String label;
+  final String? notificationId;
   final String? email;
 }
 
@@ -118,6 +137,7 @@ class TournamentManagementController extends ChangeNotifier {
 
   List<ParticipantDisplay> _participants = [];
   List<TournamentAdminView> _adminUsers = [];
+  List<PendingAdminInvitation> _pendingInvitations = [];
   List<String> _editedCategories = [];
   List<GeocodingResult> _locationSuggestions = [];
   Timer? _locationDebounce;
@@ -164,6 +184,7 @@ class TournamentManagementController extends ChangeNotifier {
   String? get contactEmailError => _contactEmailError;
   List<ParticipantDisplay> get participants => _participants;
   List<TournamentAdminView> get adminUsers => _adminUsers;
+  List<PendingAdminInvitation> get pendingInvitations => _pendingInvitations;
   List<String> get editedCategories => _editedCategories;
   List<GeocodingResult> get locationSuggestions => _locationSuggestions;
 
@@ -475,8 +496,10 @@ class TournamentManagementController extends ChangeNotifier {
 
     return true;
   }
-
-
+  /// Envía una invitación de administrador mediante Cloud Function.
+  ///
+  /// NO añade directamente a admin_ids. El usuario queda como 'pendiente'
+  /// hasta que acepte la invitación.
   Future<bool> addAdminFromInput() async {
     if (!isCreator) {
       _adminError = 'Solo el creador puede gestionar administradores';
@@ -496,14 +519,29 @@ class TournamentManagementController extends ChangeNotifier {
     notifyListeners();
 
     try {
+      debugPrint(
+        '[TournamentManagementController] addAdminFromInput '
+        'query="$query" tournamentId=${_original.id}',
+      );
+
+      // 1. Buscar el usuario por UID, nickname o email
       final user = await _findUser(query);
       if (user == null) {
+        debugPrint(
+          '[TournamentManagementController] No user resolved for query="$query"',
+        );
         _adminError = 'No se encontro un usuario con esos datos.';
         _isAddingAdmin = false;
         notifyListeners();
         return false;
       }
 
+      debugPrint(
+        '[TournamentManagementController] Resolved invited user '
+        'uid=${user.uid} nickname=${user.nickname} email=${user.email}',
+      );
+
+      // 2. Verificar que no sea ya administrador
       if (_edited.adminIds.contains(user.uid)) {
         _adminError = 'Este usuario ya es administrador.';
         _isAddingAdmin = false;
@@ -511,15 +549,44 @@ class TournamentManagementController extends ChangeNotifier {
         return false;
       }
 
-      final ids = List<String>.from(_edited.adminIds)..add(user.uid);
-      _edited = _copyEdited(adminIds: ids);
-      _adminUsers.add(_adminView(user.uid, user));
+      // 3. Verificar que no tenga ya una invitación pendiente localmente
+      if (_pendingInvitations.any((inv) => inv.userId == user.uid)) {
+        _adminError = 'Este usuario ya tiene una invitación pendiente.';
+        _isAddingAdmin = false;
+        notifyListeners();
+        return false;
+      }
+
+      // 4. Enviar invitación vía Cloud Function
+      final invitationRepo = CloudFunctionAdminInvitationRepository();
+      final sendUseCase = SendAdminInvitationUseCase(invitationRepo);
+      await sendUseCase(
+        tournamentId: _original.id,
+        invitedUserId: user.uid,
+      );
+
+      // 5. Mostrar en UI como 'pendiente' (NO añadir a admin_ids)
+      final fullName = '${user.name} ${user.lastName}'.trim();
+      final label = fullName.isEmpty
+          ? user.nickname
+          : '$fullName (@${user.nickname})';
+      _pendingInvitations.add(PendingAdminInvitation(
+        userId: user.uid,
+        label: label,
+        email: user.email,
+      ));
+
       adminLookupCtrl.clear();
+      _adminError = null;
       _isAddingAdmin = false;
       notifyListeners();
       return true;
     } catch (e) {
-      _adminError = 'Error buscando usuario: $e';
+      debugPrint(
+        '[TournamentManagementController] addAdminFromInput failed '
+        'tournamentId=${_original.id} query="$query" error=$e',
+      );
+      _adminError = e.toString().replaceFirst('Exception: ', '');
       _isAddingAdmin = false;
       notifyListeners();
       return false;
@@ -528,12 +595,21 @@ class TournamentManagementController extends ChangeNotifier {
 
   Future<AppUser?> _findUser(String query) async {
     if (query.contains('@')) {
+      debugPrint(
+        '[TournamentManagementController] Looking up invited user by email: $query',
+      );
       return _userService.getUserByEmail(query);
     }
 
+    debugPrint(
+      '[TournamentManagementController] Looking up invited user by uid: $query',
+    );
     final byUid = await _userService.getUser(query);
     if (byUid != null) return byUid;
 
+    debugPrint(
+      '[TournamentManagementController] Looking up invited user by nickname: $query',
+    );
     return _userService.getUserByNickname(query);
   }
 
@@ -554,6 +630,44 @@ class TournamentManagementController extends ChangeNotifier {
     _adminUsers.removeWhere((admin) => admin.uid == adminUid);
     _adminError = null;
     notifyListeners();
+  }
+
+  /// Cancela una invitación pendiente y la quita de la lista local.
+  ///
+  /// Solo el creador puede cancelar invitaciones.
+  Future<bool> cancelPendingInvitation(String userId) async {
+    if (!isCreator) {
+      _adminError = 'Solo el creador puede cancelar invitaciones.';
+      notifyListeners();
+      return false;
+    }
+
+    final invitation = _pendingInvitations.firstWhere(
+      (inv) => inv.userId == userId,
+      orElse: () => const PendingAdminInvitation(userId: '', label: ''),
+    );
+
+    if (invitation.userId.isEmpty) {
+      _pendingInvitations.removeWhere((inv) => inv.userId == userId);
+      notifyListeners();
+      return true;
+    }
+
+    // Si tenemos el notificationId, cancelar en el servidor
+    if (invitation.notificationId != null) {
+      try {
+        final repo = CloudFunctionAdminInvitationRepository();
+        final cancelUseCase = CancelAdminInvitationUseCase(repo);
+        await cancelUseCase(notificationId: invitation.notificationId!);
+      } catch (e) {
+        debugPrint('No se pudo cancelar en servidor: $e');
+        // Continuar igual — eliminamos de la lista local
+      }
+    }
+
+    _pendingInvitations.removeWhere((inv) => inv.userId == userId);
+    notifyListeners();
+    return true;
   }
 
   void onLocationQueryChanged(String query) {

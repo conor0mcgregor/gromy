@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../core/icons/my_icons.dart';
@@ -6,6 +7,7 @@ import '../core/widgets/tourney_nav_bar.dart';
 import '../features/auth/presentation/controllers/auth_controller.dart';
 import '../features/events/presentation/screens/events_screen.dart';
 import '../features/home/presentation/screens/home_screen.dart';
+import '../features/notifications/presentation/controllers/notifications_controller.dart';
 import '../features/notifications/presentation/screens/notifications_screen.dart';
 import '../features/profile/presentation/screens/profile_screen.dart';
 import '../features/tournament/presentation/screens/my_tournament_screen.dart';
@@ -15,6 +17,7 @@ class AppShell extends StatefulWidget {
 
   final AuthController? authController;
 
+
   @override
   State<AppShell> createState() => _AppShellState();
 }
@@ -23,12 +26,22 @@ class _AppShellState extends State<AppShell> {
   int _currentIndex = 0;
   late final AuthController _authController;
   late final bool _ownsAuthController;
+  late final NotificationsController _controllerNotifications;
+
+  String? _userId;
+
 
   @override
   void initState() {
     super.initState();
     _ownsAuthController = widget.authController == null;
     _authController = widget.authController ?? AuthController();
+    _controllerNotifications = NotificationsController();
+
+    _userId = FirebaseAuth.instance.currentUser?.uid;
+    if (_userId != null) {
+      _controllerNotifications.init(_userId!);
+    }
   }
 
   @override
@@ -75,7 +88,7 @@ class _AppShellState extends State<AppShell> {
             top: -80,
             right: -60,
             child: GlowOrb(
-              color: const Color(0xFF6C63FF).withOpacity(0.28),
+              color: const Color(0xFF6C63FF),
               size: 260,
             ),
           ),
@@ -83,7 +96,7 @@ class _AppShellState extends State<AppShell> {
             bottom: 100,
             left: -70,
             child: GlowOrb(
-              color: const Color(0xFF00D4FF).withOpacity(0.18),
+              color: const Color(0xFF00D4FF),
               size: 220,
             ),
           ),
@@ -96,20 +109,20 @@ class _AppShellState extends State<AppShell> {
       bottomNavigationBar: TourneyNavBar(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
-        items: const [
-          NavItem(
+        items:  [
+          const NavItem(
             icon: MyFlutterApp.logo_gromy,
             activeIcon: MyFlutterApp.logo_gromy,
             iconSize: 24,
             scale: 2.5,
             label: 'Inicio',
           ),
-          NavItem(
+          const NavItem(
             icon: Icons.calendar_today_outlined,
             activeIcon: Icons.calendar_month_rounded,
             label: 'Eventos',
           ),
-          NavItem(
+          const NavItem(
             icon: Icons.emoji_events_outlined,
             activeIcon: IconPack1.trophy_1,
             label: 'mis torneos',
@@ -119,9 +132,9 @@ class _AppShellState extends State<AppShell> {
             icon: Icons.notifications_outlined,
             activeIcon: Icons.notifications_rounded,
             label: 'Alertas',
-            badgeCount: 3,
+            badgeCount: _controllerNotifications.unreadCount,
           ),
-          NavItem(
+          const NavItem(
             icon: Icons.person_outline_rounded,
             activeIcon: Icons.person_rounded,
             label: 'Perfil',

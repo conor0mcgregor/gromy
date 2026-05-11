@@ -16,11 +16,18 @@ if (admin.apps.length === 0) {
 }
 
 // ── Módulo de notificaciones ─────────────────────────────────────────────────
-// Re-exportar para que otros módulos puedan importar directamente
 export {
   NotificationDispatcher,
   NotificationTemplates,
 } from "./notifications";
+
+// ── Módulo de torneos ────────────────────────────────────────────────────────
+export {
+  createAdminInvitation,
+  acceptAdminInvitation,
+  rejectAdminInvitation,
+  cancelAdminInvitation,
+} from "./tournaments";
 
 // Start writing functions
 // https://firebase.google.com/docs/functions/typescript

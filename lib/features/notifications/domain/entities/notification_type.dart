@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 abstract final class NotificationType {
   static const String general = 'general';
   static const String invitation = 'invitation';
+  static const String adminInvitation = 'admin_invitation';
   static const String bracketPublished = 'bracket_published';
   static const String tournamentStarted = 'tournament_started';
   static const String scheduleChange = 'schedule_change';
@@ -52,6 +53,12 @@ class NotificationTypeConfig {
   /// Tipos desconocidos usan la configuración de [NotificationType.general].
   factory NotificationTypeConfig.fromType(String type) {
     return switch (type) {
+      NotificationType.adminInvitation => const NotificationTypeConfig(
+        icon: Icons.shield_rounded,
+        color: Color(0xFFF59E0B),
+        label: 'Invitación Admin',
+        priority: 4,
+      ),
       NotificationType.invitation => const NotificationTypeConfig(
         icon: Icons.mail_rounded,
         color: Color(0xFF6C63FF),
