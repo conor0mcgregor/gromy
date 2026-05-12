@@ -63,7 +63,6 @@ class EditProfileController extends ChangeNotifier {
   Future<bool> saveProfile({
     required String name,
     required String lastName,
-    required String nickname,
     required String biography,
     XFile? newImage,
   }) async {
@@ -73,18 +72,6 @@ class EditProfileController extends ChangeNotifier {
     _clearError();
 
     try {
-      final normalizedNickname = nickname.trim().toLowerCase();
-
-      // Si cambió el nickname, verificar unicidad
-      if (normalizedNickname != _user!.nickname.toLowerCase()) {
-        final available = await _userRepo.isNicknameAvailable(normalizedNickname);
-        if (!available) {
-          _errorMessage = 'El alias ya está en uso. Por favor, elige otro.';
-          _setLoading(false);
-          return false;
-        }
-      }
-
       String? photoUrl = _user!.photoUrl;
       if (newImage != null) {
         photoUrl = await _storageService.uploadProfileImage(
@@ -96,7 +83,6 @@ class EditProfileController extends ChangeNotifier {
       final updatedUser = _user!.copyWith(
         name: name.trim(),
         lastName: lastName.trim(),
-        nickname: normalizedNickname,
         photoUrl: photoUrl,
         biography: biography.trim(),
       );

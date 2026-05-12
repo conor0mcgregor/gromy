@@ -21,12 +21,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   final _nameController = TextEditingController();
   final _lastNameController = TextEditingController();
-  final _nicknameController = TextEditingController();
   final _bioController = TextEditingController();
 
   String? _nameError;
   String? _lastNameError;
-  String? _nicknameError;
 
   XFile? _pickedImage;
 
@@ -48,7 +46,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (user != null) {
       _nameController.text = user.name;
       _lastNameController.text = user.lastName;
-      _nicknameController.text = user.nickname;
       _bioController.text = user.biography ?? '';
     }
   }
@@ -58,7 +55,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _controller.removeListener(_onControllerUpdate);
     _nameController.dispose();
     _lastNameController.dispose();
-    _nicknameController.dispose();
     _bioController.dispose();
     super.dispose();
   }
@@ -99,25 +95,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() {
       _nameError = _nameController.text.trim().isEmpty ? 'Ingresa tu nombre' : null;
       _lastNameError = _lastNameController.text.trim().isEmpty ? 'Ingresa tus apellidos' : null;
-
-      final nickname = _nicknameController.text.trim();
-      if (nickname.isEmpty) {
-        _nicknameError = 'Ingresa un alias';
-      } else if (nickname.length < 3) {
-        _nicknameError = 'Mínimo 3 caracteres';
-      } else {
-        _nicknameError = null;
-      }
     });
 
-    if (_nameError != null || _lastNameError != null || _nicknameError != null) {
+    if (_nameError != null || _lastNameError != null) {
       return;
     }
 
     final success = await _controller.saveProfile(
       name: _nameController.text,
       lastName: _lastNameController.text,
-      nickname: _nicknameController.text,
       biography: _bioController.text,
       newImage: _pickedImage,
     );
@@ -260,17 +246,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         controller: _lastNameController,
                         icon: Icons.person_outline_rounded,
                         errorText: _lastNameError,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    _buildLabeledField(
-                      'Alias',
-                      GlassTextField(
-                        hint: 'ej. jugador_pro',
-                        controller: _nicknameController,
-                        icon: Icons.alternate_email_rounded,
-                        errorText: _nicknameError,
                       ),
                     ),
                     const SizedBox(height: 16),
