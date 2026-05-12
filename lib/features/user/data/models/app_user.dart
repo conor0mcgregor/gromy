@@ -13,6 +13,7 @@ class AppUser {
     required this.provider,
     required this.createdAt,
     this.photoUrl,
+    this.biography,
   });
 
   final String uid;
@@ -23,30 +24,33 @@ class AppUser {
   final String provider; // 'email' | 'google' | 'apple'
   final DateTime createdAt;
   final String? photoUrl;
+  final String? biography;
 
   // ── Serialización ───────────────────────────────────────────────────────────
 
   Map<String, dynamic> toMap() => {
-        'uid': uid,
-        'email': email,
-        'nickname': nickname,
-        'name': name,
-        'lastName': lastName,
-        'provider': provider,
-        'photoUrl': photoUrl,
-        'createdAt': Timestamp.fromDate(createdAt),
-      };
+    'uid': uid,
+    'email': email,
+    'nickname': nickname,
+    'name': name,
+    'lastName': lastName,
+    'provider': provider,
+    'photoUrl': photoUrl,
+    'biography': biography,
+    'createdAt': Timestamp.fromDate(createdAt),
+  };
 
   factory AppUser.fromMap(Map<String, dynamic> map) => AppUser(
-        uid: map['uid'] as String,
-        email: map['email'] as String,
-        nickname: map['nickname'] as String,
-        name: map['name'] as String,
-        lastName: map['lastName'] as String,
-        provider: map['provider'] as String,
-        photoUrl: map['photoUrl'] as String?,
-        createdAt: (map['createdAt'] as Timestamp).toDate(),
-      );
+    uid: map['uid'] as String,
+    email: map['email'] as String,
+    nickname: map['nickname'] as String,
+    name: map['name'] as String,
+    lastName: map['lastName'] as String,
+    provider: map['provider'] as String,
+    photoUrl: map['photoUrl'] as String?,
+    biography: map['biography'] as String?,
+    createdAt: (map['createdAt'] as Timestamp).toDate(),
+  );
 
   // ── Copia con modificaciones ────────────────────────────────────────────────
 
@@ -55,6 +59,7 @@ class AppUser {
     String? name,
     String? lastName,
     String? photoUrl,
+    String? biography,
   }) =>
       AppUser(
         uid: uid,
@@ -65,5 +70,6 @@ class AppUser {
         provider: provider,
         createdAt: createdAt,
         photoUrl: photoUrl ?? this.photoUrl,
+        biography: biography ?? this.biography,
       );
 }

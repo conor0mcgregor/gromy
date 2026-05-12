@@ -11,8 +11,8 @@ import '../repositories/user_repository.dart';
 class FirestoreUserService implements UserRepository {
   FirestoreUserService({FirebaseFirestore? firestore})
       : _db = firestore ??
-            FirebaseFirestore.instanceFor(
-                app: Firebase.app(), databaseId: 'gromy-db');
+      FirebaseFirestore.instanceFor(
+          app: Firebase.app(), databaseId: 'gromy-db');
 
   final FirebaseFirestore _db;
 
@@ -40,6 +40,23 @@ class FirestoreUserService implements UserRepository {
     }
   }
 
+  @override
+  Future<void> updateUser(AppUser user) async {
+    try {
+      final datosMap = user.copyWith(nickname: _normalizeNickname(user.nickname)).toMap();
+      // Removemos campos que no queremos pisar por error o que no deberían cambiar
+      datosMap.remove('uid');
+      datosMap.remove('email');
+      datosMap.remove('provider');
+      datosMap.remove('createdAt');
+
+      await _users.doc(user.uid).set(datosMap, SetOptions(merge: true)).timeout(const Duration(seconds: 10));
+    } catch (e) {
+      print("[FIRESTORE] ERROR AL ACTUALIZAR PERFIL: $e");
+      rethrow;
+    }
+  }
+
   // ── Lectura ─────────────────────────────────────────────────────────────────
 
   @override
@@ -54,10 +71,10 @@ class FirestoreUserService implements UserRepository {
     if (normalizedNickname.isEmpty) return null;
 
     final query = await _users
-      .where('nickname', isEqualTo: normalizedNickname)
-      .limit(1)
-      .get()
-      .timeout(const Duration(seconds: 10));
+        .where('nickname', isEqualTo: normalizedNickname)
+        .limit(1)
+        .get()
+        .timeout(const Duration(seconds: 10));
 
     if (query.docs.isEmpty) return null;
     final doc = query.docs.first;

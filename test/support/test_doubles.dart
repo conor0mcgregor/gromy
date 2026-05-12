@@ -9,7 +9,7 @@ import 'package:gromy/features/user/data/models/app_user.dart';
 import 'package:gromy/features/user/data/repositories/user_repository.dart';
 
 typedef EmailAuthHandler =
-    Future<AuthResult> Function(String email, String password);
+Future<AuthResult> Function(String email, String password);
 typedef SocialAuthHandler = Future<AuthResult> Function();
 typedef SignOutHandler = Future<void> Function();
 typedef NicknameAvailabilityHandler = Future<bool> Function(String nickname);
@@ -17,15 +17,15 @@ typedef CreateUserHandler = Future<void> Function(AppUser user);
 typedef GetUserHandler = Future<AppUser?> Function(String uid);
 typedef UserExistsHandler = Future<bool> Function(String uid);
 typedef StartEmailRegistrationHandler = Future<RegistrationActionResult> Function({
-  required String email,
-  required String password,
-  required String nickname,
-  required String name,
-  required String lastName,
+required String email,
+required String password,
+required String nickname,
+required String name,
+required String lastName,
 });
 typedef RegistrationActionHandler = Future<RegistrationActionResult> Function();
 typedef GetPendingRegistrationHandler =
-    Future<PendingEmailRegistration?> Function();
+Future<PendingEmailRegistration?> Function();
 typedef ResolveAppAccessHandler = Future<AppAccessState> Function();
 typedef WatchAppAccessHandler = Stream<AppAccessState> Function();
 
@@ -119,6 +119,13 @@ class FakeUserRepository implements UserRepository {
   }
 
   @override
+  Future<void> updateUser(AppUser user) async {
+    // Para las pruebas, podemos reusar la logica de onCreateUser o solo simular exito.
+    lastCreatedUser = user;
+    return Future.value();
+  }
+
+  @override
   Future<AppUser?> getUser(String uid) async {
     getUserCalls++;
     lastUidRead = uid;
@@ -182,12 +189,12 @@ class FakeEmailRegistrationRepository implements EmailRegistrationRepository {
     lastRegistrationName = name;
     lastRegistrationLastName = lastName;
     return onStartRegistration?.call(
-          email: email,
-          password: password,
-          nickname: nickname,
-          name: name,
-          lastName: lastName,
-        ) ??
+      email: email,
+      password: password,
+      nickname: nickname,
+      name: name,
+      lastName: lastName,
+    ) ??
         const RegistrationActionSuccess();
   }
 
