@@ -188,32 +188,47 @@ class AdminChip extends StatelessWidget {
     super.key,
     required this.label,
     required this.isFixed,
+    this.isPendingInvite = false,
     this.onRemove,
   });
 
   final String label;
   final bool isFixed;
+  /// Invitación pendiente (no es admin real todavía).
+  final bool isPendingInvite;
   final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context) {
+    final borderColor = isPendingInvite
+        ? const Color(0xFFFFB347).withValues(alpha: 0.45)
+        : Colors.white.withValues(alpha: 0.12);
+    final bgColor = isPendingInvite
+        ? const Color(0xFFFFB347).withValues(alpha: 0.07)
+        : Colors.white.withValues(alpha: 0.06);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
-        color: Colors.white.withValues(alpha: 0.06),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.12),
-        ),
+        color: bgColor,
+        border: Border.all(color: borderColor),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.verified_user_outlined,
-              color: Color(0xFFB0A8FF), size: 16),
+          Icon(
+            isPendingInvite
+                ? Icons.mark_email_unread_outlined
+                : Icons.verified_user_outlined,
+            color: isPendingInvite
+                ? const Color(0xFFFFB347).withValues(alpha: 0.9)
+                : const Color(0xFFB0A8FF),
+            size: 16,
+          ),
           const SizedBox(width: 8),
           ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 200),
+            constraints: const BoxConstraints(maxWidth: 160),
             child: Text(
               label,
               overflow: TextOverflow.ellipsis,
@@ -224,6 +239,18 @@ class AdminChip extends StatelessWidget {
               ),
             ),
           ),
+          if (isPendingInvite) ...[
+            const SizedBox(width: 8),
+            Text(
+              'Pendiente',
+              style: TextStyle(
+                color: const Color(0xFFFFB347).withValues(alpha: 0.95),
+                fontSize: 10.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
           if (!isFixed) ...[
             const SizedBox(width: 8),
             InkWell(

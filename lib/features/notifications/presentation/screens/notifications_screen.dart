@@ -20,7 +20,9 @@ import 'admin_invitation_details_screen.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({super.key});
+  const NotificationsScreen({super.key, required this.controller});
+
+  final NotificationsController controller;
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
@@ -28,16 +30,13 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen>
     with SingleTickerProviderStateMixin {
-  late final NotificationsController _controller;
   late final AnimationController _fadeController;
   late final Animation<double> _fadeAnimation;
 
-  String? _userId;
-
+  late final NotificationsController _controller = widget.controller;  String? _userId;
   @override
   void initState() {
     super.initState();
-    _controller = NotificationsController();
     _controller.addListener(_onStateChanged);
 
     _fadeController = AnimationController(

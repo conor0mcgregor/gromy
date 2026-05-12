@@ -29,7 +29,7 @@ class Step7Review extends StatelessWidget {
     required this.contactEmail,
     required this.contactPhone,
     required this.contactLinks,
-    required this.admins,
+    this.pendingAdminLabels = const [],
   });
 
   final Uint8List? coverBytes;
@@ -49,7 +49,8 @@ class Step7Review extends StatelessWidget {
   final String contactEmail;
   final String? contactPhone;
   final List<String> contactLinks;
-  final List<String> admins;
+  /// Etiquetas de usuarios a los que se enviará invitación (no son admin hasta aceptar).
+  final List<String> pendingAdminLabels;
 
   @override
   Widget build(BuildContext context) {
@@ -199,9 +200,37 @@ class Step7Review extends StatelessWidget {
                 multiline: true,
               ),
             InfoField(
-              label: 'Administradores',
-              value: admins.isEmpty ? 'Solo tú' : admins.join(', '),
+              label: 'Administrador principal',
+              value: 'Tú (creador)',
+              valueColor: const Color(0xFF22C55E),
+              leadingIcon: Icons.verified_rounded,
+              leadingIconColor: const Color(0xFF22C55E),
             ),
+            if (pendingAdminLabels.isNotEmpty) ...[
+              Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+              InfoField(
+                label: 'Invitaciones de administración',
+                value:
+                    'Tras crear el torneo se enviará una invitación a cada persona. '
+                    'No serán administradores hasta que la acepten.',
+                multiline: true,
+                valueColor: Colors.white.withValues(alpha: 0.65),
+              ),
+              ...pendingAdminLabels.map(
+                (label) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _PendingAdminReviewRow(label: label),
+                ),
+              ),
+            ] else ...[
+              InfoField(
+                label: 'Otros administradores',
+                value:
+                    'Nadie más por ahora. Puedes invitar desde la gestión del torneo.',
+                multiline: true,
+                valueColor: Colors.white.withValues(alpha: 0.55),
+              ),
+            ],
           ],
         ),
 
@@ -209,6 +238,70 @@ class Step7Review extends StatelessWidget {
         const _ConfirmNote(),
         const SizedBox(height: 8),
       ],
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  Fila de invitación pendiente en el resumen
+// ════════════════════════════════════════════════════════════════
+
+class _PendingAdminReviewRow extends StatelessWidget {
+  const _PendingAdminReviewRow({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: const Color(0xFFFFB347).withValues(alpha: 0.08),
+        border: Border.all(
+          color: const Color(0xFFFFB347).withValues(alpha: 0.28),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.mark_email_unread_outlined,
+            size: 18,
+            color: const Color(0xFFFFB347).withValues(alpha: 0.95),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              color: const Color(0xFFFFB347).withValues(alpha: 0.18),
+              border: Border.all(
+                color: const Color(0xFFFFB347).withValues(alpha: 0.45),
+              ),
+            ),
+            child: Text(
+              'Pendiente',
+              style: TextStyle(
+                color: const Color(0xFFFFB347).withValues(alpha: 0.95),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

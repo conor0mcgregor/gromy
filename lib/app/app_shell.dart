@@ -57,7 +57,7 @@ class _AppShellState extends State<AppShell> {
       const HomeScreen(),
       const EventsScreen(),
       const MyTournamentScreen(),
-      const NotificationsScreen(),
+      NotificationsScreen(controller: _controllerNotifications),
       ProfileScreen(authController: _authController),
     ];
   }
@@ -88,7 +88,7 @@ class _AppShellState extends State<AppShell> {
             top: -80,
             right: -60,
             child: GlowOrb(
-              color: const Color(0xFF6C63FF),
+              color: const Color(0xFF6C63FF).withValues(alpha: 0.28),
               size: 260,
             ),
           ),
@@ -96,7 +96,7 @@ class _AppShellState extends State<AppShell> {
             bottom: 100,
             left: -70,
             child: GlowOrb(
-              color: const Color(0xFF00D4FF),
+              color: const Color(0xFF00D4FF).withValues(alpha: 0.18),
               size: 220,
             ),
           ),

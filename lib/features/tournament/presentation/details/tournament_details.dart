@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import '../../data/model/app_tournament.dart';
 import '../../data/model/enums_tournament.dart';
 import '../../../../core/getColors/getter_colors.dart';
-import '../../../../core/widgets/gradient_button.dart';
 
 // Reutilizamos InfoSection e InfoField de step7_review
 import '../../presentation/screens/create_tournament/form/steps/step7_review.dart';

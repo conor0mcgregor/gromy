@@ -68,7 +68,7 @@ class Step6Staff extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'El creador siempre será admin. Añade otros por nickname o UID.',
+            'El creador es administrador. Añade colaboradores por email, nickname o UID; recibirán una invitación pendiente.',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.55),
               fontSize: 12.5,
@@ -81,9 +81,9 @@ class Step6Staff extends StatelessWidget {
               Expanded(
                 child: GlassField(
                   controller: adminController,
-                  hint: 'Nickname o UID',
+                  hint: 'Email, nickname o UID',
                   icon: Icons.person_add_alt_1_rounded,
-                  label: 'Añadir admin (opcional)',
+                  label: 'Invitar administrador (opcional)',
                   onChanged: onAdminChanged,
                 ),
               ),
@@ -113,6 +113,7 @@ class Step6Staff extends StatelessWidget {
                 (admin) => AdminChip(
                   label: admin.label,
                   isFixed: false,
+                  isPendingInvite: true,
                   onRemove: () => onRemoveAdmin(admin.uid),
                 ),
               ),

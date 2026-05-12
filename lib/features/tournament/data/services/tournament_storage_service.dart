@@ -13,6 +13,7 @@ abstract interface class TournamentStorageService {
   /// Lanza [StorageUploadException] si la operación falla.
   Future<String> uploadCoverImage({
     required String tournamentId,
+    required String ownerUid,
     required XFile image,
   });
 
@@ -23,8 +24,13 @@ abstract interface class TournamentStorageService {
 
 /// Excepción semántica para errores de subida a Storage.
 class StorageUploadException implements Exception {
-  const StorageUploadException(this.message);
+  const StorageUploadException(this.message, {this.cause});
+
+  /// Mensaje legible (puede incluir código de Firebase) para UI o logs.
   final String message;
+
+  /// Error subyacente, útil para depuración.
+  final Object? cause;
 
   @override
   String toString() => 'StorageUploadException: $message';

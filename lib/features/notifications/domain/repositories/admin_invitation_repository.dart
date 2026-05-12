@@ -12,7 +12,7 @@ abstract interface class AdminInvitationRepository {
   /// [invitedUserId] UID del usuario invitado.
   ///
   /// Lanza [FirebaseFunctionsException] si falla la Cloud Function.
-  Future<void> sendInvitation({
+  Future<String> sendInvitation({
     required String tournamentId,
     required String invitedUserId,
   });

@@ -34,21 +34,36 @@ class TournamentAdminView {
   final String? email;
 }
 
-/// Representa una invitación pendiente que aún no ha sido aceptada.
-///
-/// El usuario NO es admin todavía. Se muestra en la UI con etiqueta "Pendiente".
 class PendingAdminInvitation {
   const PendingAdminInvitation({
     required this.userId,
     required this.label,
+    required this.isPersisted,
     this.notificationId,
     this.email,
   });
 
   final String userId;
   final String label;
+  final bool isPersisted;
   final String? notificationId;
   final String? email;
+
+  PendingAdminInvitation copyWith({
+    String? userId,
+    String? label,
+    bool? isPersisted,
+    String? notificationId,
+    String? email,
+  }) {
+    return PendingAdminInvitation(
+      userId: userId ?? this.userId,
+      label: label ?? this.label,
+      isPersisted: isPersisted ?? this.isPersisted,
+      notificationId: notificationId ?? this.notificationId,
+      email: email ?? this.email,
+    );
+  }
 }
 
 class TournamentManagementController extends ChangeNotifier {
@@ -138,6 +153,11 @@ class TournamentManagementController extends ChangeNotifier {
   List<ParticipantDisplay> _participants = [];
   List<TournamentAdminView> _adminUsers = [];
   List<PendingAdminInvitation> _pendingInvitations = [];
+  final Map<String, TournamentAdminView> _adminDirectory = {};
+  final Map<String, PendingAdminInvitation> _stagedInvitationsByUserId = {};
+  final Map<String, PendingAdminInvitation> _persistedInvitationsByUserId = {};
+  final Set<String> _removedAdminIds = {};
+  final Set<String> _cancelledInvitationIds = {};
   List<String> _editedCategories = [];
   List<GeocodingResult> _locationSuggestions = [];
   Timer? _locationDebounce;
@@ -185,6 +205,9 @@ class TournamentManagementController extends ChangeNotifier {
   List<ParticipantDisplay> get participants => _participants;
   List<TournamentAdminView> get adminUsers => _adminUsers;
   List<PendingAdminInvitation> get pendingInvitations => _pendingInvitations;
+  List<String> get removedAdmins => _removedAdminIds.toList(growable: false);
+  List<String> get addedAdmins =>
+      _stagedInvitationsByUserId.keys.toList(growable: false);
   List<String> get editedCategories => _editedCategories;
   List<GeocodingResult> get locationSuggestions => _locationSuggestions;
 
@@ -192,7 +215,11 @@ class TournamentManagementController extends ChangeNotifier {
 
   bool get hasChanges {
     _syncFromControllers();
-    return _newCoverImage != null || _tournamentChanged(_original, _edited);
+    return _newCoverImage != null ||
+        _tournamentChanged(_original, _edited) ||
+        _removedAdminIds.isNotEmpty ||
+        _stagedInvitationsByUserId.isNotEmpty ||
+        _cancelledInvitationIds.isNotEmpty;
   }
 
   Future<void> _loadParticipants() async {
@@ -211,7 +238,11 @@ class TournamentManagementController extends ChangeNotifier {
     _loadingAdmins = true;
     notifyListeners();
     try {
-      _adminUsers = await _resolveAdmins(_edited.adminIds);
+      final resolved = await _resolveAdmins(_original.adminIds);
+      _adminDirectory
+        ..clear()
+        ..addEntries(resolved.map((admin) => MapEntry(admin.uid, admin)));
+      _rebuildLocalAdminState();
     } catch (e) {
       _errorMessage = 'Error cargando administradores: $e';
     }
@@ -241,6 +272,29 @@ class TournamentManagementController extends ChangeNotifier {
     return TournamentAdminView(uid: uid, label: label, email: user.email);
   }
 
+  List<String> get _effectiveAdminIds => _original.adminIds
+      .where((uid) => !_removedAdminIds.contains(uid))
+      .toList(growable: false);
+
+  void _rebuildLocalAdminState() {
+    _adminUsers = _effectiveAdminIds
+        .map(
+          (uid) =>
+              _adminDirectory[uid] ?? TournamentAdminView(uid: uid, label: uid),
+        )
+        .toList(growable: false);
+
+    _pendingInvitations = [
+      ..._persistedInvitationsByUserId.values.where(
+        (invitation) =>
+            invitation.notificationId == null ||
+            !_cancelledInvitationIds.contains(invitation.notificationId),
+      ),
+      ..._stagedInvitationsByUserId.values,
+    ];
+    _edited = _copyEdited(adminIds: _effectiveAdminIds);
+  }
+
   void _syncFromControllers() {
     _edited = _copyEdited(
       name: nameCtrl.text.trim(),
@@ -257,6 +311,7 @@ class TournamentManagementController extends ChangeNotifier {
       setContactPhone: true,
       contactLinks: _contactLinksFromControllers(),
       categories: List<String>.from(_editedCategories),
+      adminIds: _effectiveAdminIds,
     );
   }
 
@@ -402,7 +457,6 @@ class TournamentManagementController extends ChangeNotifier {
 
     bool ok = true;
 
-    // La fecha del evento es obligatoria en el modelo, pero validamos que no sea pasada si se cambia
     final today = DateTime.now();
     final minDate = DateTime(today.year, today.month, today.day);
 
@@ -419,7 +473,7 @@ class TournamentManagementController extends ChangeNotifier {
 
     if (deadline != null && deadline.isBefore(minDate)) {
       _registrationDeadlineError =
-      'El límite de inscripción debe ser hoy o en el futuro.';
+          'El límite de inscripción debe ser hoy o en el futuro.';
       ok = false;
     }
 
@@ -431,10 +485,9 @@ class TournamentManagementController extends ChangeNotifier {
 
     if (brackets != null && brackets.isBefore(minDate)) {
       _bracketPublishDateError =
-      'Los cuadros deben publicarse hoy o en el futuro.';
+          'Los cuadros deben publicarse hoy o en el futuro.';
       ok = false;
     }
-
 
     return ok;
   }
@@ -496,10 +549,7 @@ class TournamentManagementController extends ChangeNotifier {
 
     return true;
   }
-  /// Envía una invitación de administrador mediante Cloud Function.
-  ///
-  /// NO añade directamente a admin_ids. El usuario queda como 'pendiente'
-  /// hasta que acepte la invitación.
+
   Future<bool> addAdminFromInput() async {
     if (!isCreator) {
       _adminError = 'Solo el creador puede gestionar administradores';
@@ -520,72 +570,64 @@ class TournamentManagementController extends ChangeNotifier {
 
     try {
       debugPrint(
-        '[TournamentManagementController] addAdminFromInput '
+        '[TournamentManagementController] stageAdminChange '
         'query="$query" tournamentId=${_original.id}',
       );
 
-      // 1. Buscar el usuario por UID, nickname o email
       final user = await _findUser(query);
       if (user == null) {
-        debugPrint(
-          '[TournamentManagementController] No user resolved for query="$query"',
-        );
         _adminError = 'No se encontro un usuario con esos datos.';
         _isAddingAdmin = false;
         notifyListeners();
         return false;
       }
 
-      debugPrint(
-        '[TournamentManagementController] Resolved invited user '
-        'uid=${user.uid} nickname=${user.nickname} email=${user.email}',
-      );
+      final restoredAdmin = _removedAdminIds.remove(user.uid);
+      if (restoredAdmin) {
+        _adminDirectory[user.uid] = _adminView(user.uid, user);
+        adminLookupCtrl.clear();
+        _adminError = null;
+        _isAddingAdmin = false;
+        _rebuildLocalAdminState();
+        notifyListeners();
+        return true;
+      }
 
-      // 2. Verificar que no sea ya administrador
-      if (_edited.adminIds.contains(user.uid)) {
+      if (_effectiveAdminIds.contains(user.uid)) {
         _adminError = 'Este usuario ya es administrador.';
         _isAddingAdmin = false;
         notifyListeners();
         return false;
       }
 
-      // 3. Verificar que no tenga ya una invitación pendiente localmente
-      if (_pendingInvitations.any((inv) => inv.userId == user.uid)) {
-        _adminError = 'Este usuario ya tiene una invitación pendiente.';
+      if (_persistedInvitationsByUserId.containsKey(user.uid) ||
+          _stagedInvitationsByUserId.containsKey(user.uid)) {
+        _adminError = 'Este usuario ya tiene una invitacion pendiente.';
         _isAddingAdmin = false;
         notifyListeners();
         return false;
       }
 
-      // 4. Enviar invitación vía Cloud Function
-      final invitationRepo = CloudFunctionAdminInvitationRepository();
-      final sendUseCase = SendAdminInvitationUseCase(invitationRepo);
-      await sendUseCase(
-        tournamentId: _original.id,
-        invitedUserId: user.uid,
-      );
-
-      // 5. Mostrar en UI como 'pendiente' (NO añadir a admin_ids)
       final fullName = '${user.name} ${user.lastName}'.trim();
       final label = fullName.isEmpty
           ? user.nickname
           : '$fullName (@${user.nickname})';
-      _pendingInvitations.add(PendingAdminInvitation(
+
+      _stagedInvitationsByUserId[user.uid] = PendingAdminInvitation(
         userId: user.uid,
         label: label,
         email: user.email,
-      ));
+        isPersisted: false,
+      );
+      _adminDirectory[user.uid] = _adminView(user.uid, user);
 
       adminLookupCtrl.clear();
       _adminError = null;
       _isAddingAdmin = false;
+      _rebuildLocalAdminState();
       notifyListeners();
       return true;
     } catch (e) {
-      debugPrint(
-        '[TournamentManagementController] addAdminFromInput failed '
-        'tournamentId=${_original.id} query="$query" error=$e',
-      );
       _adminError = e.toString().replaceFirst('Exception: ', '');
       _isAddingAdmin = false;
       notifyListeners();
@@ -595,21 +637,12 @@ class TournamentManagementController extends ChangeNotifier {
 
   Future<AppUser?> _findUser(String query) async {
     if (query.contains('@')) {
-      debugPrint(
-        '[TournamentManagementController] Looking up invited user by email: $query',
-      );
       return _userService.getUserByEmail(query);
     }
 
-    debugPrint(
-      '[TournamentManagementController] Looking up invited user by uid: $query',
-    );
     final byUid = await _userService.getUser(query);
     if (byUid != null) return byUid;
 
-    debugPrint(
-      '[TournamentManagementController] Looking up invited user by nickname: $query',
-    );
     return _userService.getUserByNickname(query);
   }
 
@@ -625,16 +658,26 @@ class TournamentManagementController extends ChangeNotifier {
       return;
     }
 
-    final ids = List<String>.from(_edited.adminIds)..remove(adminUid);
-    _edited = _copyEdited(adminIds: ids);
-    _adminUsers.removeWhere((admin) => admin.uid == adminUid);
+    if (_stagedInvitationsByUserId.remove(adminUid) != null) {
+      _adminError = null;
+      _rebuildLocalAdminState();
+      notifyListeners();
+      return;
+    }
+
+    if (!_effectiveAdminIds.contains(adminUid)) {
+      _adminError =
+          'Ese usuario ya no figura como administrador en el formulario.';
+      notifyListeners();
+      return;
+    }
+
+    _removedAdminIds.add(adminUid);
     _adminError = null;
+    _rebuildLocalAdminState();
     notifyListeners();
   }
 
-  /// Cancela una invitación pendiente y la quita de la lista local.
-  ///
-  /// Solo el creador puede cancelar invitaciones.
   Future<bool> cancelPendingInvitation(String userId) async {
     if (!isCreator) {
       _adminError = 'Solo el creador puede cancelar invitaciones.';
@@ -644,28 +687,31 @@ class TournamentManagementController extends ChangeNotifier {
 
     final invitation = _pendingInvitations.firstWhere(
       (inv) => inv.userId == userId,
-      orElse: () => const PendingAdminInvitation(userId: '', label: ''),
+      orElse: () => const PendingAdminInvitation(
+        userId: '',
+        label: '',
+        isPersisted: false,
+      ),
     );
 
     if (invitation.userId.isEmpty) {
-      _pendingInvitations.removeWhere((inv) => inv.userId == userId);
+      _stagedInvitationsByUserId.remove(userId);
+      _persistedInvitationsByUserId.remove(userId);
+      _rebuildLocalAdminState();
       notifyListeners();
       return true;
     }
 
-    // Si tenemos el notificationId, cancelar en el servidor
-    if (invitation.notificationId != null) {
-      try {
-        final repo = CloudFunctionAdminInvitationRepository();
-        final cancelUseCase = CancelAdminInvitationUseCase(repo);
-        await cancelUseCase(notificationId: invitation.notificationId!);
-      } catch (e) {
-        debugPrint('No se pudo cancelar en servidor: $e');
-        // Continuar igual — eliminamos de la lista local
+    if (!invitation.isPersisted) {
+      _stagedInvitationsByUserId.remove(userId);
+    } else {
+      if (invitation.notificationId != null) {
+        _cancelledInvitationIds.add(invitation.notificationId!);
       }
+      _persistedInvitationsByUserId.remove(userId);
     }
 
-    _pendingInvitations.removeWhere((inv) => inv.userId == userId);
+    _rebuildLocalAdminState();
     notifyListeners();
     return true;
   }
@@ -736,20 +782,39 @@ class TournamentManagementController extends ChangeNotifier {
     if (!validate()) return false;
 
     _syncFromControllers();
+    _rebuildLocalAdminState();
     _isSaving = true;
     _errorMessage = null;
     _successMessage = null;
     notifyListeners();
+
+    final invitationRepo = CloudFunctionAdminInvitationRepository();
+    final sendUseCase = SendAdminInvitationUseCase(invitationRepo);
+    final cancelUseCase = CancelAdminInvitationUseCase(invitationRepo);
+    final createdInvitationIds = <String, String>{};
 
     try {
       var updated = _edited;
       if (_newCoverImage != null) {
         final url = await _storageService.uploadCoverImage(
           tournamentId: updated.id,
+          ownerUid: _currentUid,
           image: _newCoverImage!,
         );
-        updated = _copyEdited(portadaUrl: url);
+        updated = _copyEdited(portadaUrl: url, adminIds: _effectiveAdminIds);
         _edited = updated;
+      }
+
+      for (final invitation in _stagedInvitationsByUserId.values) {
+        final notificationId = await sendUseCase(
+          tournamentId: _original.id,
+          invitedUserId: invitation.userId,
+        );
+        createdInvitationIds[invitation.userId] = notificationId;
+      }
+
+      for (final notificationId in _cancelledInvitationIds) {
+        await cancelUseCase(notificationId: notificationId);
       }
 
       final useCase = UpdateTournamentUseCase(_repository);
@@ -760,12 +825,32 @@ class TournamentManagementController extends ChangeNotifier {
       );
 
       _original = updated.copyWith(updatedAt: DateTime.now());
+      _persistedInvitationsByUserId.addEntries(
+        _stagedInvitationsByUserId.entries.map(
+          (entry) => MapEntry(
+            entry.key,
+            entry.value.copyWith(
+              isPersisted: true,
+              notificationId: createdInvitationIds[entry.key],
+            ),
+          ),
+        ),
+      );
+      _stagedInvitationsByUserId.clear();
+      _removedAdminIds.clear();
+      _cancelledInvitationIds.clear();
+      _rebuildLocalAdminState();
       _newCoverImage = null;
       _successMessage = 'Cambios guardados correctamente.';
       _isSaving = false;
       notifyListeners();
       return true;
     } catch (e) {
+      for (final notificationId in createdInvitationIds.values) {
+        try {
+          await cancelUseCase(notificationId: notificationId);
+        } catch (_) {}
+      }
       _errorMessage = 'Error al guardar: $e';
       _isSaving = false;
       notifyListeners();
@@ -810,9 +895,7 @@ class TournamentManagementController extends ChangeNotifier {
       if (_original.portadaUrl != null) {
         try {
           await _storageService.deleteCoverImage(_original.id);
-        } catch (_) {
-          // La eliminacion del torneo ya se completo; la portada no bloquea.
-        }
+        } catch (_) {}
       }
 
       _isDeleting = false;

@@ -12,7 +12,7 @@ class SendAdminInvitationUseCase {
   const SendAdminInvitationUseCase(this._repository);
   final AdminInvitationRepository _repository;
 
-  Future<void> call({
+  Future<String> call({
     required String tournamentId,
     required String invitedUserId,
   }) {

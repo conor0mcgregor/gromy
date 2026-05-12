@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import '../../../../../core/getColors/getter_colors.dart';
 import '../../../../../core/widgets/glow_orb.dart';
 import '../../../../../core/widgets/gradient_button.dart';
 import '../../../../inscription/screen/preinscription_screen.dart';
+import '../../../../user/data/models/app_user.dart';
 import '../../../../user/data/services/firestore_user_service.dart';
 import '../../../data/model/app_tournament.dart';
 import '../../controllers/create_tournament_controller.dart';
@@ -207,7 +209,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     final membersPerTeam = int.tryParse(
       _form.membersPerTeamController.text.trim(),
     );
-    final extraAdminIds = _form.extraAdmins
+    final invitedAdminUserIds = _form.extraAdmins
         .map((entry) => entry.uid)
         .toList(growable: false);
 
@@ -221,7 +223,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       membersPerTeam: membersPerTeam,
       location: _form.locationController.text,
       accessType: _form.selectedAccessType!,
-      extraAdminIds: extraAdminIds,
+      invitedAdminUserIds: invitedAdminUserIds,
       coverImage: _form.coverImage,
       latitude: _form.latitude,
       longitude: _form.longitude,
@@ -453,12 +455,23 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       );
       if (picked == null) return;
       final bytes = await picked.readAsBytes();
+      developer.log(
+        'Tournament cover selected | path=${picked.path.isEmpty ? "(path vacío)" : picked.path} '
+        'mimeType=${picked.mimeType ?? "(null)"} bytes=${bytes.length}',
+        name: 'FormTournamentScreen',
+      );
       if (!mounted) return;
       setState(() {
         _form.coverImage = picked;
         _form.coverBytes = bytes;
       });
-    } catch (_) {
+    } catch (error, stackTrace) {
+      developer.log(
+        'Error selecting tournament cover',
+        name: 'FormTournamentScreen',
+        error: error,
+        stackTrace: stackTrace,
+      );
       _showSnackBar('No se pudo seleccionar la imagen.', isError: true);
     }
   }
@@ -492,28 +505,31 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     try {
       final userService = FirestoreUserService();
 
-      String? uid;
-      String label = raw;
-
-      final cleanRaw = raw.startsWith('@') ? raw.substring(1) : raw;
-      final userByNickname = await userService.getUserByNickname(cleanRaw);
-
-      if (userByNickname != null) {
-        uid = userByNickname.uid;
-        label = '@${userByNickname.nickname}';
+      final AppUser? resolvedUser;
+      if (raw.contains('@')) {
+        resolvedUser = await userService.getUserByEmail(raw);
       } else {
-        final exists = await userService.userExists(raw);
-        if (!exists) {
-          setState(
-            () => _form.adminError =
-                'No existe un usuario con ese nickname o UID.',
-          );
-          return;
+        final cleanRaw = raw.startsWith('@') ? raw.substring(1) : raw;
+        final byNickname = await userService.getUserByNickname(cleanRaw);
+        if (byNickname != null) {
+          resolvedUser = byNickname;
+        } else if (await userService.userExists(raw)) {
+          resolvedUser = await userService.getUser(raw);
+        } else {
+          resolvedUser = null;
         }
-        uid = raw;
-        final user = await userService.getUser(raw);
-        label = user != null ? '@${user.nickname}' : raw;
       }
+
+      if (resolvedUser == null) {
+        setState(
+          () => _form.adminError =
+              'No existe un usuario con ese email, nickname o UID.',
+        );
+        return;
+      }
+
+      final uid = resolvedUser.uid;
+      final label = '@${resolvedUser.nickname}';
 
       if (uid == currentUid) {
         setState(() => _form.adminError = 'Ya eres admin por defecto.');
@@ -521,12 +537,12 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       }
 
       if (_form.extraAdmins.any((e) => e.uid == uid)) {
-        setState(() => _form.adminError = 'Ese usuario ya está añadido.');
+        setState(() => _form.adminError = 'Ese usuario ya está en la lista de invitaciones.');
         return;
       }
 
       setState(() {
-        _form.extraAdmins.add(FormAdminEntry(uid: uid!, label: label));
+        _form.extraAdmins.add(FormAdminEntry(uid: uid, label: label));
         _form.adminController.clear();
         _form.adminError = null;
       });
@@ -598,7 +614,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
   Widget build(BuildContext context) {
     return PopScope(
       canPop: _canPop,
-      onPopInvoked: (bool didPop) async {
+      onPopInvokedWithResult: (bool didPop, Object? result) async {
         if (didPop) return;
         final bool shouldPop = await _showExitDialog();
         if (shouldPop) {
@@ -1025,7 +1041,8 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
         ? null
         : _form.contactPhoneController.text.trim(),
     contactLinks: _form.contactLinks,
-    admins: ['Tú (creador)', ..._form.extraAdmins.map((a) => a.label)],
+    pendingAdminLabels:
+        _form.extraAdmins.map((a) => a.label).toList(growable: false),
   );
 
   // ── Step page wrapper ──

@@ -8,6 +8,7 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'features/auth/presentation/screens/auth_gate_screen.dart';
 import 'features/notifications/data/services/fcm_token_service.dart';
+import 'features/notifications/data/services/push_notification_service.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -35,6 +36,10 @@ void main() async {
   final fcmTokenService = FcmTokenService();
   await fcmTokenService.initializeToken();
 
+  // 3. Inicializar servicio de Push Notifications (foreground, background, local notifications)
+  final pushService = PushNotificationService();
+  await pushService.initialize();
+
   runApp(const MyApp());
 }
 
@@ -45,6 +50,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Login',
+      navigatorKey: PushNotificationService.navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(),
       supportedLocales: const [

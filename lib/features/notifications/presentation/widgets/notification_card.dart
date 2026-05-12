@@ -40,7 +40,7 @@ class NotificationCard extends StatelessWidget {
         curve: Curves.easeOut,
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         child: Material(
-          color: Colors.transparent,
+          color: Color(0xFF000000).withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(16),
           child: InkWell(
             borderRadius: BorderRadius.circular(16),

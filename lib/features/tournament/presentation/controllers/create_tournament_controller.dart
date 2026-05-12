@@ -1,11 +1,17 @@
+import 'dart:developer' as developer;
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../data/model/app_tournament.dart';
 import '../../data/model/enums_tournament.dart';
+import '../../../notifications/data/repository/admin_invitation_repository_impl.dart';
+import '../../../notifications/domain/use_cases/admin_invitation_use_cases.dart';
 import '../../data/repositories/tournament_repository.dart';
 import '../../data/services/firestore_tournament_service.dart';
+import '../../data/services/tournament_storage_service.dart';
+import '../../domain/use_cases/create_tournament_and_invite_admins_use_case.dart';
 
 /// Controlador de la pantalla de creación de torneos.
 ///
@@ -88,10 +94,6 @@ class CreateTournamentController extends ChangeNotifier {
     }
   }
 
-  /// Crea un torneo, con o sin imagen de portada.
-  ///
-  /// Si [coverImage] no es null, se sube la imagen a Storage y se guarda la
-  /// URL en el modelo antes de persistir en Firestore.
   Future<bool> createTournament({
     required String name,
     required String description,
@@ -101,7 +103,7 @@ class CreateTournamentController extends ChangeNotifier {
     required String location,
     required TournamentSport sport,
     required TournamentAccessType accessType,
-    List<String> extraAdminIds = const [],
+    List<String> invitedAdminUserIds = const [],
     XFile? coverImage,
     int? membersPerTeam,
     double? latitude,
@@ -123,91 +125,79 @@ class CreateTournamentController extends ChangeNotifier {
         return false;
       }
 
-      final normalizedName = name.trim();
-      final normalizedDescription = description.trim();
-      final normalizedLocation = location.trim();
-      final normalizedAllInfo = allInformation.trim();
-      final normalizedDate = DateTime(
-        scheduledAt.year,
-        scheduledAt.month,
-        scheduledAt.day,
+      final coverPath = coverImage?.path;
+      developer.log(
+        'Create tournament submit | uid=${currentUser.uid} '
+        'email=${currentUser.email ?? "(null)"} '
+        'isAnonymous=${currentUser.isAnonymous} '
+        'hasCover=${coverImage != null} coverPath=${coverPath?.isEmpty == true ? "(path vacío)" : coverPath ?? "(null)"} '
+        'coverMime=${coverImage?.mimeType ?? "(null)"}',
+        name: 'CreateTournamentController',
       );
-      final today = DateTime.now();
-      final minDate = DateTime(today.year, today.month, today.day);
 
-      if (normalizedName.isEmpty ||
-          normalizedDescription.isEmpty ||
-          normalizedAllInfo.isEmpty ||
-          normalizedLocation.isEmpty) {
-        _errorMessage = 'Completa los campos obligatorios del torneo.';
-        return false;
-      }
+      final invitationRepo = CloudFunctionAdminInvitationRepository();
+      final useCase = CreateTournamentAndInviteAdminsUseCase(
+        tournamentRepository: _tournamentRepository,
+        sendAdminInvitation: SendAdminInvitationUseCase(invitationRepo),
+        cancelAdminInvitation: CancelAdminInvitationUseCase(invitationRepo),
+      );
 
-      if (maxParticipants < 2) {
-        _errorMessage = 'El máximo de participantes debe ser al menos 2.';
-        return false;
-      }
-
-      if (membersPerTeam != null && membersPerTeam < 2) {
-        _errorMessage = 'El número de miembros por equipo debe ser al menos 2.';
-        return false;
-      }
-
-      if (normalizedDate.isBefore(minDate)) {
-        _errorMessage = 'Selecciona una fecha válida para el torneo.';
-        return false;
-      }
-
-      // El creador siempre es admin; se combinan los extras sin duplicados.
-      final allAdminIds = <String>{currentUser.uid, ...extraAdminIds}.toList();
-
-      final now = DateTime.now();
-      final tournament = AppTournament(
-        id: '',
-        name: normalizedName,
-        description: normalizedDescription,
-        allInformation: normalizedAllInfo,
-        scheduledAt: normalizedDate,
+      _lastCreatedTournament = await useCase(
+        uid: currentUser.uid,
+        email: currentUser.email,
+        displayName: currentUser.displayName,
+        name: name,
+        description: description,
+        allInformation: allInformation,
+        scheduledAt: scheduledAt,
         maxParticipants: maxParticipants,
         membersPerTeam: membersPerTeam,
-        location: normalizedLocation,
+        location: location,
         latitude: latitude,
         longitude: longitude,
         sport: sport,
         accessType: accessType,
-        organizerUid: currentUser.uid,
-        organizerEmail: _normalizeOptional(currentUser.email),
-        organizerDisplayName: _normalizeOptional(currentUser.displayName),
-        adminIds: allAdminIds,
-        participantCount: 0,
+        invitedAdminUserIds: invitedAdminUserIds,
+        coverImage: coverImage,
         registrationDeadline: registrationDeadline,
         bracketPublishDate: bracketPublishDate,
-        contactEmail: contactEmail?.trim(),
-        contactPhone: contactPhone?.trim(),
+        contactEmail: contactEmail,
+        contactPhone: contactPhone,
         contactLinks: contactLinks,
         categories: categories,
-        createdAt: now,
-        updatedAt: now,
       );
 
-      if (coverImage != null) {
-        _lastCreatedTournament = await _tournamentRepository
-            .createTournamentWithCover(
-              tournament: tournament,
-              coverImage: coverImage,
-            ); // named params — consistent with TournamentRepository interface
-      } else {
-        _lastCreatedTournament = await _tournamentRepository.createTournament(
-          tournament,
-        );
-      }
-
       return true;
-    } on FirebaseException catch (error) {
+    } on ArgumentError catch (error) {
+      _errorMessage = error.message;
+      return false;
+    } on StorageUploadException catch (e, stackTrace) {
+      developer.log(
+        'StorageUploadException creating tournament | message=${e.message}',
+        name: 'CreateTournamentController',
+        error: e.cause ?? e,
+        stackTrace: stackTrace,
+      );
+      _errorMessage = e.message;
+      return false;
+    } on FirebaseException catch (error, stackTrace) {
+      developer.log(
+        'FirebaseException creating tournament | code=${error.code} '
+        'message=${error.message ?? "(null)"} plugin=${error.plugin}',
+        name: 'CreateTournamentController',
+        error: error,
+        stackTrace: stackTrace,
+      );
       _errorMessage = _firebaseErrorMessage(error.code);
       return false;
-    } catch (_) {
-      _errorMessage = 'No se pudo crear el torneo. Inténtalo de nuevo.';
+    } catch (e, stackTrace) {
+      developer.log(
+        'Unexpected error creating tournament',
+        name: 'CreateTournamentController',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      _errorMessage = 'Error inesperado: $e';
       return false;
     } finally {
       _setSubmitting(false);
@@ -226,12 +216,6 @@ class CreateTournamentController extends ChangeNotifier {
         'La operación tardó demasiado. Inténtalo otra vez.',
       _ => 'No se pudo guardar el torneo en Firebase.',
     };
-  }
-
-  String? _normalizeOptional(String? value) {
-    if (value == null) return null;
-    final trimmed = value.trim();
-    return trimmed.isEmpty ? null : trimmed;
   }
 
   void _setSubmitting(bool value) {

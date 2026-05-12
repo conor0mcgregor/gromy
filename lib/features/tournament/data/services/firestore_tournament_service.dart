@@ -71,6 +71,7 @@ class FirestoreTournamentService implements TournamentRepository {
     // 2. Subir imagen y obtener URL de descarga.
     final downloadUrl = await _storageService.uploadCoverImage(
       tournamentId: docRef.id,
+      ownerUid: tournament.organizerUid,
       image: coverImage,
     );
 

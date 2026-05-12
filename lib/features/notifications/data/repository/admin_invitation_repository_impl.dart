@@ -22,7 +22,7 @@ class CloudFunctionAdminInvitationRepository
   final FirebaseFunctions _functions;
 
   @override
-  Future<void> sendInvitation({
+  Future<String> sendInvitation({
     required String tournamentId,
     required String invitedUserId,
   }) async {
@@ -31,10 +31,20 @@ class CloudFunctionAdminInvitationRepository
         '[AdminInvitationRepository] Calling $_createInvitationCallable '
         'with tournamentId=$tournamentId invitedUserId=$invitedUserId',
       );
-      await _functions.httpsCallable(_createInvitationCallable).call({
+      final result = await _functions.httpsCallable(_createInvitationCallable).call({
         'tournamentId': tournamentId,
         'invitedUserId': invitedUserId,
       });
+      final data = Map<String, dynamic>.from(
+        (result.data as Map?)?.cast<String, dynamic>() ?? const {},
+      );
+      final notificationId = data['notificationId']?.toString() ?? '';
+      if (notificationId.isEmpty) {
+        throw Exception(
+          'La Cloud Function no devolvio un notificationId valido.',
+        );
+      }
+      return notificationId;
     } on FirebaseFunctionsException catch (e) {
       debugPrint(
         '[AdminInvitationRepository] $_createInvitationCallable failed '

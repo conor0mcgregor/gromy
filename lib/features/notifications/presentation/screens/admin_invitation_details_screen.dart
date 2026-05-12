@@ -243,6 +243,7 @@ class _AdminInvitationDetailsScreenState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        const SizedBox(height: 24),
                         _buildStatusBanner(),
                         const SizedBox(height: 24),
                         _buildInviterSection(),
