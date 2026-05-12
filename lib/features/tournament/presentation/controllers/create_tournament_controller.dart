@@ -12,6 +12,7 @@ import '../../data/repositories/tournament_repository.dart';
 import '../../data/services/firestore_tournament_service.dart';
 import '../../data/services/tournament_storage_service.dart';
 import '../../domain/use_cases/create_tournament_and_invite_admins_use_case.dart';
+import '../../../user/data/services/firestore_user_service.dart';
 
 /// Controlador de la pantalla de creación de torneos.
 ///
@@ -135,6 +136,21 @@ class CreateTournamentController extends ChangeNotifier {
         name: 'CreateTournamentController',
       );
 
+      // Obtenemos el nombre a mostrar del usuario. Fallback a Firestore si no está en Auth.
+      String? displayName = currentUser.displayName;
+      if (displayName == null || displayName.trim().isEmpty) {
+        try {
+          final userService = FirestoreUserService();
+          final appUser = await userService.getUser(currentUser.uid);
+          if (appUser != null) {
+            final fullName = '${appUser.name} ${appUser.lastName}'.trim();
+            displayName = fullName.isNotEmpty ? fullName : appUser.nickname;
+          }
+        } catch (e) {
+          developer.log('Error fetching user display name from Firestore: $e');
+        }
+      }
+
       final invitationRepo = CloudFunctionAdminInvitationRepository();
       final useCase = CreateTournamentAndInviteAdminsUseCase(
         tournamentRepository: _tournamentRepository,
@@ -145,7 +161,7 @@ class CreateTournamentController extends ChangeNotifier {
       _lastCreatedTournament = await useCase(
         uid: currentUser.uid,
         email: currentUser.email,
-        displayName: currentUser.displayName,
+        displayName: displayName,
         name: name,
         description: description,
         allInformation: allInformation,

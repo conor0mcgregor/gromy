@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -115,6 +116,25 @@ class TournamentManagementController extends ChangeNotifier {
     _editedCategories = List<String>.from(tournament.categories);
     _loadParticipants();
     _loadAdminUsers();
+    _tryFixOrganizerName();
+  }
+
+  void _tryFixOrganizerName() async {
+    if (_original.organizerDisplayName == null ||
+        _original.organizerDisplayName!.isEmpty) {
+      try {
+        final user = await _userService.getUser(_original.organizerUid);
+        if (user != null) {
+          final fullName = '${user.name} ${user.lastName}'.trim();
+          final displayName = fullName.isNotEmpty ? fullName : user.nickname;
+          _original = _original.copyWith(organizerDisplayName: displayName);
+          _edited = _edited.copyWith(organizerDisplayName: displayName);
+          notifyListeners();
+        }
+      } catch (e) {
+        developer.log('Error fixing organizer name: $e');
+      }
+    }
   }
 
   final AdminTournamentRepository _repository;
@@ -993,6 +1013,8 @@ class TournamentManagementController extends ChangeNotifier {
         a.contactEmail != b.contactEmail ||
         a.contactPhone != b.contactPhone ||
         a.participantCount != b.participantCount ||
+        a.organizerDisplayName != b.organizerDisplayName ||
+        a.organizerEmail != b.organizerEmail ||
         !_listEquals(a.contactLinks, b.contactLinks) ||
         !_listEquals(a.categories, b.categories) ||
         !_listEquals(a.adminIds, b.adminIds);
