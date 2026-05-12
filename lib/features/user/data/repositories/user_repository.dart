@@ -12,6 +12,9 @@ abstract interface class UserRepository {
   /// Crea o sobreescribe el documento del usuario en Firestore.
   Future<void> createUser(AppUser user);
 
+  /// Actualiza los datos del usuario en Firestore.
+  Future<void> updateUser(AppUser user);
+
   /// Devuelve el usuario con [uid] o `null` si no existe.
   Future<AppUser?> getUser(String uid);
 
