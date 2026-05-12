@@ -12,6 +12,7 @@ import '../../../../core/widgets/glass_text_field.dart';
 import '../../../../core/widgets/gradient_button.dart';
 import '../../../../core/widgets/participant_card.dart';
 import '../../../../core/widgets/static_location_map.dart';
+import '../../../brackets/presentation/widgets/brankets_section.dart';
 import '../../../participants/data/models/participant_display.dart';
 import '../../../participants/presentation/widgets/participants_section.dart';
 import '../../../participants/presentation/widgets/team_card.dart';
@@ -342,6 +343,11 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                             _buildInfoSection(),
                             const SizedBox(height: 20),
                             _buildParticipantsSection(),
+                            const SizedBox(height: 10),
+                            BracketsSection(
+                              tournamentId: widget.tournament.id,
+                              isAdmin: true,
+                            ),
                             const SizedBox(height: 20),
                             _buildScheduleSection(),
                             const SizedBox(height: 20),

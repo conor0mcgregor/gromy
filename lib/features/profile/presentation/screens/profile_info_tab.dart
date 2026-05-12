@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../../../core/getColors/getter_colors.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../user/data/models/app_user.dart';
 import '../../../user/data/services/firestore_user_service.dart';
@@ -184,6 +185,7 @@ class _ProfileInfoTabState extends State<ProfileInfoTab> {
                 },
                 label: 'Editar Perfil',
                 icon: Icons.edit_rounded,
+                variant: GradientButtonVariant.simple,
               ),
 
               const SizedBox(height: 32),
@@ -194,6 +196,7 @@ class _ProfileInfoTabState extends State<ProfileInfoTab> {
                 label: _isLoggingOut ? 'Cerrando sesión...' : 'Cerrar sesión',
                 isLoading: _isLoggingOut,
                 icon: Icons.logout_rounded,
+                variant: GradientButtonVariant.danger,
               ),
             ],
           ),

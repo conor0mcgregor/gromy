@@ -54,6 +54,11 @@ enum GradientButtonVariant {
   select(
     colors: [Color(0xFF00A393), Color(0xFF00A341), Color(0xFF1000A3)],
     shadowColor: Color(0xFF958AFF),
+  ),
+
+  simple(
+    colors: [Color(0xFF97CFDB), Color(0xFF97DBB8), Color(0xFFC9DB97)],
+    shadowColor: Color(0xFFE7E7E7),
   );
 
 

@@ -29,6 +29,17 @@ export {
   cancelAdminInvitation,
 } from "./tournaments";
 
+// ── Módulo de brackets ──────────────────────────────────────────────────────
+export {
+  generateBracket,
+  publishBracket,
+  regenerateBracket,
+  onMatchWinnerUpdated,
+  recordMatchResult,
+  updateMatchSchedule,
+  swapMatchParticipants,
+} from "./brackets";
+
 // Start writing functions
 // https://firebase.google.com/docs/functions/typescript
 
@@ -83,38 +94,3 @@ setGlobalOptions({maxInstances: 10});
 
 import {onRequest} from "firebase-functions/v2/https";
 import {NotificationDispatcher, NotificationTemplates} from "./notifications";
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Función de prueba temporal
-//  Punto de enlace HTTP para probar el envío de notificaciones.
-//  Puedes llamarlo desde el navegador:
-//  https://<region>-<proyecto>.cloudfunctions.net/testNotification?userId=TU_UID
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const testNotification = onRequest(async (request, response) => {
-  const userId = request.query.userId as string;
-
-  if (!userId) {
-    response.status(400).send("Falta el parámetro '?userId=TU_UID' en la URL");
-    return;
-  }
-
-  try {
-    const dispatcher = new NotificationDispatcher();
-    const payload = NotificationTemplates.system({
-      userId: userId,
-      title: "Prueba de sistema",
-      body: "Esta es una notificación de prueba desde Cloud Functions 🚀",
-      actionRoute: "/home",
-    });
-
-    const docId = await dispatcher.dispatch(payload);
-
-    response.status(200).send(
-      `¡Éxito! Notificación creada con ID: ${docId} para el usuario: ${userId}`
-    );
-  } catch (error) {
-    console.error("Error al enviar notificación de prueba", error);
-    response.status(500).send("Error interno al enviar la notificación.");
-  }
-});
