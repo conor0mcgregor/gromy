@@ -72,6 +72,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
+  Widget _buildLabeledField(String label, Widget field) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        field,
+      ],
+    );
+  }
+
   Future<void> _handleSave() async {
     // Hide keyboard
     FocusScope.of(context).unfocus();
@@ -222,35 +242,47 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     const SizedBox(height: 32),
 
                     // Inputs
-                    GlassTextField(
-                      hint: 'Tu nombre',
-                      controller: _nameController,
-                      icon: Icons.person_outline_rounded,
-                      errorText: _nameError,
+                    _buildLabeledField(
+                      'Nombre',
+                      GlassTextField(
+                        hint: 'Tu nombre',
+                        controller: _nameController,
+                        icon: Icons.person_outline_rounded,
+                        errorText: _nameError,
+                      ),
                     ),
                     const SizedBox(height: 16),
 
-                    GlassTextField(
-                      hint: 'Tus apellidos',
-                      controller: _lastNameController,
-                      icon: Icons.person_outline_rounded,
-                      errorText: _lastNameError,
+                    _buildLabeledField(
+                      'Apellidos',
+                      GlassTextField(
+                        hint: 'Tus apellidos',
+                        controller: _lastNameController,
+                        icon: Icons.person_outline_rounded,
+                        errorText: _lastNameError,
+                      ),
                     ),
                     const SizedBox(height: 16),
 
-                    GlassTextField(
-                      hint: 'ej. jugador_pro',
-                      controller: _nicknameController,
-                      icon: Icons.alternate_email_rounded,
-                      errorText: _nicknameError,
+                    _buildLabeledField(
+                      'Alias',
+                      GlassTextField(
+                        hint: 'ej. jugador_pro',
+                        controller: _nicknameController,
+                        icon: Icons.alternate_email_rounded,
+                        errorText: _nicknameError,
+                      ),
                     ),
                     const SizedBox(height: 16),
 
-                    GlassTextField(
-                      hint: 'Cuéntanos sobre ti...',
-                      controller: _bioController,
-                      icon: Icons.info_outline_rounded,
-                      maxLines: 4,
+                    _buildLabeledField(
+                      'Biografía',
+                      GlassTextField(
+                        hint: 'Cuéntanos sobre ti...',
+                        controller: _bioController,
+                        icon: Icons.info_outline_rounded,
+                        maxLines: 4,
+                      ),
                     ),
                     const SizedBox(height: 40),
 

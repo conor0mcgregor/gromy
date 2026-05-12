@@ -37,6 +37,35 @@ class _ProfileInfoTabState extends State<ProfileInfoTab> {
     }
   }
 
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: const Color(0xFF00D4FF), size: 24),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(color: Colors.white54, fontSize: 13),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(color: Colors.white, fontSize: 15),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _handleLogout() async {
     if (_isLoggingOut) return;
     setState(() => _isLoggingOut = true);
@@ -117,26 +146,26 @@ class _ProfileInfoTabState extends State<ProfileInfoTab> {
               ),
               const SizedBox(height: 24),
 
-              // Bio
-              if (user.biography != null && user.biography!.isNotEmpty) ...[
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    user.biography!,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                      height: 1.5,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
+              // Información estructurada
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                 ),
-                const SizedBox(height: 32),
-              ],
+                child: Column(
+                  children: [
+                    _buildInfoRow(Icons.email_outlined, 'Correo electrónico', user.email),
+                    const Divider(color: Colors.white12, height: 1),
+                    _buildInfoRow(Icons.calendar_today_outlined, 'Miembro desde', '${user.createdAt.day.toString().padLeft(2, '0')}/${user.createdAt.month.toString().padLeft(2, '0')}/${user.createdAt.year}'),
+                    if (user.biography != null && user.biography!.isNotEmpty) ...[
+                      const Divider(color: Colors.white12, height: 1),
+                      _buildInfoRow(Icons.info_outline_rounded, 'Biografía', user.biography!),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
 
               // Botón Editar Perfil
               GradientButton(
