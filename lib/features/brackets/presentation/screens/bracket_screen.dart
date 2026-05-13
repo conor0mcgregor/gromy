@@ -107,7 +107,6 @@ class _BracketScreenState extends State<BracketScreen> {
       ),
       centerTitle: true,
       actions: [
-        if (widget.isAdmin) ...[_buildAdminActions(), const SizedBox(width: 8)],
         // Botón de reset zoom
         IconButton(
           icon: Container(
@@ -222,6 +221,10 @@ class _BracketScreenState extends State<BracketScreen> {
         // Padding top para AppBar
         SizedBox(height: MediaQuery.of(context).padding.top + kToolbarHeight),
 
+
+        _buildAdminActions(),
+        const SizedBox(height: 8),
+
         // Status badge (admin)
         if (isAdmin && _adminController?.activeBracket != null)
           _buildStatusBadge(),
@@ -258,24 +261,9 @@ class _BracketScreenState extends State<BracketScreen> {
 
   // ── Acciones admin ────────────────────────────────────────────────────
 
+
   Widget _buildAdminActions() {
     return PopupMenuButton<String>(
-      icon: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
-          border: Border.all(
-            color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
-          ),
-        ),
-        child: const Icon(
-          Icons.admin_panel_settings_rounded,
-          size: 16,
-          color: Color(0xFFF59E0B),
-        ),
-      ),
       color: const Color(0xFF1E293B),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
@@ -303,18 +291,52 @@ class _BracketScreenState extends State<BracketScreen> {
             final confirm = await _showConfirmDialog(
               title: '¿Regenerar bracket?',
               message:
-                  'Se eliminarán todos los matches actuales y se generará un nuevo bracket.',
+              'Se eliminarán todos los matches actuales y se generará un nuevo bracket.',
             );
             if (confirm) _adminController!.regenerateBracket();
           case 'publish':
             final confirm = await _showConfirmDialog(
               title: '¿Publicar bracket?',
               message:
-                  'Una vez publicado, no se podrá regenerar. Los participantes serán notificados.',
+              'Una vez publicado, no se podrá regenerar. Los participantes serán notificados.',
             );
             if (confirm) _adminController!.publishBracket();
         }
       },
+      // AQUÍ ESTÁ EL CAMBIO
+      child: Container(
+        // Añadimos margen horizontal para separarlo de los bordes del móvil
+        margin: const EdgeInsets.symmetric(horizontal: 18),
+        width: double.infinity,
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: 50),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+          border: Border.all(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+          ),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.admin_panel_settings_rounded,
+              size: 16,
+              color: Color(0xFFF59E0B),
+            ),
+            SizedBox(width: 10),
+            Text(
+              'Administrar',
+              style: TextStyle(
+                color: Color(0xFFF59E0B),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        )
+      ),
     );
   }
 
