@@ -56,10 +56,12 @@ class NotificationNavigationHandler {
   }
 
   /// Navega a la ruta especificada en la notificación.
-  ///
-  /// Retorna `true` si se encontró un handler para la ruta, `false` si no.
   bool navigate(BuildContext context, AppNotification notification) {
-    final route = notification.actionRoute;
+    return navigateFromRouteAndData(context, notification.actionRoute, notification.data);
+  }
+
+  /// Navega usando directamente la ruta y los datos (útil para push notifications).
+  bool navigateFromRouteAndData(BuildContext context, String? route, Map<String, dynamic> data) {
     if (route == null || route.isEmpty) return false;
 
     final handler = _routes[route];
@@ -70,7 +72,7 @@ class NotificationNavigationHandler {
       return false;
     }
 
-    handler(context, notification.data);
+    handler(context, data);
     return true;
   }
 

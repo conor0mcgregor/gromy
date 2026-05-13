@@ -3,6 +3,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 
+import '../../presentation/navigation/notification_navigation_handler.dart';
+
+
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Manejo de notificaciones en background. No requiere inicializar UI.
@@ -112,10 +115,27 @@ class PushNotificationService {
   }
 
   void _navigateFromPayload(Map<String, dynamic> data) {
-    final route = data['actionRoute'];
-    if (route != null && route is String) {
+    final route = data['actionRoute']?.toString();
+    final context = navigatorKey.currentContext;
+
+    if (context != null && route != null && route.isNotEmpty) {
       debugPrint('[PushNotificationService] Navegando a: $route');
-      navigatorKey.currentState?.pushNamed(route, arguments: data);
+      
+      Map<String, dynamic> parsedData = data;
+      if (data.containsKey('data') && data['data'] is String) {
+        try {
+          parsedData = jsonDecode(data['data'] as String) as Map<String, dynamic>;
+        } catch (e) {
+          debugPrint('[PushNotificationService] Error decodificando data: $e');
+        }
+      }
+
+      final handled = NotificationNavigationHandler.instance.navigateFromRouteAndData(context, route, parsedData);
+      if (!handled) {
+        debugPrint('[PushNotificationService] Ningún handler registrado para la ruta: $route');
+      }
+    } else {
+      debugPrint('[PushNotificationService] No se puede navegar: Contexto o ruta nula. Ruta: $route');
     }
   }
 }

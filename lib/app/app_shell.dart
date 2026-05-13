@@ -106,40 +106,45 @@ class _AppShellState extends State<AppShell> {
           ),
         ],
       ),
-      bottomNavigationBar: TourneyNavBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        items:  [
-          const NavItem(
-            icon: MyFlutterApp.logo_gromy,
-            activeIcon: MyFlutterApp.logo_gromy,
-            iconSize: 24,
-            scale: 2.5,
-            label: 'Inicio',
-          ),
-          const NavItem(
-            icon: Icons.calendar_today_outlined,
-            activeIcon: Icons.calendar_month_rounded,
-            label: 'Eventos',
-          ),
-          const NavItem(
-            icon: Icons.emoji_events_outlined,
-            activeIcon: IconPack1.trophy_1,
-            label: 'mis torneos',
-            isCentral: false,
-          ),
-          NavItem(
-            icon: Icons.notifications_outlined,
-            activeIcon: Icons.notifications_rounded,
-            label: 'Alertas',
-            badgeCount: _controllerNotifications.unreadCount,
-          ),
-          const NavItem(
-            icon: Icons.person_outline_rounded,
-            activeIcon: Icons.person_rounded,
-            label: 'Perfil',
-          ),
-        ],
+      bottomNavigationBar: ListenableBuilder(
+        listenable: _controllerNotifications,
+        builder: (context, _) {
+          return TourneyNavBar(
+            currentIndex: _currentIndex,
+            onTap: (index) => setState(() => _currentIndex = index),
+            items: [
+              const NavItem(
+                icon: MyFlutterApp.logo_gromy,
+                activeIcon: MyFlutterApp.logo_gromy,
+                iconSize: 24,
+                scale: 2.5,
+                label: 'Inicio',
+              ),
+              const NavItem(
+                icon: Icons.calendar_today_outlined,
+                activeIcon: Icons.calendar_month_rounded,
+                label: 'Eventos',
+              ),
+              const NavItem(
+                icon: Icons.emoji_events_outlined,
+                activeIcon: IconPack1.trophy_1,
+                label: 'mis torneos',
+                isCentral: false,
+              ),
+              NavItem(
+                icon: Icons.notifications_outlined,
+                activeIcon: Icons.notifications_rounded,
+                label: 'Alertas',
+                badgeCount: _controllerNotifications.unreadCount,
+              ),
+              const NavItem(
+                icon: Icons.person_outline_rounded,
+                activeIcon: Icons.person_rounded,
+                label: 'Perfil',
+              ),
+            ],
+          );
+        },
       ),
     );
   }

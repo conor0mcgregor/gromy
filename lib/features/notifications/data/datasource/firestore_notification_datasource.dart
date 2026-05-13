@@ -50,7 +50,9 @@ class FirestoreNotificationDatasource implements NotificationDatasource {
       final list = <AppNotification>[];
       for (final doc in snapshot.docs) {
         try {
-          list.add(NotificationModel.fromMap(doc.data()));
+          final data = doc.data();
+          data['id'] = doc.id;
+          list.add(NotificationModel.fromMap(data));
         } catch (e) {
           // Ignorar documentos con formato incorrecto para no romper el stream.
           print('Error mapeando notificación: $e');

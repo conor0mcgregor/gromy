@@ -31,6 +31,9 @@ class FcmTokenService {
   final FirebaseMessaging _messaging;
   final FirebaseAuth _auth;
 
+  static const String _vapidKey =
+      'BHBiYVGaO-mvQYnxHXYZTzyetr-eb4tOnxD4tyzTtppiibxgTzG3CK2KemNr95mcQd6niY-Br674rBzvCPAaxUs';
+
   StreamSubscription<String>? _tokenRefreshSub;
   StreamSubscription<User?>? _authStateSub;
   bool _initialized = false;
@@ -49,7 +52,10 @@ class FcmTokenService {
 
   Future<void> removeCurrentToken() async {
     final userId = _lastSyncedUserId ?? _auth.currentUser?.uid;
-    final token = _lastKnownToken ?? await _messaging.getToken();
+    final token = _lastKnownToken ??
+        await _messaging.getToken(
+          vapidKey: kIsWeb ? _vapidKey : null,
+        );
     if (userId == null || token == null) return;
 
     try {
@@ -61,7 +67,9 @@ class FcmTokenService {
   }
 
   Future<void> _syncCurrentSession() async {
-    final token = await _messaging.getToken();
+    final token = await _messaging.getToken(
+      vapidKey: kIsWeb ? _vapidKey : null,
+    );
     if (token == null) {
       debugPrint('[FcmTokenService] No FCM token available on startup.');
       return;
@@ -80,7 +88,10 @@ class FcmTokenService {
   }
 
   Future<void> _handleAuthStateChanged(User? user) async {
-    final token = _lastKnownToken ?? await _messaging.getToken();
+    final token = _lastKnownToken ??
+        await _messaging.getToken(
+          vapidKey: kIsWeb ? _vapidKey : null,
+        );
     if (token == null) return;
 
     if (_lastSyncedUserId != null && _lastSyncedUserId != user?.uid) {
