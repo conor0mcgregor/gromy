@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:gromy/features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:gromy/features/auth/presentation/screens/register_screen.dart';
 
 import '../controllers/auth_controller.dart';
@@ -300,7 +301,13 @@ class _LoginScreenState extends State<LoginScreen>
                                 Align(
                                   alignment: Alignment.centerRight,
                                   child: TextButton(
-                                    onPressed: () {},
+                                    onPressed: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            const ForgotPasswordScreen(),
+                                      ),
+                                    ),
                                     style: TextButton.styleFrom(
                                       padding: EdgeInsets.zero,
                                       minimumSize: Size.zero,

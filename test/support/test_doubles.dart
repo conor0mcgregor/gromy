@@ -12,6 +12,7 @@ typedef EmailAuthHandler =
 Future<AuthResult> Function(String email, String password);
 typedef SocialAuthHandler = Future<AuthResult> Function();
 typedef SignOutHandler = Future<void> Function();
+typedef SendPasswordResetHandler = Future<AuthSuccess> Function(String email);
 typedef NicknameAvailabilityHandler = Future<bool> Function(String nickname);
 typedef CreateUserHandler = Future<void> Function(AppUser user);
 typedef GetUserHandler = Future<AppUser?> Function(String uid);
@@ -36,6 +37,7 @@ class FakeAuthRepository implements AuthRepository {
     this.onSignInWithGoogle,
     this.onSignInWithApple,
     this.onSignOut,
+    this.onSendPasswordResetEmail,
   });
 
   final EmailAuthHandler? onSignInWithEmail;
@@ -43,15 +45,18 @@ class FakeAuthRepository implements AuthRepository {
   final SocialAuthHandler? onSignInWithGoogle;
   final SocialAuthHandler? onSignInWithApple;
   final SignOutHandler? onSignOut;
+  final SendPasswordResetHandler? onSendPasswordResetEmail;
 
   int signInWithEmailCalls = 0;
   int registerWithEmailCalls = 0;
   int signInWithGoogleCalls = 0;
   int signInWithAppleCalls = 0;
   int signOutCalls = 0;
+  int sendPasswordResetEmailCalls = 0;
 
   String? lastEmail;
   String? lastPassword;
+  String? lastPasswordResetEmail;
 
   @override
   Future<AuthResult> signInWithEmail(String email, String password) async {
@@ -85,6 +90,13 @@ class FakeAuthRepository implements AuthRepository {
   Future<void> signOut() async {
     signOutCalls++;
     await (onSignOut?.call() ?? Future<void>.value());
+  }
+
+  @override
+  Future<AuthSuccess> sendPasswordResetEmail(String email) async {
+    sendPasswordResetEmailCalls++;
+    lastPasswordResetEmail = email;
+    return onSendPasswordResetEmail?.call(email) ?? AuthSuccess();
   }
 }
 

@@ -20,4 +20,10 @@ abstract interface class AuthRepository {
 
   /// Cierra la sesión del usuario actual.
   Future<void> signOut();
+
+  /// Solicita un correo de recuperación de contraseña para [email].
+  ///
+  /// Siempre devuelve [AuthSuccess] independientemente de si el correo existe
+  /// en el sistema, para no revelar información de enumeración de cuentas.
+  Future<AuthSuccess> sendPasswordResetEmail(String email);
 }
