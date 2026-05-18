@@ -9,6 +9,7 @@ import '../../data/services/firestore_bracket_service.dart';
 import '../../domain/use_cases/generate_bracket_use_case.dart';
 import '../../domain/use_cases/publish_bracket_use_case.dart';
 import '../../domain/use_cases/record_match_result_use_case.dart';
+import '../../domain/use_cases/swap_participants_use_case.dart';
 import '../../domain/use_cases/watch_bracket_use_case.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -24,6 +25,28 @@ import '../../domain/use_cases/watch_bracket_use_case.dart';
 
 enum BracketAdminState { idle, loading, generating, publishing, saving, error }
 
+/// Datos del slot que se está arrastrando actualmente.
+class DragSlotData {
+  const DragSlotData({
+    required this.match,
+    required this.slot,
+  });
+
+  final AppMatch match;
+
+  /// 1 = participante superior, 2 = participante inferior.
+  final int slot;
+
+  String? get participantId =>
+      slot == 1 ? match.participant1Id : match.participant2Id;
+
+  String? get participantName =>
+      slot == 1 ? match.participant1Name : match.participant2Name;
+
+  String? get participantPhotoUrl =>
+      slot == 1 ? match.participant1PhotoUrl : match.participant2PhotoUrl;
+}
+
 class BracketAdminController extends ChangeNotifier {
   BracketAdminController({
     required this.tournamentId,
@@ -33,6 +56,7 @@ class BracketAdminController extends ChangeNotifier {
     _publishUseCase = PublishBracketUseCase(_repository);
     _recordResultUseCase = RecordMatchResultUseCase(_repository);
     _watchUseCase = WatchBracketUseCase(_repository);
+    _swapUseCase = SwapParticipantsUseCase(_repository);
     _initBracketsStream();
   }
 
@@ -42,6 +66,7 @@ class BracketAdminController extends ChangeNotifier {
   late final PublishBracketUseCase _publishUseCase;
   late final RecordMatchResultUseCase _recordResultUseCase;
   late final WatchBracketUseCase _watchUseCase;
+  late final SwapParticipantsUseCase _swapUseCase;
 
   // ── Estado ──────────────────────────────────────────────────────────────
 
@@ -65,6 +90,28 @@ class BracketAdminController extends ChangeNotifier {
   /// Matches del bracket activo.
   List<AppMatch> _matches = [];
   List<AppMatch> get matches => _matches;
+
+  // ── Estado drag & drop ─────────────────────────────────────────────────
+
+  /// Slot que se está arrastrando actualmente (null = sin drag activo).
+  DragSlotData? _activeDrag;
+  DragSlotData? get activeDrag => _activeDrag;
+
+  bool get isDragging => _activeDrag != null;
+
+  void onDragStarted(AppMatch match, int slot) {
+    _activeDrag = DragSlotData(match: match, slot: slot);
+    notifyListeners();
+  }
+
+  void onDragEnded() {
+    if (_activeDrag != null) {
+      _activeDrag = null;
+      notifyListeners();
+    }
+  }
+
+  // ── Matches organizados por round ────────────────────────────────────────
 
   /// Matches organizados por round.
   Map<int, List<AppMatch>> get matchesByRound {
@@ -281,7 +328,56 @@ class BracketAdminController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Intercambia participantes via drag & drop (solo en draft).
+  /// Valida localmente antes de llamar al backend.
+  /// Devuelve [null] si el intercambio fue exitoso, o un mensaje de error.
+  Future<String?> swapParticipantsDragDrop({
+    required AppMatch sourceMatch,
+    required int sourceSlot,
+    required AppMatch targetMatch,
+    required int targetSlot,
+  }) async {
+    if (_activeBracket == null) return 'Bracket no encontrado.';
+
+    // Validación en cliente
+    final validation = _swapUseCase.validate(
+      bracket: _activeBracket!,
+      sourceMatch: sourceMatch,
+      sourceSlot: sourceSlot,
+      targetMatch: targetMatch,
+      targetSlot: targetSlot,
+    );
+
+    if (validation is SwapInvalid) {
+      return validation.reason;
+    }
+
+    _state = BracketAdminState.saving;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _swapUseCase(
+        bracketId: _activeBracket!.id,
+        matchId1: sourceMatch.id,
+        slotInMatch1: sourceSlot,
+        matchId2: targetMatch.id,
+        slotInMatch2: targetSlot,
+      );
+      _successMessage = 'Participantes intercambiados.';
+      _state = BracketAdminState.idle;
+      notifyListeners();
+      return null; // éxito
+    } catch (e) {
+      _state = BracketAdminState.error;
+      _errorMessage = _extractErrorMessage(e);
+      notifyListeners();
+      return _errorMessage;
+    }
+  }
+
   /// Intercambia participantes entre dos slots (solo en draft).
+  /// Mantiene compatibilidad con el sistema anterior.
   Future<void> swapParticipants({
     required String matchId1,
     required int slotInMatch1,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/models/app_match.dart';
 import 'bracket_connector_painter.dart';
+import 'draggable_match_card.dart';
 import 'match_card.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -13,6 +14,9 @@ import 'match_card.dart';
 //
 //  Se usa dentro de un InteractiveViewer con constrained: false
 //  para permitir zoom y paneo libre.
+//
+//  En modo admin draft → usa DraggableMatchCard con drag & drop.
+//  En otros modos → usa MatchCard estático (sin overhead de drag).
 // ─────────────────────────────────────────────────────────────────────────────
 
 class BracketBoard extends StatelessWidget {
@@ -22,7 +26,10 @@ class BracketBoard extends StatelessWidget {
     required this.totalRounds,
     required this.roundNameBuilder,
     this.isAdmin = false,
+    this.isDraftMode = false,
+    this.isDraggingAny = false,
     this.onMatchTap,
+    this.onParticipantDropped,
     this.matchCardWidth = 220,
   });
 
@@ -38,8 +45,24 @@ class BracketBoard extends StatelessWidget {
   /// Modo admin (permite edición).
   final bool isAdmin;
 
+  /// True cuando el bracket está en borrador (habilita drag & drop).
+  final bool isDraftMode;
+
+  /// True cuando hay un drag activo (para atenuar otras cards).
+  final bool isDraggingAny;
+
   /// Callback al tocar un match.
   final void Function(AppMatch match)? onMatchTap;
+
+  /// Callback cuando un participante es soltado en un slot.
+  /// [source] → datos del participante arrastrado.
+  /// [targetMatch] → match destino.
+  /// [targetSlot] → 1 (superior) o 2 (inferior).
+  final void Function(
+    ParticipantDragData source,
+    AppMatch targetMatch,
+    int targetSlot,
+  )? onParticipantDropped;
 
   /// Ancho de cada match card.
   final double matchCardWidth;
@@ -114,8 +137,8 @@ class BracketBoard extends StatelessWidget {
     return Size(totalWidth, totalHeight.clamp(400, double.infinity));
   }
 
-  Map<String, Offset> _calculatePositions() {
-    final positions = <String, Offset>{};
+  Map<String, Rect> _calculatePositions() {
+    final positions = <String, Rect>{};
 
     for (int round = 0; round < totalRounds; round++) {
       final matches = matchesByRound[round] ?? [];
@@ -152,10 +175,7 @@ class BracketBoard extends StatelessWidget {
               _matchCardHeight / 2;
         }
 
-        // Posición central para las líneas conectoras
-        final centerX = x + matchCardWidth / 2;
-        final centerY = y + _matchCardHeight / 2;
-        positions[match.id] = Offset(centerX, centerY);
+        positions[match.id] = Rect.fromLTWH(x, y, matchCardWidth, _matchCardHeight);
       }
     }
 
@@ -237,7 +257,7 @@ class BracketBoard extends StatelessWidget {
     return headers;
   }
 
-  List<Widget> _buildMatchCards(Map<String, Offset> positions) {
+  List<Widget> _buildMatchCards(Map<String, Rect> positions) {
     final cards = <Widget>[];
 
     for (int round = 0; round < totalRounds; round++) {
@@ -270,16 +290,33 @@ class BracketBoard extends StatelessWidget {
               _matchCardHeight / 2;
         }
 
+        // En modo admin draft primera ronda → DraggableMatchCard
+        // En los demás casos → MatchCard estático
+        final useDrag = isAdmin && isDraftMode && round == 0;
+
         cards.add(
           Positioned(
             left: x,
             top: y,
-            child: MatchCard(
-              match: match,
-              isAdmin: isAdmin,
-              width: matchCardWidth,
-              onTap: onMatchTap != null ? () => onMatchTap!(match) : null,
-            ),
+            child: useDrag
+                ? DraggableMatchCard(
+                    key: ValueKey('dmc_${match.id}'),
+                    match: match,
+                    isDraftMode: isDraftMode,
+                    isDraggingAny: isDraggingAny,
+                    width: matchCardWidth,
+                    onTap: () => onMatchTap?.call(match),
+                    onDropped: (source, targetSlot) {
+                      onParticipantDropped?.call(source, match, targetSlot);
+                    },
+                  )
+                : MatchCard(
+                    key: ValueKey('mc_${match.id}'),
+                    match: match,
+                    isAdmin: isAdmin,
+                    width: matchCardWidth,
+                    onTap: onMatchTap != null ? () => onMatchTap!(match) : null,
+                  ),
           ),
         );
       }
