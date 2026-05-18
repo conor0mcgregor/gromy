@@ -1048,6 +1048,36 @@ class _StickyEnrollBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isFull = tournament.participantCount >= tournament.maxParticipants;
+    final isRegistrationClosed = tournament.isRegistrationClosed;
+    final needsApproval = tournament.requiresApproval;
+
+    // Determinar label e icono según el estado del torneo.
+    final String label;
+    final IconData icon;
+    final GradientButtonVariant variant;
+    final bool disabled;
+
+    if (isFull) {
+      label = 'Torneo completo';
+      icon = Icons.block_rounded;
+      variant = GradientButtonVariant.sunset;
+      disabled = true;
+    } else if (isRegistrationClosed) {
+      label = 'Inscripción cerrada';
+      icon = Icons.lock_clock_rounded;
+      variant = GradientButtonVariant.sunset;
+      disabled = true;
+    } else if (needsApproval) {
+      label = 'Solicitar inscripción';
+      icon = Icons.send_rounded;
+      variant = GradientButtonVariant.ocean;
+      disabled = false;
+    } else {
+      label = 'Inscribirse al torneo';
+      icon = Icons.how_to_reg_rounded;
+      variant = GradientButtonVariant.violet;
+      disabled = false;
+    }
 
     return Container(
       padding: EdgeInsets.only(
@@ -1074,9 +1104,9 @@ class _StickyEnrollBar extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: GradientButton(
-          label: isFull ? 'Torneo completo' : 'Inscribirse al torneo',
-          icon: isFull ? Icons.block_rounded : Icons.how_to_reg_rounded,
-          onPressed: isFull
+          label: label,
+          icon: icon,
+          onPressed: disabled
               ? null
               : () => Navigator.push(
                     context,
@@ -1085,9 +1115,7 @@ class _StickyEnrollBar extends StatelessWidget {
                           InscriptionScreen(tournament: tournament),
                     ),
                   ),
-          variant: isFull
-              ? GradientButtonVariant.sunset
-              : GradientButtonVariant.violet,
+          variant: variant,
           size: GradientButtonSize.large,
         ),
       ),

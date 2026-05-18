@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 
+import '../../../../features/inscription/domain/models/registration_response.dart';
 import '../models/app_participant.dart';
 import '../repositories/participant_repository.dart';
 
@@ -46,6 +47,10 @@ class FirestoreParticipantService implements ParticipantRepository {
     required ParticipantEntityType entityType,
     ParticipantStatus status = ParticipantStatus.pending,
     String? categoryId,
+    List<RegistrationResponse> responses = const [],
+    int? registrationFormVersion,
+    String? approvedBy,
+    String? source,
   }) async {
     // Impide inscripciones duplicadas.
     final alreadyEnrolled = await isEnrolled(
@@ -69,6 +74,10 @@ class FirestoreParticipantService implements ParticipantRepository {
       enrolledAt: DateTime.now(),
       status: status,
       categoryId: categoryId,
+      responses: responses,
+      registrationFormVersion: registrationFormVersion,
+      approvedBy: approvedBy,
+      source: source,
     );
 
     await docRef
@@ -110,6 +119,21 @@ class FirestoreParticipantService implements ParticipantRepository {
   }
 
   @override
+  Future<AppParticipant?> getParticipantByEntity({
+    required String tournamentId,
+    required String entityId,
+  }) async {
+    final snapshot = await _participantsRef(tournamentId)
+        .where('entityId', isEqualTo: entityId)
+        .limit(1)
+        .get()
+        .timeout(const Duration(seconds: 10));
+
+    if (snapshot.docs.isEmpty) return null;
+    return AppParticipant.fromMap(snapshot.docs.first.data());
+  }
+
+  @override
   Future<void> updateStatus({
     required String tournamentId,
     required String participantId,
@@ -117,7 +141,21 @@ class FirestoreParticipantService implements ParticipantRepository {
   }) async {
     await _participantsRef(tournamentId)
         .doc(participantId)
-        .update({'status': status.name}).timeout(const Duration(seconds: 10));
+        .update({
+      'status': status.name,
+      'updatedAt': Timestamp.fromDate(DateTime.now()),
+    }).timeout(const Duration(seconds: 10));
+  }
+
+  @override
+  Future<void> updateParticipant({
+    required String tournamentId,
+    required AppParticipant participant,
+  }) async {
+    await _participantsRef(tournamentId)
+        .doc(participant.id)
+        .update(participant.toMap())
+        .timeout(const Duration(seconds: 10));
   }
 
   @override

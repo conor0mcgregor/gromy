@@ -1,4 +1,5 @@
 import '../models/app_participant.dart';
+import '../../../../features/inscription/domain/models/registration_response.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  ParticipantRepository  ·  Contrato de dominio
@@ -20,6 +21,10 @@ abstract interface class ParticipantRepository {
     required ParticipantEntityType entityType,
     ParticipantStatus status,
     String? categoryId,
+    List<RegistrationResponse> responses,
+    int? registrationFormVersion,
+    String? approvedBy,
+    String? source,
   });
 
   /// Devuelve un stream en tiempo real con todos los participantes del torneo.
@@ -28,11 +33,23 @@ abstract interface class ParticipantRepository {
   /// Obtiene la lista de participantes una sola vez (lectura puntual).
   Future<List<AppParticipant>> getParticipants(String tournamentId);
 
+  /// Obtiene un participante por su entityId dentro de un torneo.
+  Future<AppParticipant?> getParticipantByEntity({
+    required String tournamentId,
+    required String entityId,
+  });
+
   /// Actualiza el estado de la inscripción de un participante.
   Future<void> updateStatus({
     required String tournamentId,
     required String participantId,
     required ParticipantStatus status,
+  });
+
+  /// Actualiza todos los campos de un participante.
+  Future<void> updateParticipant({
+    required String tournamentId,
+    required AppParticipant participant,
   });
 
   /// Cancela la inscripción de una entidad en el torneo.

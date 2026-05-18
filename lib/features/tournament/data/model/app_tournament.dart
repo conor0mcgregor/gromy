@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../../features/inscription/domain/models/registration_form_schema.dart';
 import 'enums_tournament.dart';
 
 class AppTournament {
@@ -31,6 +32,7 @@ class AppTournament {
     this.contactPhone,
     this.contactLinks = const [],
     this.categories = const [],
+    this.registrationForm,
   });
 
   final String id;
@@ -75,6 +77,30 @@ class AppTournament {
   /// Categorías opcionales del torneo (ej. 'Sub-18', 'Femenino', 'Amateur').
   final List<String> categories;
 
+  /// Esquema versionado de campos adicionales de inscripción.
+  final RegistrationFormSchema? registrationForm;
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  /// Indica si el torneo requiere aprobación manual de inscripciones.
+  bool get requiresApproval =>
+      accessType == TournamentAccessType.publicClosed ||
+      accessType == TournamentAccessType.privateInviteOnly;
+
+  /// Indica si el torneo ya ha comenzado.
+  bool get hasStarted => DateTime.now().isAfter(scheduledAt);
+
+  /// Indica si el plazo de inscripción ha finalizado.
+  bool get isRegistrationClosed =>
+      registrationDeadline != null &&
+      DateTime.now().isAfter(registrationDeadline!);
+
+  /// Indica si el aforo está lleno.
+  bool get isFull => participantCount >= maxParticipants;
+
+  /// Indica si el torneo tiene campos adicionales de inscripción.
+  bool get hasRegistrationForm =>
+      registrationForm != null && registrationForm!.hasActiveFields;
 
   Map<String, dynamic> toMap() {
     return {
@@ -107,6 +133,7 @@ class AppTournament {
       'contactPhone': contactPhone,
       'contactLinks': contactLinks,
       'categories': categories,
+      'registrationForm': registrationForm?.toMap(),
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -149,6 +176,11 @@ class AppTournament {
           (map['categories'] as List<dynamic>? ?? const <dynamic>[])
               .map((value) => value.toString())
               .toList(),
+      registrationForm: map['registrationForm'] != null
+          ? RegistrationFormSchema.fromMap(
+              map['registrationForm'] as Map<String, dynamic>,
+            )
+          : null,
       createdAt: _dateFromValue(map['createdAt']),
       updatedAt: _dateFromValue(map['updatedAt']),
     );
@@ -182,6 +214,7 @@ class AppTournament {
     String? contactPhone,
     List<String>? contactLinks,
     List<String>? categories,
+    RegistrationFormSchema? registrationForm,
   }) {
     return AppTournament(
       id: id ?? this.id,
@@ -211,6 +244,7 @@ class AppTournament {
       contactPhone: contactPhone ?? this.contactPhone,
       contactLinks: contactLinks ?? this.contactLinks,
       categories: categories ?? this.categories,
+      registrationForm: registrationForm ?? this.registrationForm,
     );
   }
 

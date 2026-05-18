@@ -5,7 +5,12 @@ import 'package:intl/intl.dart';
 import '../../data/model/app_tournament.dart';
 import '../../data/model/enums_tournament.dart';
 import '../../../../core/getColors/getter_colors.dart';
-import '../../../../core/widgets/gradient_button.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+import '../../../../database/participant/services/firestore_participant_service.dart';
+import '../../../../features/inscription/presentation/screens/join_requests_screen.dart';
+import '../../../../features/inscription/presentation/screens/edit_inscription_screen.dart';
+import '../../../../features/inscription/data/services/firestore_join_request_service.dart';
 
 // Reutilizamos InfoSection e InfoField de step7_review
 import '../../presentation/screens/form/steps/step7_review.dart';
@@ -270,6 +275,10 @@ class _TournamentDetailsState extends State<TournamentDetails>
                 location: t.location,
                 primaryColor: primaryColor,
               ),
+              const SizedBox(height: 16),
+
+              // ── 10. Acciones del organizador / participante ───────
+              _TournamentActions(tournament: t),
               const SizedBox(height: 28),
             ],
           ),
@@ -411,41 +420,153 @@ class _CoverHero extends StatelessWidget {
 }
 
 // ════════════════════════════════════════════════════════════════
-//  WIDGET: CTA Buttons
+//  WIDGET: Tournament Actions (organizer + participant)
 // ════════════════════════════════════════════════════════════════
 
-class _CtaButtons extends StatelessWidget {
-  const _CtaButtons({
-    this.onRegisterPressed,
-    this.onMoreInfoPressed,
-  });
-
-  final VoidCallback? onRegisterPressed;
-  final VoidCallback? onMoreInfoPressed;
+class _TournamentActions extends StatelessWidget {
+  const _TournamentActions({required this.tournament});
+  final AppTournament tournament;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        if (onRegisterPressed != null)
-          GradientButton(
-            label: 'Inscribirse al torneo',
-            icon: Icons.emoji_events_rounded,
-            onPressed: onRegisterPressed,
-            variant: GradientButtonVariant.violet,
-            size: GradientButtonSize.large,
-          ),
-        if (onRegisterPressed != null && onMoreInfoPressed != null)
-          const SizedBox(height: 12),
-        if (onMoreInfoPressed != null)
-          GradientButton(
-            label: 'Ver más información',
-            icon: Icons.info_outline_rounded,
-            onPressed: onMoreInfoPressed,
-            variant: GradientButtonVariant.ocean,
-            size: GradientButtonSize.medium,
-          ),
-      ],
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return const SizedBox.shrink();
+
+    final isOrganizer = tournament.organizerUid == uid ||
+        tournament.adminIds.contains(uid);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // ── Organizer: view join requests ──
+          if (isOrganizer && tournament.requiresApproval) ...[
+            _ActionTile(
+              icon: Icons.how_to_reg_rounded,
+              label: 'Solicitudes de inscripción',
+              subtitle: 'Revisar y aprobar solicitudes pendientes',
+              accentColor: const Color(0xFFFFB347),
+              showBadge: true,
+              tournamentId: tournament.id,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => JoinRequestsScreen(
+                    tournament: tournament,
+                    currentUserId: uid,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+
+          // ── Participant: edit inscription ──
+          if (!isOrganizer) ...[
+            FutureBuilder(
+              future: FirestoreParticipantService().getParticipantByEntity(
+                tournamentId: tournament.id,
+                entityId: uid,
+              ),
+              builder: (context, snapshot) {
+                final participant = snapshot.data;
+                if (participant == null) return const SizedBox.shrink();
+
+                return _ActionTile(
+                  icon: Icons.edit_note_rounded,
+                  label: 'Editar mi inscripción',
+                  subtitle: 'Modificar datos o categoría',
+                  accentColor: const Color(0xFF6C63FF),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => EditInscriptionScreen(
+                        tournament: tournament,
+                        participant: participant,
+                        currentUserId: uid,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionTile extends StatelessWidget {
+  const _ActionTile({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.accentColor,
+    required this.onTap,
+    this.showBadge = false,
+    this.tournamentId,
+  });
+
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final Color accentColor;
+  final VoidCallback onTap;
+  final bool showBadge;
+  final String? tournamentId;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: accentColor.withValues(alpha: 0.06),
+          border: Border.all(color: accentColor.withValues(alpha: 0.15)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40, height: 40,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: accentColor.withValues(alpha: 0.15),
+              ),
+              child: Icon(icon, color: accentColor, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 2),
+                Text(subtitle, style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12)),
+              ],
+            )),
+            // Badge for pending count
+            if (showBadge && tournamentId != null)
+              FutureBuilder<int>(
+                future: FirestoreJoinRequestService().getPendingCount(tournamentId!),
+                builder: (context, snap) {
+                  final count = snap.data ?? 0;
+                  if (count == 0) return const SizedBox.shrink();
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(999),
+                      color: accentColor.withValues(alpha: 0.2),
+                    ),
+                    child: Text('$count', style: TextStyle(color: accentColor, fontSize: 12, fontWeight: FontWeight.w800)),
+                  );
+                },
+              ),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right_rounded, color: Colors.white.withValues(alpha: 0.3), size: 20),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -1,7 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../account/presentation/screens/delete_account_screen.dart';
 import 'package:gromy/core/widgets/gradient_button.dart';
+import 'package:gromy/core/getColors/getter_colors.dart';
 
 class ProfileInfoTab extends StatefulWidget {
   const ProfileInfoTab({super.key, required this.authController});
@@ -92,6 +95,48 @@ class _ProfileInfoTabState extends State<ProfileInfoTab> {
               label: _isLoggingOut ? 'Cerrando sesión...' : 'Cerrar sesión',
               isLoading: _isLoggingOut,
               icon: Icons.logout_rounded,
+            ),
+          ),
+          const SizedBox(height: 40),
+          // ── Zona peligrosa ──
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 40),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFFFF4D6A).withValues(alpha: 0.2),
+              ),
+              color: const Color(0xFFFF4D6A).withValues(alpha: 0.05),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  'Zona peligrosa',
+                  style: TextStyle(
+                    color: const Color(0xFFFF4D6A).withValues(alpha: 0.8),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                GradientButton(
+                  onPressed: () {
+                    final uid = FirebaseAuth.instance.currentUser?.uid;
+                    if (uid != null) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => DeleteAccountScreen(userId: uid),
+                        ),
+                      );
+                    }
+                  },
+                  label: 'Eliminar cuenta',
+                  icon: Icons.delete_forever_rounded,
+                  variant: GradientButtonVariant.sunset,
+                  size: GradientButtonSize.small,
+                ),
+              ],
             ),
           ),
         ],

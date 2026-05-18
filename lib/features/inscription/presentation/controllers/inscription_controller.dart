@@ -4,6 +4,9 @@ import '../../../../database/participant/models/app_participant.dart';
 import '../../../../database/team/models/app_team.dart';
 import '../../../../features/tournament/data/model/app_tournament.dart';
 import '../../../../features/user/data/models/app_user.dart';
+import '../../../../core/widgets/registration_form_builder.dart';
+import '../../domain/models/registration_form_schema.dart';
+import '../../domain/models/registration_response.dart';
 import '../../domain/use_cases/enroll_in_tournament_use_case.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -44,6 +47,12 @@ class InscriptionController extends ChangeNotifier {
   String? teamValidationError;
   String? selectedCategoryId;
 
+  // ── Campos adicionales del formulario ──────────────────────────────────────
+  RegistrationFormSchema? get formSchema => tournament.registrationForm;
+  bool get hasRegistrationForm => tournament.hasRegistrationForm;
+  Map<String, dynamic> formResponses = {};
+  Map<String, String> formFieldErrors = {};
+
   // ── Computed ───────────────────────────────────────────────────────────────
 
   bool get isTeamTournament => tournament.membersPerTeam != null && tournament.membersPerTeam! > 0;
@@ -55,7 +64,23 @@ class InscriptionController extends ChangeNotifier {
     if (isTeamTournament && selectedTeam == null) return false;
     if (isTeamTournament && teamValidationError != null) return false;
     if (hasCategories && selectedCategoryId == null) return false;
+    if (formFieldErrors.isNotEmpty) return false;
     return true;
+  }
+
+  // ── Campos adicionales ─────────────────────────────────────────────────────
+
+  void updateFormResponse(String fieldId, dynamic value) {
+    formResponses[fieldId] = value;
+    formFieldErrors.remove(fieldId);
+    notifyListeners();
+  }
+
+  bool validateFormFields() {
+    if (!hasRegistrationForm) return true;
+    formFieldErrors = RegistrationFormBuilder.validateAll(formSchema!, formResponses);
+    notifyListeners();
+    return formFieldErrors.isEmpty;
   }
 
   // ── Inicialización ─────────────────────────────────────────────────────────
@@ -103,6 +128,7 @@ class InscriptionController extends ChangeNotifier {
   // ── Confirmar inscripción ──────────────────────────────────────────────────
 
   Future<AppParticipant?> confirmEnrollment() async {
+    if (!validateFormFields()) return null;
     if (!canSubmit) return null;
 
     submitState = InscriptionSubmitState.submitting;
@@ -115,11 +141,18 @@ class InscriptionController extends ChangeNotifier {
           ? ParticipantEntityType.team
           : ParticipantEntityType.user;
 
+      // Convertir respuestas del formulario.
+      final responses = hasRegistrationForm
+          ? RegistrationFormBuilder.toResponses(formSchema!, formResponses)
+          : <RegistrationResponse>[];
+
       final participant = await _useCase.execute(
         tournament: tournament,
         entityId: entityId,
         entityType: entityType,
         categoryId: selectedCategoryId,
+        responses: responses,
+        registrationFormVersion: formSchema?.version,
       );
 
       submitState = InscriptionSubmitState.success;

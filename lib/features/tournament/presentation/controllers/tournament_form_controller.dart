@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../data/model/enums_tournament.dart';
 import '../../data/services/geocoding_service.dart';
+import '../screens/form/steps/step8_registration_fields.dart';
 
 /// Entrada de administrador: UID + etiqueta visible.
 class FormAdminEntry {
@@ -91,8 +92,11 @@ class TournamentFormController extends ChangeNotifier {
   String? adminError;
   String? contactEmailError;
 
+  // Step 8: Campos adicionales de inscripción
+  final List<RegistrationFieldDraft> registrationFields = [];
+
   // Navegación
-  static const int totalSteps = 9;
+  static const int totalSteps = 10;
   int currentStep = 0;
 
   bool isTeamSport = false;
@@ -143,6 +147,9 @@ class TournamentFormController extends ChangeNotifier {
       case 7:
         return _validateStaff();
       case 8:
+        // Campos adicionales es opcional: siempre se puede avanzar.
+        return true;
+      case 9:
         return true;
       default:
         return true;
@@ -386,6 +393,26 @@ class TournamentFormController extends ChangeNotifier {
   void removeCategory(String name) {
     categories.remove(name);
     notifyListeners();
+  }
+
+  // Campos adicionales de inscripción
+  void addRegistrationField() {
+    registrationFields.add(RegistrationFieldDraft());
+    notifyListeners();
+  }
+
+  void removeRegistrationField(int index) {
+    if (index >= 0 && index < registrationFields.length) {
+      registrationFields.removeAt(index);
+      notifyListeners();
+    }
+  }
+
+  void updateRegistrationField(int index, RegistrationFieldDraft updated) {
+    if (index >= 0 && index < registrationFields.length) {
+      registrationFields[index] = updated;
+      notifyListeners();
+    }
   }
 
   // Helpers

@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../models/registration_response.dart';
 import '../../../../database/participant/models/app_participant.dart';
 import '../../../../database/participant/repositories/participant_repository.dart';
 import '../../../../database/participant/services/firestore_participant_service.dart';
@@ -121,6 +122,8 @@ class EnrollInTournamentUseCase {
     required String entityId,
     required ParticipantEntityType entityType,
     String? categoryId,
+    List<RegistrationResponse> responses = const [],
+    int? registrationFormVersion,
   }) async {
     // 1. Comprobar duplicado antes de llamar a joinTournament.
     final alreadyIn = await _participantRepo.isEnrolled(
@@ -136,13 +139,16 @@ class EnrollInTournamentUseCase {
         ? ParticipantStatus.approved
         : ParticipantStatus.pending;
 
-    // 3. Persistir la inscripción.
+    // 3. Persistir la inscripción con respuestas de campos adicionales.
     final participant = await _participantRepo.joinTournament(
       tournamentId: tournament.id,
       entityId: entityId,
       entityType: entityType,
       status: initialStatus,
       categoryId: categoryId,
+      responses: responses,
+      registrationFormVersion: registrationFormVersion,
+      source: tournament.requiresApproval ? 'pending_request' : 'direct',
     );
 
     // 4. Incrementar el contador de participantes del torneo.

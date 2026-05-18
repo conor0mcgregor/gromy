@@ -6,6 +6,9 @@ import '../../data/model/app_tournament.dart';
 import '../../data/model/enums_tournament.dart';
 import '../../data/repositories/tournament_repository.dart';
 import '../../data/services/firestore_tournament_service.dart';
+import '../../../../features/inscription/domain/models/registration_field.dart';
+import '../../../../features/inscription/domain/models/registration_form_schema.dart';
+import '../screens/form/steps/step8_registration_fields.dart';
 
 /// Controlador de la pantalla de creación de torneos.
 ///
@@ -59,6 +62,7 @@ class CreateTournamentController extends ChangeNotifier {
     String? contactPhone,
     List<String> contactLinks = const [],
     List<String> categories = const [],
+    List<RegistrationFieldDraft> registrationFieldDrafts = const [],
   }) async {
     _setSubmitting(true);
     _clearError();
@@ -136,6 +140,7 @@ class CreateTournamentController extends ChangeNotifier {
         contactPhone: contactPhone?.trim(),
         contactLinks: contactLinks,
         categories: categories,
+        registrationForm: _buildRegistrationForm(registrationFieldDrafts),
         createdAt: now,
         updatedAt: now,
       );
@@ -181,6 +186,34 @@ class CreateTournamentController extends ChangeNotifier {
     if (value == null) return null;
     final trimmed = value.trim();
     return trimmed.isEmpty ? null : trimmed;
+  }
+
+  /// Convierte los drafts del formulario en un [RegistrationFormSchema].
+  /// Devuelve null si no hay campos válidos.
+  RegistrationFormSchema? _buildRegistrationForm(
+    List<RegistrationFieldDraft> drafts,
+  ) {
+    final validDrafts = drafts.where((d) => d.label.trim().isNotEmpty).toList();
+    if (validDrafts.isEmpty) return null;
+
+    final fields = validDrafts.asMap().entries.map((entry) {
+      final i = entry.key;
+      final d = entry.value;
+      return RegistrationField(
+        id: 'field_$i',
+        label: d.label.trim(),
+        type: d.type,
+        required: d.required,
+        order: i,
+        options: d.type.requiresOptions ? d.options : const [],
+      );
+    }).toList();
+
+    return RegistrationFormSchema(
+      version: 1,
+      fields: fields,
+      updatedAt: DateTime.now(),
+    );
   }
 
   void _setSubmitting(bool value) {

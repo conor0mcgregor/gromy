@@ -19,6 +19,7 @@ import 'form/steps/step5_rules.dart';
 import 'form/steps/step6_categories.dart';
 import 'form/steps/step6_staff.dart';
 import 'form/steps/step7_review.dart';
+import 'form/steps/step8_registration_fields.dart';
 
 // Widgets y helpers
 import 'form/widgets/form_helpers.dart';
@@ -205,6 +206,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       contactPhone: _form.contactPhoneController.text.trim(),
       contactLinks: _form.contactLinks,
       categories: _form.categories,
+      registrationFieldDrafts: _form.registrationFields,
     );
 
     if (success) {
@@ -549,7 +551,8 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
                               _buildStepPage(_buildStep5()),
                               _buildStepPage(_buildStep6Categories()),
                               _buildStepPage(_buildStep7Staff()),
-                              _buildStepPage(_buildStep8Review()),
+                              _buildStepPage(_buildStep8RegistrationFields()),
+                              _buildStepPage(_buildStep9Review()),
                             ],
                           ),
                         ),
@@ -588,6 +591,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       'Reglamento',
       'Categorías',
       'Staff y Soporte',
+      'Campos adicionales',
       'Review',
     ];
 
@@ -823,7 +827,14 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     onRemoveContactLink: (i) => setState(() => _form.removeContactLink(i)),
   );
 
-  Widget _buildStep8Review() => Step7Review(
+  Widget _buildStep8RegistrationFields() => Step8RegistrationFields(
+    fields: _form.registrationFields,
+    onAddField: () => setState(() => _form.addRegistrationField()),
+    onRemoveField: (i) => setState(() => _form.removeRegistrationField(i)),
+    onUpdateField: (i, updated) => setState(() => _form.updateRegistrationField(i, updated)),
+  );
+
+  Widget _buildStep9Review() => Step7Review(
     coverBytes: _form.coverBytes,
     name: _form.nameController.text.trim().isEmpty
         ? '—'

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../core/getColors/getter_colors.dart';
 import '../../../core/widgets/bar_small_botton.dart';
 import '../../../core/widgets/gradient_button.dart';
+import '../../../core/widgets/registration_form_builder.dart';
 import '../../../database/team/models/app_team.dart';
 import '../../../features/tournament/data/model/app_tournament.dart';
 import '../../../features/profile/presentation/screens/profile_teams_tab.dart';
@@ -178,9 +179,18 @@ class _InscriptionScreenState extends State<InscriptionScreen> {
                   const SizedBox(height: 28),
                 ],
 
-                const SizedBox(height: 20),
+                // 5. Campos adicionales del formulario
+                if (_ctrl.hasRegistrationForm) ...[
+                  RegistrationFormBuilder(
+                    schema: _ctrl.formSchema!,
+                    responses: _ctrl.formResponses,
+                    onResponseChanged: _ctrl.updateFormResponse,
+                    errors: _ctrl.formFieldErrors,
+                  ),
+                  const SizedBox(height: 20),
+                ],
 
-                // 5. Botón de confirmación (dentro del flujo)
+                // 6. Botón de confirmación (dentro del flujo)
                 _SubmitButton(ctrl: _ctrl),
 
                 SizedBox(height: MediaQuery.of(context).padding.bottom + 40),
