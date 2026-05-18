@@ -25,6 +25,12 @@ service firebase.storage {
       allow delete: if signedIn();
     }
 
+    match /profile_images/{fileName} {
+      allow read: if true;
+      allow create, update: if signedIn() && validImageUpload();
+      allow delete: if signedIn();
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

@@ -17,8 +17,8 @@ class BracketConnectorPainter extends CustomPainter {
     this.completedConnections = const {},
   });
 
-  /// Mapa de matchId → posición central del match card.
-  final Map<String, Offset> matchPositions;
+  /// Mapa de matchId → rectángulo del match card.
+  final Map<String, Rect> matchPositions;
 
   /// Mapa de matchId (padre) → matchId (hijo).
   final Map<String, String> connections;
@@ -41,10 +41,10 @@ class BracketConnectorPainter extends CustomPainter {
       final parentId = entry.key;
       final childId = entry.value;
 
-      final parentPos = matchPositions[parentId];
-      final childPos = matchPositions[childId];
+      final parentRect = matchPositions[parentId];
+      final childRect = matchPositions[childId];
 
-      if (parentPos == null || childPos == null) continue;
+      if (parentRect == null || childRect == null) continue;
 
       final isCompleted = completedConnections.contains(parentId);
 
@@ -54,14 +54,22 @@ class BracketConnectorPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round;
 
+      // La salida es el centro derecho del padre
+      final startX = parentRect.right;
+      final startY = parentRect.center.dy;
+      
+      // La entrada es el centro izquierdo del hijo
+      final endX = childRect.left;
+      final endY = childRect.center.dy;
+
       // Dibujar conexión con curva suave (estilo bracket profesional)
-      final midX = (parentPos.dx + childPos.dx) / 2;
+      final midX = (startX + endX) / 2;
 
       final path = Path()
-        ..moveTo(parentPos.dx, parentPos.dy)
-        ..lineTo(midX, parentPos.dy)
-        ..lineTo(midX, childPos.dy)
-        ..lineTo(childPos.dx, childPos.dy);
+        ..moveTo(startX, startY)
+        ..lineTo(midX, startY)
+        ..lineTo(midX, endY)
+        ..lineTo(endX, endY);
 
       canvas.drawPath(path, paint);
     }
