@@ -7,6 +7,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'features/auth/presentation/screens/auth_gate_screen.dart';
+import 'features/invitation/data/services/deep_link_service.dart';
 import 'features/notifications/data/services/fcm_token_service.dart';
 import 'features/notifications/data/services/push_notification_service.dart';
 import 'firebase_options.dart';
@@ -41,6 +42,14 @@ void main() async {
   await pushService.initialize();
 
   runApp(const MyApp());
+
+  // 4. Inicializar DeepLinkService DESPUÉS de runApp para que el navigator
+  //    esté montado cuando se procese el cold start link.
+  //    Reutiliza el mismo navigatorKey que PushNotificationService.
+  final deepLinkService = DeepLinkService(
+    navigatorKey: PushNotificationService.navigatorKey,
+  );
+  await deepLinkService.initialize();
 }
 
 class MyApp extends StatelessWidget {
@@ -66,3 +75,4 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
