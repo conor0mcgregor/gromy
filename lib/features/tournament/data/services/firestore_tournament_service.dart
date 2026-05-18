@@ -1,11 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:rxdart/rxdart.dart';
 
 import '../../../../database/participant/models/app_participant.dart';
 import '../../../../database/participant/repositories/participant_repository.dart';
 import '../../../../database/participant/services/firestore_participant_service.dart';
 import '../model/app_tournament.dart';
+import '../model/enums_tournament.dart';
 import '../repositories/tournament_repository.dart';
 import 'firebase_tournament_storage_service.dart';
 import 'tournament_storage_service.dart';
@@ -42,13 +44,30 @@ class FirestoreTournamentService implements TournamentRepository {
   CollectionReference<Map<String, dynamic>> get _tournaments =>
       _db.collection('tournaments');
 
+  CollectionReference<Map<String, dynamic>> get _privateTournaments =>
+      _db.collection('private_tournaments');
+
+  Future<DocumentReference<Map<String, dynamic>>> _getTournamentDoc(
+    String id,
+  ) async {
+    final doc = await _tournaments.doc(id).get();
+    if (doc.exists) {
+      return _tournaments.doc(id);
+    }
+    return _privateTournaments.doc(id);
+  }
+
   // ── Creación ───────────────────────────────────────────────────────────────
 
   @override
   Future<AppTournament> createTournament(AppTournament tournament) async {
+    final collection =
+        tournament.accessType == TournamentAccessType.privateInviteOnly
+            ? _privateTournaments
+            : _tournaments;
     final docRef = tournament.id.isEmpty
-        ? _tournaments.doc()
-        : _tournaments.doc(tournament.id);
+        ? collection.doc()
+        : collection.doc(tournament.id);
     final tournamentToSave = tournament.copyWith(id: docRef.id);
 
     await docRef
@@ -64,9 +83,13 @@ class FirestoreTournamentService implements TournamentRepository {
     required XFile coverImage,
   }) async {
     // 1. Reservar un ID en Firestore para usarlo en la ruta de Storage.
+    final collection =
+        tournament.accessType == TournamentAccessType.privateInviteOnly
+            ? _privateTournaments
+            : _tournaments;
     final docRef = tournament.id.isEmpty
-        ? _tournaments.doc()
-        : _tournaments.doc(tournament.id);
+        ? collection.doc()
+        : collection.doc(tournament.id);
 
     // 2. Subir imagen y obtener URL de descarga.
     final downloadUrl = await _storageService.uploadCoverImage(
@@ -107,18 +130,44 @@ class FirestoreTournamentService implements TournamentRepository {
     });
   }
 
+  Stream<List<AppTournament>> _watchPrivateTournaments() {
+    return _privateTournaments.snapshots().map((snapshot) {
+      final list = <AppTournament>[];
+      for (final doc in snapshot.docs) {
+        try {
+          list.add(AppTournament.fromMap(doc.data()));
+        } catch (e) {
+          // ignore: avoid_print
+          print('Error mapeando torneo privado: $e');
+        }
+      }
+      return list;
+    });
+  }
+
   @override
   Stream<List<AppTournament>> watchMyTournaments(String uid) {
-    return watchTournaments().map(
-      (tournaments) => tournaments.where((t) => t.organizerUid == uid).toList(),
+    return Rx.combineLatest2(
+      watchTournaments(),
+      _watchPrivateTournaments(),
+      (List<AppTournament> public, List<AppTournament> private) {
+        final all = [...public, ...private];
+        return all.where((t) => t.organizerUid == uid).toList()
+          ..sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
+      },
     );
   }
 
   @override
   Stream<List<AppTournament>> watchTournamentsAdmin(String uid) {
-    return watchTournaments().map(
-      (tournaments) =>
-          tournaments.where((t) => t.adminIds.contains(uid)).toList(),
+    return Rx.combineLatest2(
+      watchTournaments(),
+      _watchPrivateTournaments(),
+      (List<AppTournament> public, List<AppTournament> private) {
+        final all = [...public, ...private];
+        return all.where((t) => t.adminIds.contains(uid)).toList()
+          ..sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
+      },
     );
   }
 
@@ -159,7 +208,10 @@ class FirestoreTournamentService implements TournamentRepository {
       final tournaments = <AppTournament>[];
       for (final p in participants) {
         try {
-          final doc = await _tournaments.doc(p.tournamentId).get();
+          var doc = await _tournaments.doc(p.tournamentId).get();
+          if (!doc.exists) {
+            doc = await _privateTournaments.doc(p.tournamentId).get();
+          }
           if (doc.exists && doc.data() != null) {
             tournaments.add(AppTournament.fromMap(doc.data()!));
           }
@@ -177,13 +229,18 @@ class FirestoreTournamentService implements TournamentRepository {
     required String tournamentId,
     required String participantId,
   }) async {
-    final tournamentRef = _tournaments.doc(tournamentId);
-    final participantRef = tournamentRef
-        .collection('participants')
-        .doc(participantId);
-
     await _db.runTransaction((transaction) async {
-      // 1. Verificar si el participante existe
+      DocumentReference<Map<String, dynamic>> tournamentRef = _tournaments.doc(tournamentId);
+      DocumentSnapshot<Map<String, dynamic>> tournamentDoc = await transaction.get(tournamentRef);
+      if (!tournamentDoc.exists) {
+        tournamentRef = _privateTournaments.doc(tournamentId);
+        tournamentDoc = await transaction.get(tournamentRef);
+        if (!tournamentDoc.exists) {
+          throw Exception('El torneo no existe.');
+        }
+      }
+
+      final participantRef = tournamentRef.collection('participants').doc(participantId);
       final participantDoc = await transaction.get(participantRef);
       if (!participantDoc.exists) {
         throw Exception(
@@ -191,19 +248,11 @@ class FirestoreTournamentService implements TournamentRepository {
         );
       }
 
-      // 2. Obtener el documento del torneo para modificar el contador
-      final tournamentDoc = await transaction.get(tournamentRef);
-      if (!tournamentDoc.exists) {
-        throw Exception('El torneo no existe.');
-      }
-
       final data = tournamentDoc.data();
       final currentCount = data?['participantCount'] as int? ?? 0;
 
-      // 3. Eliminar el participante
       transaction.delete(participantRef);
 
-      // 4. Decrementar el contador asegurando que no sea negativo
       if (currentCount > 0) {
         transaction.update(tournamentRef, {
           'participantCount': currentCount - 1,
@@ -214,14 +263,16 @@ class FirestoreTournamentService implements TournamentRepository {
 
   @override
   Future<void> incrementParticipantCount(String tournamentId) async {
-    await _tournaments.doc(tournamentId).update({
+    final ref = await _getTournamentDoc(tournamentId);
+    await ref.update({
       'participantCount': FieldValue.increment(1),
     });
   }
 
   @override
   Future<void> decrementParticipantCount(String tournamentId) async {
-    await _tournaments.doc(tournamentId).update({
+    final ref = await _getTournamentDoc(tournamentId);
+    await ref.update({
       'participantCount': FieldValue.increment(-1),
     });
   }
