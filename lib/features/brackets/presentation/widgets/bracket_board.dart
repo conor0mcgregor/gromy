@@ -30,6 +30,9 @@ class BracketBoard extends StatelessWidget {
     this.isDraggingAny = false,
     this.onMatchTap,
     this.onParticipantDropped,
+    this.pendingSwapSourceMatchId,
+    this.pendingSwapSourceSlot,
+    this.onParticipantDoubleTap,
     this.matchCardWidth = 220,
   });
 
@@ -63,6 +66,15 @@ class BracketBoard extends StatelessWidget {
     AppMatch targetMatch,
     int targetSlot,
   )? onParticipantDropped;
+
+  /// ID del match seleccionado como origen para intercambio manual.
+  final String? pendingSwapSourceMatchId;
+
+  /// Slot seleccionado como origen para intercambio manual.
+  final int? pendingSwapSourceSlot;
+
+  /// Callback cuando el usuario hace doble toque en un slot para intercambio manual.
+  final void Function(AppMatch match, int slot)? onParticipantDoubleTap;
 
   /// Ancho de cada match card.
   final double matchCardWidth;
@@ -309,6 +321,8 @@ class BracketBoard extends StatelessWidget {
                     onDropped: (source, targetSlot) {
                       onParticipantDropped?.call(source, match, targetSlot);
                     },
+                    pendingSwapSourceSlot: pendingSwapSourceMatchId == match.id ? pendingSwapSourceSlot : null,
+                    onParticipantDoubleTap: onParticipantDoubleTap != null ? (slot) => onParticipantDoubleTap!(match, slot) : null,
                   )
                 : MatchCard(
                     key: ValueKey('mc_${match.id}'),

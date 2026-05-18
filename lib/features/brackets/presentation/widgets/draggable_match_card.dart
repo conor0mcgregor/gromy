@@ -56,6 +56,8 @@ class DraggableMatchCard extends StatefulWidget {
     required this.isDraftMode,
     this.width = 220,
     this.isDraggingAny = false,
+    this.pendingSwapSourceSlot,
+    this.onParticipantDoubleTap,
   });
 
   final AppMatch match;
@@ -74,6 +76,12 @@ class DraggableMatchCard extends StatefulWidget {
 
   /// True cuando hay un drag activo en el bracket (para atenuar otros matches).
   final bool isDraggingAny;
+
+  /// Si este match tiene un slot seleccionado como origen para intercambio, se indica aquí (1 o 2).
+  final int? pendingSwapSourceSlot;
+
+  /// Callback para el doble toque en un slot
+  final void Function(int slot)? onParticipantDoubleTap;
 
   @override
   State<DraggableMatchCard> createState() => _DraggableMatchCardState();
@@ -195,13 +203,17 @@ class _DraggableMatchCardState extends State<DraggableMatchCard>
         isEmpty ? (widget.match.isBye ? 'BYE' : 'Por definir') : (name ?? 'Participante');
 
     // Contenido del slot
-    Widget slotContent = _ParticipantSlotContent(
-      displayName: displayName,
-      photoUrl: photoUrl,
-      isEmpty: isEmpty,
-      isWinner: isWinner,
-      participantType: participantType,
-      score: score,
+    Widget slotContent = GestureDetector(
+      onDoubleTap: widget.onParticipantDoubleTap != null ? () => widget.onParticipantDoubleTap!(slot) : null,
+      child: _ParticipantSlotContent(
+        displayName: displayName,
+        photoUrl: photoUrl,
+        isEmpty: isEmpty,
+        isWinner: isWinner,
+        participantType: participantType,
+        score: score,
+        isPendingSwapSource: widget.pendingSwapSourceSlot == slot,
+      ),
     );
 
     // Solo primera ronda en draft tiene drag
@@ -408,6 +420,7 @@ class _ParticipantSlotContent extends StatelessWidget {
     required this.isWinner,
     required this.participantType,
     required this.score,
+    this.isPendingSwapSource = false,
   });
 
   final String displayName;
@@ -416,13 +429,26 @@ class _ParticipantSlotContent extends StatelessWidget {
   final bool isWinner;
   final MatchParticipantType? participantType;
   final int? score;
+  final bool isPendingSwapSource;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: isWinner ? _kGreen.withValues(alpha: 0.06) : Colors.transparent,
+        color: isPendingSwapSource
+            ? const Color(0xFF22C55E).withValues(alpha: 0.15)
+            : isWinner
+                ? _kGreen.withValues(alpha: 0.06)
+                : Colors.transparent,
+        border: Border.all(
+          color: isPendingSwapSource ? const Color(0xFF22C55E).withValues(alpha: 0.6) : Colors.transparent,
+          width: isPendingSwapSource ? 1.5 : 0,
+        ),
+        boxShadow: isPendingSwapSource
+            ? [BoxShadow(color: const Color(0xFF22C55E).withValues(alpha: 0.2), blurRadius: 10, spreadRadius: 2)]
+            : null,
       ),
       child: Row(
         children: [

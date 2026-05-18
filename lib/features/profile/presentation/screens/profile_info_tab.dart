@@ -186,6 +186,7 @@ class _ProfileInfoTabState extends State<ProfileInfoTab> {
                 label: 'Editar Perfil',
                 icon: Icons.edit_rounded,
                 variant: GradientButtonVariant.simple,
+                textColor: Colors.black,
               ),
 
               const SizedBox(height: 32),

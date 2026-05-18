@@ -204,6 +204,9 @@ class _BracketScreenState extends State<BracketScreen> {
                   isDraggingAny: isDragging,
                   onMatchTap: isAdmin ? _onMatchTapAdmin : _showMatchDetails,
                   onParticipantDropped: isAdmin ? _onParticipantDropped : null,
+                  pendingSwapSourceMatchId: admin?.pendingSwapSource?.match.id,
+                  pendingSwapSourceSlot: admin?.pendingSwapSource?.slot,
+                  onParticipantDoubleTap: isAdmin ? _onParticipantDoubleTap : null,
                 ),
               ),
               if (admin?.state == BracketAdminState.saving)
@@ -215,10 +218,57 @@ class _BracketScreenState extends State<BracketScreen> {
                     ),
                   ),
                 ),
+              if (admin?.pendingSwapSource != null)
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  right: 16,
+                  child: _buildPendingSwapBanner(admin!),
+                ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  // ── Pending Swap Banner ──────────────────────────────────────────────────
+
+  Widget _buildPendingSwapBanner(BracketAdminController admin) {
+    final sourceName = admin.pendingSwapSource!.participantName ?? 'Participante';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF22C55E).withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF22C55E).withValues(alpha: 0.4), width: 1.5),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 10)),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.touch_app_rounded, color: Color(0xFF22C55E), size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Modo intercambio', style: TextStyle(color: Color(0xFF22C55E), fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: -0.2)),
+                const SizedBox(height: 2),
+                Text('Doble toque sobre otro participante para intercambiarlo con $sourceName', style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 12, fontWeight: FontWeight.w500, height: 1.2)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            onPressed: () => admin.cancelManualSwap(),
+            style: IconButton.styleFrom(backgroundColor: Colors.white.withValues(alpha: 0.1)),
+            icon: const Icon(Icons.close_rounded, color: Colors.white, size: 18),
+          ),
+        ],
+      ),
     );
   }
 
@@ -263,7 +313,21 @@ class _BracketScreenState extends State<BracketScreen> {
     );
 
     if (!mounted) return;
+    _showSwapResultSnackBar(errorMsg);
+  }
 
+  void _onParticipantDoubleTap(AppMatch targetMatch, int targetSlot) async {
+    final admin = _adminController;
+    if (admin == null || admin.state == BracketAdminState.saving) return;
+    if (admin.pendingSwapSource == null) return;
+
+    final errorMsg = await admin.executeManualSwap(targetMatch, targetSlot);
+
+    if (!mounted) return;
+    _showSwapResultSnackBar(errorMsg);
+  }
+
+  void _showSwapResultSnackBar(String? errorMsg) {
     if (errorMsg != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -312,6 +376,56 @@ class _BracketScreenState extends State<BracketScreen> {
         await _pickSchedule(match);
       case 'details':
         _showMatchDetails(match);
+      case 'swap':
+        _pickSwapParticipant(match);
+    }
+  }
+
+  void _pickSwapParticipant(AppMatch match) async {
+    final admin = _adminController;
+    if (admin == null) return;
+
+    final slot = await showDialog<int>(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F172A),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Seleccionar participante', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                Text('Elige qué participante quieres intercambiar.', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13)),
+                const SizedBox(height: 24),
+                ListTile(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  tileColor: Colors.white.withValues(alpha: 0.05),
+                  title: Text(match.participant1Name ?? 'Participante 1', style: const TextStyle(color: Colors.white)),
+                  onTap: () => Navigator.pop(context, 1),
+                ),
+                const SizedBox(height: 8),
+                ListTile(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  tileColor: Colors.white.withValues(alpha: 0.05),
+                  title: Text(match.participant2Name ?? 'Participante 2', style: const TextStyle(color: Colors.white)),
+                  onTap: () => Navigator.pop(context, 2),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (slot != null && mounted) {
+      admin.startManualSwap(match, slot);
     }
   }
 
@@ -332,6 +446,12 @@ class _BracketScreenState extends State<BracketScreen> {
               children: [
                 _buildSheetHandle(),
                 _buildSheetAction(icon: Icons.visibility_rounded, label: 'Ver detalle', onTap: () => Navigator.pop(context, 'details')),
+                if (_adminController?.isDraftMode == true && match.round == 0)
+                  _buildSheetAction(
+                    icon: Icons.swap_horiz_rounded,
+                    label: 'Intercambiar',
+                    onTap: () => Navigator.pop(context, 'swap'),
+                  ),
                 _buildSheetAction(
                   icon: Icons.emoji_events_rounded,
                   label: 'Registrar resultado',

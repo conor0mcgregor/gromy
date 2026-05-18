@@ -111,6 +111,38 @@ class BracketAdminController extends ChangeNotifier {
     }
   }
 
+  // ── Estado Intercambio Manual ──────────────────────────────────────────
+
+  DragSlotData? _pendingSwapSource;
+  DragSlotData? get pendingSwapSource => _pendingSwapSource;
+
+  void startManualSwap(AppMatch match, int slot) {
+    _pendingSwapSource = DragSlotData(match: match, slot: slot);
+    notifyListeners();
+  }
+
+  void cancelManualSwap() {
+    if (_pendingSwapSource != null) {
+      _pendingSwapSource = null;
+      notifyListeners();
+    }
+  }
+
+  Future<String?> executeManualSwap(AppMatch targetMatch, int targetSlot) async {
+    if (_pendingSwapSource == null) return 'No hay un origen seleccionado.';
+    
+    final source = _pendingSwapSource!;
+    _pendingSwapSource = null; // Exit mode
+    notifyListeners();
+
+    return swapParticipantsDragDrop(
+      sourceMatch: source.match,
+      sourceSlot: source.slot,
+      targetMatch: targetMatch,
+      targetSlot: targetSlot,
+    );
+  }
+
   // ── Matches organizados por round ────────────────────────────────────────
 
   /// Matches organizados por round.

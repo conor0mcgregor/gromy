@@ -22,6 +22,7 @@ class GradientButton extends StatefulWidget {
     this.variant = GradientButtonVariant.violet,
     this.size = GradientButtonSize.medium,
     this.width = double.infinity,
+    this.textColor = Colors.white,
   });
 
   final String label;
@@ -31,6 +32,7 @@ class GradientButton extends StatefulWidget {
   final GradientButtonVariant variant;
   final GradientButtonSize size;
   final double width;
+  final Color textColor;
 
   @override
   State<GradientButton> createState() => _GradientButtonState();
@@ -183,7 +185,7 @@ class _GradientButtonState extends State<GradientButton>
             height: _iconSize,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: Colors.white.withValues(alpha: 0.9),
+              color: widget.textColor.withValues(alpha: 0.9),
             ),
           ),
           const SizedBox(width: 10),
@@ -193,7 +195,7 @@ class _GradientButtonState extends State<GradientButton>
               textAlign: TextAlign.center,
               softWrap: true,
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.8),
+                color: widget.textColor.withValues(alpha: 0.8),
                 fontSize: _fontSize,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.2,
@@ -211,7 +213,7 @@ class _GradientButtonState extends State<GradientButton>
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         if (widget.icon != null) ...[
-          Icon(widget.icon, color: Colors.white, size: _iconSize),
+          Icon(widget.icon, color: widget.textColor, size: _iconSize),
           const SizedBox(width: 10),
         ],
         Flexible(
@@ -220,7 +222,7 @@ class _GradientButtonState extends State<GradientButton>
             textAlign: TextAlign.center,
             softWrap: true,
             style: TextStyle(
-              color: Colors.white,
+              color: widget.textColor,
               fontSize: _fontSize,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.2,
