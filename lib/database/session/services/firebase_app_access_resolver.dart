@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../features/user/data/repositories/user_repository.dart';
+import '../../../features/user/data/models/app_user.dart';
 import '../../../features/user/data/services/firestore_user_service.dart';
 import '../../registration/repositories/pending_email_registration_store.dart';
 import '../../registration/services/shared_preferences_pending_email_registration_store.dart';
@@ -12,10 +13,11 @@ class FirebaseAppAccessResolver implements AppAccessResolver {
     FirebaseAuth? auth,
     UserRepository? userRepository,
     PendingEmailRegistrationStore? pendingRegistrationStore,
-  })  : _auth = auth ?? FirebaseAuth.instance,
-        _userRepository = userRepository ?? FirestoreUserService(),
-        _pendingRegistrationStore = pendingRegistrationStore ??
-            SharedPreferencesPendingEmailRegistrationStore();
+  }) : _auth = auth ?? FirebaseAuth.instance,
+       _userRepository = userRepository ?? FirestoreUserService(),
+       _pendingRegistrationStore =
+           pendingRegistrationStore ??
+           SharedPreferencesPendingEmailRegistrationStore();
 
   final FirebaseAuth _auth;
   final UserRepository _userRepository;
@@ -54,8 +56,13 @@ class FirebaseAppAccessResolver implements AppAccessResolver {
       );
     }
 
-    final userExists = await _safeUserExists(currentUser.uid);
-    if (userExists) {
+    final user = await _safeGetUser(currentUser.uid);
+    if (user?.isDeleted ?? false) {
+      await _auth.signOut();
+      return const AppAccessUnauthenticated();
+    }
+
+    if (user != null) {
       return const AppAccessAuthenticated();
     }
 
@@ -76,16 +83,18 @@ class FirebaseAppAccessResolver implements AppAccessResolver {
     );
   }
 
-  Future<bool> _safeUserExists(String uid) async {
+  Future<AppUser?> _safeGetUser(String uid) async {
     try {
-      return await _userRepository.userExists(uid);
+      return await _userRepository.getUser(uid);
     } catch (_) {
-      return false;
+      return null;
     }
   }
 
   bool _hasProvider(User user, String providerId) {
-    return user.providerData.any((provider) => provider.providerId == providerId);
+    return user.providerData.any(
+      (provider) => provider.providerId == providerId,
+    );
   }
 
   String _resolveProvider(User user) {
