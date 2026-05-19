@@ -1,4 +1,5 @@
 import '../models/app_participant.dart';
+import '../../../core/models/registration_form.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  ParticipantRepository  ·  Contrato de dominio
@@ -20,6 +21,8 @@ abstract interface class ParticipantRepository {
     required ParticipantEntityType entityType,
     ParticipantStatus status,
     String? categoryId,
+    int registrationFormVersion,
+    List<RegistrationResponse> registrationResponses,
   });
 
   /// Devuelve un stream en tiempo real con todos los participantes del torneo.

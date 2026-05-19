@@ -28,6 +28,7 @@ import 'form/steps/step7_review.dart';
 
 // Widgets y helpers
 import 'form/widgets/form_helpers.dart';
+import 'form/widgets/registration_form_builder.dart';
 
 class FormTournamentScreen extends StatefulWidget {
   const FormTournamentScreen({super.key});
@@ -233,6 +234,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       contactPhone: _form.contactPhoneController.text.trim(),
       contactLinks: _form.contactLinks,
       categories: _form.categories,
+      registrationForm: _form.registrationForm,
     );
 
     if (success) {
@@ -537,7 +539,10 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       }
 
       if (_form.extraAdmins.any((e) => e.uid == uid)) {
-        setState(() => _form.adminError = 'Ese usuario ya está en la lista de invitaciones.');
+        setState(
+          () => _form.adminError =
+              'Ese usuario ya está en la lista de invitaciones.',
+        );
         return;
       }
 
@@ -699,6 +704,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
                                 _buildStepPage(_buildStep4()),
                                 _buildStepPage(_buildStep5()),
                                 _buildStepPage(_buildStep6Categories()),
+                                _buildStepPage(_buildStep7RegistrationForm()),
                                 _buildStepPage(_buildStep7Staff()),
                                 _buildStepPage(_buildStep8Review()),
                               ],
@@ -739,6 +745,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       'Logística y Privacidad',
       'Reglamento',
       'Categorías',
+      'InscripciÃ³n',
       'Staff y Soporte',
       'Review',
     ];
@@ -981,6 +988,15 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     onRemoveCategory: _removeCategory,
   );
 
+  Widget _buildStep7RegistrationForm() => RegistrationFormBuilder(
+    schema: _form.registrationForm,
+    errorText: _form.registrationFormError,
+    onUpsertField: _form.upsertRegistrationField,
+    onRemoveField: _form.removeRegistrationField,
+    onToggleField: _form.toggleRegistrationField,
+    onMoveField: _form.moveRegistrationField,
+  );
+
   Widget _buildStep7Staff() => Step6Staff(
     adminController: _form.adminController,
     adminError: _form.adminError,
@@ -1041,8 +1057,10 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
         ? null
         : _form.contactPhoneController.text.trim(),
     contactLinks: _form.contactLinks,
-    pendingAdminLabels:
-        _form.extraAdmins.map((a) => a.label).toList(growable: false),
+    registrationFields: _form.registrationForm.activeFields.length,
+    pendingAdminLabels: _form.extraAdmins
+        .map((a) => a.label)
+        .toList(growable: false),
   );
 
   // ── Step page wrapper ──

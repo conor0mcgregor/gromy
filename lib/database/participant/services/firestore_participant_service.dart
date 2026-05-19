@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 
 import '../models/app_participant.dart';
 import '../repositories/participant_repository.dart';
+import '../../../core/models/registration_form.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  FirestoreParticipantService  ·  Capa de datos
@@ -21,23 +22,22 @@ import '../repositories/participant_repository.dart';
 
 class FirestoreParticipantService implements ParticipantRepository {
   FirestoreParticipantService({FirebaseFirestore? firestore})
-      : _db = firestore ??
-            FirebaseFirestore.instanceFor(
-              app: Firebase.app(),
-              databaseId: 'gromy-db',
-            );
+    : _db =
+          firestore ??
+          FirebaseFirestore.instanceFor(
+            app: Firebase.app(),
+            databaseId: 'gromy-db',
+          );
 
   final FirebaseFirestore _db;
 
   /// Referencia a la subcolección de participantes del torneo.
   CollectionReference<Map<String, dynamic>> _participantsRef(
     String tournamentId,
-  ) =>
-      _db
-          .collection('tournaments')
-          .doc(tournamentId)
-          .collection('participants');
-
+  ) => _db
+      .collection('tournaments')
+      .doc(tournamentId)
+      .collection('participants');
 
   // ── ParticipantRepository impl ─────────────────────────────────────────────
 
@@ -48,6 +48,8 @@ class FirestoreParticipantService implements ParticipantRepository {
     required ParticipantEntityType entityType,
     ParticipantStatus status = ParticipantStatus.pending,
     String? categoryId,
+    int registrationFormVersion = 1,
+    List<RegistrationResponse> registrationResponses = const [],
   }) async {
     // Impide inscripciones duplicadas.
     final alreadyEnrolled = await isEnrolled(
@@ -71,21 +73,20 @@ class FirestoreParticipantService implements ParticipantRepository {
       enrolledAt: DateTime.now(),
       status: status,
       categoryId: categoryId,
+      registrationFormVersion: registrationFormVersion,
+      registrationResponses: registrationResponses,
     );
 
-    await docRef
-        .set(participant.toMap())
-        .timeout(const Duration(seconds: 10));
+    await docRef.set(participant.toMap()).timeout(const Duration(seconds: 10));
 
     return participant;
   }
 
   @override
   Stream<List<AppParticipant>> watchParticipants(String tournamentId) {
-    return _participantsRef(tournamentId)
-        .orderBy('enrolledAt', descending: false)
-        .snapshots()
-        .map((snapshot) {
+    return _participantsRef(
+      tournamentId,
+    ).orderBy('enrolledAt', descending: false).snapshots().map((snapshot) {
       final list = <AppParticipant>[];
       for (final doc in snapshot.docs) {
         try {
@@ -119,7 +120,8 @@ class FirestoreParticipantService implements ParticipantRepository {
   }) async {
     await _participantsRef(tournamentId)
         .doc(participantId)
-        .update({'status': status.name}).timeout(const Duration(seconds: 10));
+        .update({'status': status.name})
+        .timeout(const Duration(seconds: 10));
   }
 
   @override
@@ -127,10 +129,9 @@ class FirestoreParticipantService implements ParticipantRepository {
     required String tournamentId,
     required String participantId,
   }) async {
-    await _participantsRef(tournamentId)
-        .doc(participantId)
-        .delete()
-        .timeout(const Duration(seconds: 10));
+    await _participantsRef(
+      tournamentId,
+    ).doc(participantId).delete().timeout(const Duration(seconds: 10));
   }
 
   @override
@@ -146,7 +147,6 @@ class FirestoreParticipantService implements ParticipantRepository {
     return snapshot.docs.isNotEmpty;
   }
 
-
   @override
   Stream<List<AppParticipant>> watchEnrolledParticipants(String entityId) {
     // 1. Obtener los equipos donde el usuario es miembro
@@ -159,24 +159,26 @@ class FirestoreParticipantService implements ParticipantRepository {
     // 2. Por cada actualización de equipos, generar los streams de participantes
     return teamsStream.switchMap((teamIds) {
       final idsToQuery = [entityId, ...teamIds];
-      
+
       // Creamos un stream por cada ID (usuario + equipos) para evadir el límite de 10 de whereIn
-      final streams = idsToQuery.map((id) => _db
-          .collectionGroup('participants')
-          .where('entityId', isEqualTo: id)
-          .snapshots()
-          .map((snapshot) {
-        final list = <AppParticipant>[];
-        for (final doc in snapshot.docs) {
-          try {
-            list.add(AppParticipant.fromMap(doc.data()));
-          } catch (e) {
-            // ignore: avoid_print
-            print('Error mapeando participante inscrito: $e');
-          }
-        }
-        return list;
-      }));
+      final streams = idsToQuery.map(
+        (id) => _db
+            .collectionGroup('participants')
+            .where('entityId', isEqualTo: id)
+            .snapshots()
+            .map((snapshot) {
+              final list = <AppParticipant>[];
+              for (final doc in snapshot.docs) {
+                try {
+                  list.add(AppParticipant.fromMap(doc.data()));
+                } catch (e) {
+                  // ignore: avoid_print
+                  print('Error mapeando participante inscrito: $e');
+                }
+              }
+              return list;
+            }),
+      );
 
       // Combinamos todos los streams y aplanamos la lista
       return Rx.combineLatestList(streams).map((lists) {

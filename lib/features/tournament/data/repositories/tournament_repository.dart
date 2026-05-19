@@ -1,5 +1,6 @@
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../core/models/registration_form.dart';
 import '../../../../database/participant/models/app_participant.dart';
 import '../model/app_tournament.dart';
 
@@ -50,6 +51,8 @@ abstract interface class TournamentRepository {
     required ParticipantEntityType entityType,
     ParticipantStatus status,
     String? categoryId,
+    int registrationFormVersion,
+    List<RegistrationResponse> registrationResponses,
   });
 
   /// Devuelve todos los participantes del torneo (lectura puntual).

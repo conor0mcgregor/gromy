@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../core/models/registration_form.dart';
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  AppParticipant  ·  Dominio
 //
@@ -45,6 +47,8 @@ class AppParticipant {
     required this.enrolledAt,
     required this.status,
     this.categoryId,
+    this.registrationFormVersion = 1,
+    this.registrationResponses = const [],
   });
 
   /// ID del documento Firestore (= `participantId`).
@@ -67,18 +71,24 @@ class AppParticipant {
 
   /// Categoría opcional del torneo a la que se inscribe.
   final String? categoryId;
+  final int registrationFormVersion;
+  final List<RegistrationResponse> registrationResponses;
 
   // ── Serialización ──────────────────────────────────────────────────────────
 
   Map<String, dynamic> toMap() => {
-        'id': id,
-        'tournamentId': tournamentId,
-        'entityId': entityId,
-        'entityType': entityType.name,
-        'enrolledAt': Timestamp.fromDate(enrolledAt),
-        'status': status.name,
-        'categoryId': categoryId,
-      };
+    'id': id,
+    'tournamentId': tournamentId,
+    'entityId': entityId,
+    'entityType': entityType.name,
+    'enrolledAt': Timestamp.fromDate(enrolledAt),
+    'status': status.name,
+    'categoryId': categoryId,
+    'registrationFormVersion': registrationFormVersion,
+    'responses': registrationResponses
+        .map((response) => response.toMap())
+        .toList(),
+  };
 
   factory AppParticipant.fromMap(Map<String, dynamic> map) {
     return AppParticipant(
@@ -91,6 +101,13 @@ class AppParticipant {
       enrolledAt: _dateFromValue(map['enrolledAt']),
       status: ParticipantStatus.fromValue(map['status'] as String? ?? ''),
       categoryId: map['categoryId'] as String?,
+      registrationFormVersion:
+          (map['registrationFormVersion'] as num?)?.toInt() ?? 1,
+      registrationResponses:
+          (map['responses'] as List<dynamic>? ?? const <dynamic>[])
+              .whereType<Map<String, dynamic>>()
+              .map(RegistrationResponse.fromMap)
+              .toList(),
     );
   }
 
@@ -104,6 +121,8 @@ class AppParticipant {
     DateTime? enrolledAt,
     ParticipantStatus? status,
     String? categoryId,
+    int? registrationFormVersion,
+    List<RegistrationResponse>? registrationResponses,
   }) {
     return AppParticipant(
       id: id ?? this.id,
@@ -113,6 +132,10 @@ class AppParticipant {
       enrolledAt: enrolledAt ?? this.enrolledAt,
       status: status ?? this.status,
       categoryId: categoryId ?? this.categoryId,
+      registrationFormVersion:
+          registrationFormVersion ?? this.registrationFormVersion,
+      registrationResponses:
+          registrationResponses ?? this.registrationResponses,
     );
   }
 

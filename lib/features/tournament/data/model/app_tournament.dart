@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../../core/models/registration_form.dart';
 import 'enums_tournament.dart';
 
 class AppTournament {
@@ -31,6 +32,7 @@ class AppTournament {
     this.contactPhone,
     this.contactLinks = const [],
     this.categories = const [],
+    this.registrationForm = const RegistrationFormSchema(),
   });
 
   final String id;
@@ -75,6 +77,7 @@ class AppTournament {
   /// Categorías opcionales del torneo (ej. 'Sub-18', 'Femenino', 'Amateur').
   final List<String> categories;
 
+  final RegistrationFormSchema registrationForm;
 
   Map<String, dynamic> toMap() {
     return {
@@ -107,6 +110,7 @@ class AppTournament {
       'contactPhone': contactPhone,
       'contactLinks': contactLinks,
       'categories': categories,
+      'registrationForm': registrationForm.toMap(),
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -141,14 +145,15 @@ class AppTournament {
       bracketPublishDate: _nullableDateFromValue(map['bracketPublishDate']),
       contactEmail: map['contactEmail'] as String?,
       contactPhone: map['contactPhone'] as String?,
-      contactLinks:
-          (map['contactLinks'] as List<dynamic>? ?? const <dynamic>[])
-              .map((value) => value.toString())
-              .toList(),
-      categories:
-          (map['categories'] as List<dynamic>? ?? const <dynamic>[])
-              .map((value) => value.toString())
-              .toList(),
+      contactLinks: (map['contactLinks'] as List<dynamic>? ?? const <dynamic>[])
+          .map((value) => value.toString())
+          .toList(),
+      categories: (map['categories'] as List<dynamic>? ?? const <dynamic>[])
+          .map((value) => value.toString())
+          .toList(),
+      registrationForm: RegistrationFormSchema.fromMap(
+        map['registrationForm'] as Map<String, dynamic>?,
+      ),
       createdAt: _dateFromValue(map['createdAt']),
       updatedAt: _dateFromValue(map['updatedAt']),
     );
@@ -182,6 +187,7 @@ class AppTournament {
     String? contactPhone,
     List<String>? contactLinks,
     List<String>? categories,
+    RegistrationFormSchema? registrationForm,
   }) {
     return AppTournament(
       id: id ?? this.id,
@@ -211,6 +217,7 @@ class AppTournament {
       contactPhone: contactPhone ?? this.contactPhone,
       contactLinks: contactLinks ?? this.contactLinks,
       categories: categories ?? this.categories,
+      registrationForm: registrationForm ?? this.registrationForm,
     );
   }
 

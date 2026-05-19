@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../../core/models/registration_form.dart';
 import '../../../../database/participant/models/app_participant.dart';
 import '../../../../database/team/models/app_team.dart';
 import '../../../../features/tournament/data/model/app_tournament.dart';
@@ -43,11 +44,16 @@ class InscriptionController extends ChangeNotifier {
   AppTeam? selectedTeam;
   String? teamValidationError;
   String? selectedCategoryId;
+  final Map<String, dynamic> registrationValues = {};
+  Map<String, String> registrationErrors = {};
 
   // ── Computed ───────────────────────────────────────────────────────────────
 
-  bool get isTeamTournament => tournament.membersPerTeam != null && tournament.membersPerTeam! > 0;
+  bool get isTeamTournament =>
+      tournament.membersPerTeam != null && tournament.membersPerTeam! > 0;
   bool get hasCategories => tournament.categories.isNotEmpty;
+  RegistrationFormSchema get registrationForm => tournament.registrationForm;
+  bool get hasAdditionalFields => registrationForm.activeFields.isNotEmpty;
 
   bool get canSubmit {
     if (loadState != InscriptionLoadState.loaded) return false;
@@ -55,6 +61,7 @@ class InscriptionController extends ChangeNotifier {
     if (isTeamTournament && selectedTeam == null) return false;
     if (isTeamTournament && teamValidationError != null) return false;
     if (hasCategories && selectedCategoryId == null) return false;
+    if (registrationErrors.isNotEmpty) return false;
     return true;
   }
 
@@ -67,6 +74,7 @@ class InscriptionController extends ChangeNotifier {
 
     try {
       currentUser = await _useCase.getCurrentUser();
+      _initializeAdditionalFieldValues();
       loadState = InscriptionLoadState.loaded;
     } catch (e) {
       loadState = InscriptionLoadState.error;
@@ -100,9 +108,39 @@ class InscriptionController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateRegistrationValue(String fieldId, dynamic value) {
+    registrationValues[fieldId] = value;
+    registrationErrors = RegistrationFormValidator.validateResponses(
+      schema: registrationForm,
+      values: registrationValues,
+    );
+    notifyListeners();
+  }
+
+  void _initializeAdditionalFieldValues() {
+    for (final field in registrationForm.activeFields) {
+      registrationValues.putIfAbsent(
+        field.id,
+        () => field.type == RegistrationFieldType.checkbox ? false : null,
+      );
+    }
+    registrationErrors = RegistrationFormValidator.validateResponses(
+      schema: registrationForm,
+      values: registrationValues,
+    );
+  }
+
   // ── Confirmar inscripción ──────────────────────────────────────────────────
 
   Future<AppParticipant?> confirmEnrollment() async {
+    registrationErrors = RegistrationFormValidator.validateResponses(
+      schema: registrationForm,
+      values: registrationValues,
+    );
+    if (registrationErrors.isNotEmpty) {
+      notifyListeners();
+      return null;
+    }
     if (!canSubmit) return null;
 
     submitState = InscriptionSubmitState.submitting;
@@ -120,6 +158,7 @@ class InscriptionController extends ChangeNotifier {
         entityId: entityId,
         entityType: entityType,
         categoryId: selectedCategoryId,
+        registrationValues: registrationValues,
       );
 
       submitState = InscriptionSubmitState.success;

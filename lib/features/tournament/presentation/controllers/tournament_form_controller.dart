@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../core/models/registration_form.dart';
 import '../../data/model/enums_tournament.dart';
 import '../../data/services/geocoding_service.dart';
 
@@ -76,8 +77,12 @@ class TournamentFormController extends ChangeNotifier {
   // Step 6: Categorías
   /// Controller del campo de texto para introducir el nombre de la categoría.
   final categoryController = TextEditingController();
+
   /// Lista de categorías añadidas por el usuario (opcional).
   final List<String> categories = [];
+
+  RegistrationFormSchema registrationForm = const RegistrationFormSchema();
+  String? registrationFormError;
 
   // Step 7: Staff y Soporte
   final adminController = TextEditingController();
@@ -92,7 +97,7 @@ class TournamentFormController extends ChangeNotifier {
   String? contactEmailError;
 
   // Navegación
-  static const int totalSteps = 9;
+  static const int totalSteps = 10;
   int currentStep = 0;
 
   bool isTeamSport = false;
@@ -141,8 +146,10 @@ class TournamentFormController extends ChangeNotifier {
         // Categorías es opcional: siempre se puede avanzar.
         return true;
       case 7:
-        return _validateStaff();
+        return _validateRegistrationForm();
       case 8:
+        return _validateStaff();
+      case 9:
         return true;
       default:
         return true;
@@ -277,6 +284,13 @@ class TournamentFormController extends ChangeNotifier {
     return emailOk;
   }
 
+  bool _validateRegistrationForm() {
+    final errors = RegistrationFormValidator.validateSchema(registrationForm);
+    registrationFormError = errors.isEmpty ? null : errors.first;
+    notifyListeners();
+    return errors.isEmpty;
+  }
+
   bool _isValidEmail(String email) {
     return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
   }
@@ -388,6 +402,85 @@ class TournamentFormController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void upsertRegistrationField(RegistrationField field) {
+    final normalized = _normalizeRegistrationField(field);
+    final fields = [...registrationForm.fields];
+    final index = fields.indexWhere((item) => item.id == normalized.id);
+    if (index >= 0) {
+      fields[index] = normalized.copyWith(updatedAt: DateTime.now());
+    } else {
+      fields.add(normalized.copyWith(order: fields.length));
+    }
+    registrationForm = registrationForm.copyWith(
+      fields: _withOrderedFields(fields),
+    );
+    registrationFormError = null;
+    notifyListeners();
+  }
+
+  void removeRegistrationField(String id) {
+    final fields = registrationForm.fields
+        .where((field) => field.id != id)
+        .toList(growable: false);
+    registrationForm = registrationForm.copyWith(
+      fields: _withOrderedFields(fields),
+    );
+    registrationFormError = null;
+    notifyListeners();
+  }
+
+  void toggleRegistrationField(String id, bool enabled) {
+    final fields = registrationForm.fields.map((field) {
+      if (field.id != id) return field;
+      return field.copyWith(enabled: enabled, updatedAt: DateTime.now());
+    }).toList();
+    registrationForm = registrationForm.copyWith(
+      fields: _withOrderedFields(fields),
+    );
+    registrationFormError = null;
+    notifyListeners();
+  }
+
+  void moveRegistrationField(String id, int delta) {
+    final fields = [...registrationForm.fields]
+      ..sort((a, b) => a.order.compareTo(b.order));
+    final index = fields.indexWhere((field) => field.id == id);
+    if (index < 0) return;
+    final target = index + delta;
+    if (target < 0 || target >= fields.length) return;
+    final field = fields.removeAt(index);
+    fields.insert(target, field);
+    registrationForm = registrationForm.copyWith(
+      fields: _withOrderedFields(fields),
+    );
+    registrationFormError = null;
+    notifyListeners();
+  }
+
+  RegistrationField _normalizeRegistrationField(RegistrationField field) {
+    final options = field.type.usesOptions
+        ? field.options
+              .map((option) => option.trim())
+              .where((option) => option.isNotEmpty)
+              .toSet()
+              .toList()
+        : <String>[];
+    return field.copyWith(
+      label: field.label.trim(),
+      description: field.description?.trim().isEmpty == true
+          ? null
+          : field.description?.trim(),
+      options: options,
+    );
+  }
+
+  List<RegistrationField> _withOrderedFields(List<RegistrationField> fields) {
+    final sorted = [...fields]..sort((a, b) => a.order.compareTo(b.order));
+    return [
+      for (var i = 0; i < sorted.length; i++) sorted[i].copyWith(order: i),
+    ];
+  }
+
   // Helpers
   void clearFieldError(String field) {
     switch (field) {
@@ -426,6 +519,9 @@ class TournamentFormController extends ChangeNotifier {
         break;
       case 'admin':
         adminError = null;
+        break;
+      case 'registrationForm':
+        registrationFormError = null;
         break;
       case 'contactEmail':
         contactEmailError = null;

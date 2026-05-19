@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:rxdart/rxdart.dart';
 
+import '../../../../core/models/registration_form.dart';
 import '../../../../database/participant/models/app_participant.dart';
 import '../../../../database/participant/repositories/participant_repository.dart';
 import '../../../../database/participant/services/firestore_participant_service.dart';
@@ -63,8 +64,8 @@ class FirestoreTournamentService implements TournamentRepository {
   Future<AppTournament> createTournament(AppTournament tournament) async {
     final collection =
         tournament.accessType == TournamentAccessType.privateInviteOnly
-            ? _privateTournaments
-            : _tournaments;
+        ? _privateTournaments
+        : _tournaments;
     final docRef = tournament.id.isEmpty
         ? collection.doc()
         : collection.doc(tournament.id);
@@ -85,8 +86,8 @@ class FirestoreTournamentService implements TournamentRepository {
     // 1. Reservar un ID en Firestore para usarlo en la ruta de Storage.
     final collection =
         tournament.accessType == TournamentAccessType.privateInviteOnly
-            ? _privateTournaments
-            : _tournaments;
+        ? _privateTournaments
+        : _tournaments;
     final docRef = tournament.id.isEmpty
         ? collection.doc()
         : collection.doc(tournament.id);
@@ -147,28 +148,26 @@ class FirestoreTournamentService implements TournamentRepository {
 
   @override
   Stream<List<AppTournament>> watchMyTournaments(String uid) {
-    return Rx.combineLatest2(
-      watchTournaments(),
-      _watchPrivateTournaments(),
-      (List<AppTournament> public, List<AppTournament> private) {
-        final all = [...public, ...private];
-        return all.where((t) => t.organizerUid == uid).toList()
-          ..sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
-      },
-    );
+    return Rx.combineLatest2(watchTournaments(), _watchPrivateTournaments(), (
+      List<AppTournament> public,
+      List<AppTournament> private,
+    ) {
+      final all = [...public, ...private];
+      return all.where((t) => t.organizerUid == uid).toList()
+        ..sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
+    });
   }
 
   @override
   Stream<List<AppTournament>> watchTournamentsAdmin(String uid) {
-    return Rx.combineLatest2(
-      watchTournaments(),
-      _watchPrivateTournaments(),
-      (List<AppTournament> public, List<AppTournament> private) {
-        final all = [...public, ...private];
-        return all.where((t) => t.adminIds.contains(uid)).toList()
-          ..sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
-      },
-    );
+    return Rx.combineLatest2(watchTournaments(), _watchPrivateTournaments(), (
+      List<AppTournament> public,
+      List<AppTournament> private,
+    ) {
+      final all = [...public, ...private];
+      return all.where((t) => t.adminIds.contains(uid)).toList()
+        ..sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
+    });
   }
 
   // ── Participantes (delegación en ParticipantRepository) ───────────────────
@@ -180,6 +179,8 @@ class FirestoreTournamentService implements TournamentRepository {
     required ParticipantEntityType entityType,
     ParticipantStatus status = ParticipantStatus.pending,
     String? categoryId,
+    int registrationFormVersion = 1,
+    List<RegistrationResponse> registrationResponses = const [],
   }) {
     return _participantRepo.joinTournament(
       tournamentId: tournamentId,
@@ -187,6 +188,8 @@ class FirestoreTournamentService implements TournamentRepository {
       entityType: entityType,
       status: status,
       categoryId: categoryId,
+      registrationFormVersion: registrationFormVersion,
+      registrationResponses: registrationResponses,
     );
   }
 
@@ -230,8 +233,11 @@ class FirestoreTournamentService implements TournamentRepository {
     required String participantId,
   }) async {
     await _db.runTransaction((transaction) async {
-      DocumentReference<Map<String, dynamic>> tournamentRef = _tournaments.doc(tournamentId);
-      DocumentSnapshot<Map<String, dynamic>> tournamentDoc = await transaction.get(tournamentRef);
+      DocumentReference<Map<String, dynamic>> tournamentRef = _tournaments.doc(
+        tournamentId,
+      );
+      DocumentSnapshot<Map<String, dynamic>> tournamentDoc = await transaction
+          .get(tournamentRef);
       if (!tournamentDoc.exists) {
         tournamentRef = _privateTournaments.doc(tournamentId);
         tournamentDoc = await transaction.get(tournamentRef);
@@ -240,7 +246,9 @@ class FirestoreTournamentService implements TournamentRepository {
         }
       }
 
-      final participantRef = tournamentRef.collection('participants').doc(participantId);
+      final participantRef = tournamentRef
+          .collection('participants')
+          .doc(participantId);
       final participantDoc = await transaction.get(participantRef);
       if (!participantDoc.exists) {
         throw Exception(
@@ -264,17 +272,13 @@ class FirestoreTournamentService implements TournamentRepository {
   @override
   Future<void> incrementParticipantCount(String tournamentId) async {
     final ref = await _getTournamentDoc(tournamentId);
-    await ref.update({
-      'participantCount': FieldValue.increment(1),
-    });
+    await ref.update({'participantCount': FieldValue.increment(1)});
   }
 
   @override
   Future<void> decrementParticipantCount(String tournamentId) async {
     final ref = await _getTournamentDoc(tournamentId);
-    await ref.update({
-      'participantCount': FieldValue.increment(-1),
-    });
+    await ref.update({'participantCount': FieldValue.increment(-1)});
   }
 
   // ── Validación de duplicados ───────────────────────────────────────────────

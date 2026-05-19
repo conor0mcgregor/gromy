@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../../../core/models/registration_form.dart';
 import '../../../../database/participant/models/app_participant.dart';
 import '../../../../database/participant/repositories/participant_repository.dart';
 import '../../../../database/participant/services/firestore_participant_service.dart';
@@ -121,7 +122,16 @@ class EnrollInTournamentUseCase {
     required String entityId,
     required ParticipantEntityType entityType,
     String? categoryId,
+    Map<String, dynamic> registrationValues = const {},
   }) async {
+    final formErrors = RegistrationFormValidator.validateResponses(
+      schema: tournament.registrationForm,
+      values: registrationValues,
+    );
+    if (formErrors.isNotEmpty) {
+      throw Exception(formErrors.values.first);
+    }
+
     // 1. Obtener todos los participantes actuales del torneo
     final currentParticipants = await _participantRepo.getParticipants(tournament.id);
 
@@ -182,6 +192,11 @@ class EnrollInTournamentUseCase {
       entityType: entityType,
       status: initialStatus,
       categoryId: categoryId,
+      registrationFormVersion: tournament.registrationForm.version,
+      registrationResponses: RegistrationFormValidator.buildResponses(
+        schema: tournament.registrationForm,
+        values: registrationValues,
+      ),
     );
 
     // 8. Incrementar el contador de participantes del torneo.
