@@ -40,6 +40,11 @@ export {
   swapMatchParticipants,
 } from "./brackets";
 
+// ── Módulo de usuarios ──────────────────────────────────────────────────────
+export {
+  getUserProfile,
+} from "./users";
+
 // Start writing functions
 // https://firebase.google.com/docs/functions/typescript
 
@@ -92,5 +97,3 @@ setGlobalOptions({maxInstances: 10});
 //  );
 // ─────────────────────────────────────────────────────────────────────────────
 
-import {onRequest} from "firebase-functions/v2/https";
-import {NotificationDispatcher, NotificationTemplates} from "./notifications";
