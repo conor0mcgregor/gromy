@@ -1,0 +1,24 @@
+// Reglas a integrar dentro de:
+// match /tournaments/{tournamentId} y match /private_tournaments/{tournamentId}
+// ajustando la ruta del get(...) segun la coleccion padre.
+
+match /joinRequests/{requestId} {
+  allow create: if request.auth != null
+    && request.resource.data.requestedBy == request.auth.uid
+    && request.resource.data.status == 'pending';
+
+  allow read: if request.auth != null
+    && (
+      get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerUid == request.auth.uid
+      || request.auth.uid in get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.adminIds
+      || resource.data.requestedBy == request.auth.uid
+    );
+
+  allow update: if request.auth != null
+    && (
+      get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerUid == request.auth.uid
+      || request.auth.uid in get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.adminIds
+    );
+
+  allow delete: if false;
+}

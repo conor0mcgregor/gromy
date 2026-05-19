@@ -12,9 +12,8 @@ import '../datasource/notification_datasource.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 class NotificationRepositoryImpl implements NotificationRepository {
-  NotificationRepositoryImpl({
-    NotificationDatasource? datasource,
-  }) : _datasource = datasource ?? FirestoreNotificationDatasource();
+  NotificationRepositoryImpl({NotificationDatasource? datasource})
+    : _datasource = datasource ?? FirestoreNotificationDatasource();
 
   final NotificationDatasource _datasource;
 
@@ -57,6 +56,11 @@ class NotificationRepositoryImpl implements NotificationRepository {
   }
 
   @override
+  Future<String> createNotification(AppNotification notification) {
+    return _datasource.createNotification(notification);
+  }
+
+  @override
   Future<void> saveToken({
     required String userId,
     required String token,
@@ -70,10 +74,7 @@ class NotificationRepositoryImpl implements NotificationRepository {
   }
 
   @override
-  Future<void> removeToken({
-    required String userId,
-    required String token,
-  }) {
+  Future<void> removeToken({required String userId, required String token}) {
     return _datasource.removeToken(userId: userId, token: token);
   }
 }

@@ -130,6 +130,7 @@ class _PreinscriptionScreenState extends State<PreinscriptionScreen> {
                   participant: status.participant,
                   enrolledTeam: status.enrolledTeam,
                   canCancelTeam: status.canCancel,
+                  hasPendingJoinRequest: status.hasPendingJoinRequest,
                 ),
 
           // ── Contenido scrollable ──
@@ -874,6 +875,7 @@ class _StickyEnrollBar extends StatefulWidget {
     this.participant,
     this.enrolledTeam,
     this.canCancelTeam = true,
+    this.hasPendingJoinRequest = false,
   });
   final AppTournament tournament;
   final bool isEnrolled;
@@ -881,6 +883,7 @@ class _StickyEnrollBar extends StatefulWidget {
   final AppParticipant? participant;
   final AppTeam? enrolledTeam;
   final bool canCancelTeam;
+  final bool hasPendingJoinRequest;
 
   @override
   State<_StickyEnrollBar> createState() => _StickyEnrollBarState();
@@ -1022,6 +1025,7 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
   Widget build(BuildContext context) {
     final isFull =
         widget.tournament.participantCount >= widget.tournament.maxParticipants;
+    final hasPendingJoinRequest = widget.hasPendingJoinRequest;
     final editBlockReason = _editBlockReason();
     final canEdit = editBlockReason == null && !_isCancelling;
 
@@ -1104,9 +1108,17 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
                 ],
               )
             : GradientButton(
-                label: isFull ? 'Torneo completo' : 'Inscribirse al torneo',
-                icon: isFull ? Icons.block_rounded : Icons.how_to_reg_rounded,
-                onPressed: isFull
+                label: hasPendingJoinRequest
+                    ? 'Solicitud pendiente de revision'
+                    : isFull
+                    ? 'Torneo completo'
+                    : 'Inscribirse al torneo',
+                icon: hasPendingJoinRequest
+                    ? Icons.pending_actions_rounded
+                    : isFull
+                    ? Icons.block_rounded
+                    : Icons.how_to_reg_rounded,
+                onPressed: isFull || hasPendingJoinRequest
                     ? null
                     : () => Navigator.push(
                         context,

@@ -39,6 +39,9 @@ abstract interface class NotificationRepository {
   /// Elimina todas las notificaciones del usuario.
   Future<void> deleteAllNotifications({required String userId});
 
+  /// Crea una notificaciÃ³n persistente.
+  Future<String> createNotification(AppNotification notification);
+
   // ── FCM Tokens ─────────────────────────────────────────────────────────────
 
   /// Registra un token FCM para el dispositivo actual del usuario.
@@ -49,8 +52,5 @@ abstract interface class NotificationRepository {
   });
 
   /// Elimina un token FCM específico (al cerrar sesión o desinstalar).
-  Future<void> removeToken({
-    required String userId,
-    required String token,
-  });
+  Future<void> removeToken({required String userId, required String token});
 }

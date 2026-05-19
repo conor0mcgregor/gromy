@@ -15,13 +15,13 @@ import 'notification_datasource.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 class FirestoreNotificationDatasource implements NotificationDatasource {
-  FirestoreNotificationDatasource({
-    FirebaseFirestore? firestore,
-  }) : _db = firestore ??
-            FirebaseFirestore.instanceFor(
-              app: Firebase.app(),
-              databaseId: 'gromy-db',
-            );
+  FirestoreNotificationDatasource({FirebaseFirestore? firestore})
+    : _db =
+          firestore ??
+          FirebaseFirestore.instanceFor(
+            app: Firebase.app(),
+            databaseId: 'gromy-db',
+          );
 
   final FirebaseFirestore _db;
 
@@ -100,10 +100,17 @@ class FirestoreNotificationDatasource implements NotificationDatasource {
   }
 
   @override
+  Future<String> createNotification(AppNotification notification) async {
+    final docRef = notification.id.isEmpty
+        ? _notifications.doc()
+        : _notifications.doc(notification.id);
+    await docRef.set(notification.copyWith(id: docRef.id).toMap());
+    return docRef.id;
+  }
+
+  @override
   Future<void> markAsClicked({required String notificationId}) async {
-    await _notifications.doc(notificationId).update({
-      'clicked': true,
-    });
+    await _notifications.doc(notificationId).update({'clicked': true});
   }
 
   @override
@@ -114,9 +121,7 @@ class FirestoreNotificationDatasource implements NotificationDatasource {
   @override
   Future<void> deleteAllNotifications({required String userId}) async {
     final batch = _db.batch();
-    final docs = await _notifications
-        .where('userId', isEqualTo: userId)
-        .get();
+    final docs = await _notifications.where('userId', isEqualTo: userId).get();
 
     for (final doc in docs.docs) {
       batch.delete(doc.reference);

@@ -6,12 +6,14 @@ class EnrollmentStatus {
   final AppParticipant? participant;
   final AppTeam? enrolledTeam;
   final bool canCancel;
+  final bool hasPendingJoinRequest;
 
   EnrollmentStatus({
     required this.isEnrolled,
     this.participant,
     this.enrolledTeam,
     this.canCancel = false,
+    this.hasPendingJoinRequest = false,
   });
 
   factory EnrollmentStatus.notEnrolled() => EnrollmentStatus(isEnrolled: false);

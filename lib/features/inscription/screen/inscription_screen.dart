@@ -6,6 +6,7 @@ import '../../../core/widgets/bar_small_botton.dart';
 import '../../../core/widgets/gradient_button.dart';
 import '../../../database/team/models/app_team.dart';
 import '../../../features/tournament/data/model/app_tournament.dart';
+import '../../../features/tournament/data/model/enums_tournament.dart';
 import '../../../features/profile/presentation/screens/profile_teams_tab.dart';
 import '../presentation/controllers/inscription_controller.dart';
 import '../presentation/widgets/dynamic_registration_field.dart';
@@ -62,6 +63,7 @@ class _InscriptionScreenState extends State<InscriptionScreen> {
       context: context,
       barrierDismissible: false,
       builder: (_) => _SuccessDialog(
+        isJoinRequest: _ctrl.submittedJoinRequest,
         onClose: () {
           Navigator.of(context).pop(); // cerrar dialog
           Navigator.of(context).pop(); // volver a preinscription
@@ -907,6 +909,8 @@ class _SubmitButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isLoading = ctrl.submitState == InscriptionSubmitState.submitting;
+    final requiresApproval =
+        ctrl.tournament.accessType != TournamentAccessType.publicOpen;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -937,8 +941,16 @@ class _SubmitButton extends StatelessWidget {
         ],
 
         GradientButton(
-          label: isLoading ? 'Inscribiendo...' : 'Confirmar inscripción',
-          icon: isLoading ? null : Icons.how_to_reg_rounded,
+          label: isLoading
+              ? (requiresApproval ? 'Enviando...' : 'Inscribiendo...')
+              : (requiresApproval
+                    ? 'Solicitar inscripcion'
+                    : 'Confirmar inscripción'),
+          icon: isLoading
+              ? null
+              : (requiresApproval
+                    ? Icons.pending_actions_rounded
+                    : Icons.how_to_reg_rounded),
           isLoading: isLoading,
           variant: GradientButtonVariant.forest,
           size: GradientButtonSize.large,
@@ -1016,8 +1028,9 @@ class _ErrorState extends StatelessWidget {
 // ── Success dialog ─────────────────────────────────────────────────────────
 
 class _SuccessDialog extends StatelessWidget {
-  const _SuccessDialog({required this.onClose});
+  const _SuccessDialog({required this.onClose, required this.isJoinRequest});
   final VoidCallback onClose;
+  final bool isJoinRequest;
 
   @override
   Widget build(BuildContext context) {

@@ -8,15 +8,18 @@ import '../features/auth/presentation/controllers/auth_controller.dart';
 import '../features/events/presentation/screens/events_screen.dart';
 import '../features/home/presentation/screens/home_screen.dart';
 import '../features/notifications/presentation/controllers/notifications_controller.dart';
+import '../features/notifications/presentation/navigation/notification_navigation_handler.dart';
 import '../features/notifications/presentation/screens/notifications_screen.dart';
 import '../features/profile/presentation/screens/profile_screen.dart';
+import '../features/inscription/screen/preinscription_screen.dart';
+import '../features/inscription/screen/tournament_join_requests_screen.dart';
+import '../features/tournament/data/services/firestore_tournament_service.dart';
 import '../features/tournament/presentation/screens/my_tournament_screen.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key, this.authController});
 
   final AuthController? authController;
-
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -30,7 +33,6 @@ class _AppShellState extends State<AppShell> {
 
   String? _userId;
 
-
   @override
   void initState() {
     super.initState();
@@ -42,6 +44,41 @@ class _AppShellState extends State<AppShell> {
     if (_userId != null) {
       _controllerNotifications.init(_userId!);
     }
+    _registerNotificationRoutes();
+  }
+
+  void _registerNotificationRoutes() {
+    NotificationNavigationHandler.instance.registerRoutes({
+      '/tournament/join-requests': (context, data) async {
+        final tournamentId = data['tournamentId'] as String?;
+        if (tournamentId == null || tournamentId.isEmpty) return;
+        final tournament = await FirestoreTournamentService().getTournament(
+          tournamentId,
+        );
+        if (tournament == null || !context.mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                TournamentJoinRequestsScreen(tournament: tournament),
+          ),
+        );
+      },
+      '/tournament/detail': (context, data) async {
+        final tournamentId = data['tournamentId'] as String?;
+        if (tournamentId == null || tournamentId.isEmpty) return;
+        final tournament = await FirestoreTournamentService().getTournament(
+          tournamentId,
+        );
+        if (tournament == null || !context.mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PreinscriptionScreen(tournament: tournament),
+          ),
+        );
+      },
+    });
   }
 
   @override
@@ -100,10 +137,7 @@ class _AppShellState extends State<AppShell> {
               size: 220,
             ),
           ),
-          IndexedStack(
-            index: _currentIndex,
-            children: tabs,
-          ),
+          IndexedStack(index: _currentIndex, children: tabs),
         ],
       ),
       bottomNavigationBar: ListenableBuilder(
