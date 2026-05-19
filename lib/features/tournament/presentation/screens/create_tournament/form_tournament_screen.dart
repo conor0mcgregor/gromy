@@ -417,16 +417,40 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     }
   }
 
-  Future<DateTime?> _pickDate({DateTime? initialDate}) async {
+  Future<DateTime?> _pickDateTime({DateTime? initialDate, required String helpText}) async {
     FocusScope.of(context).unfocus();
     final today = DateTime.now();
-    final initial = initialDate ?? DateTime(today.year, today.month, today.day);
-    return showDatePicker(
+    final initial = initialDate ?? DateTime(today.year, today.month, today.day, 10, 0);
+    
+    final date = await showDatePicker(
       context: context,
       initialDate: initial,
       firstDate: DateTime(today.year, today.month, today.day),
       lastDate: DateTime(today.year + 3),
-      helpText: '¿Cuándo se celebra el torneo?',
+      helpText: helpText,
+      confirmText: 'Siguiente',
+      cancelText: 'Cancelar',
+      builder: (context, child) => Theme(
+        data: ThemeData.dark().copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: Color(0xFF6C63FF),
+            secondary: Color(0xFF00D4FF),
+            surface: Color(0xFF12122E),
+          ),
+          dialogTheme: const DialogThemeData(
+            backgroundColor: Color(0xFF101127),
+          ),
+        ),
+        child: child ?? const SizedBox.shrink(),
+      ),
+    );
+
+    if (date == null || !mounted) return null;
+
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+      helpText: helpText,
       confirmText: 'Confirmar',
       cancelText: 'Cancelar',
       builder: (context, child) => Theme(
@@ -443,6 +467,10 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
         child: child ?? const SizedBox.shrink(),
       ),
     );
+
+    if (time == null) return null;
+
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
   }
 
   Future<void> _pickCover() async {
@@ -871,7 +899,10 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     eventDate: _form.eventDate,
     eventDateError: _form.eventDateError,
     onPickEventDate: () async {
-      final picked = await _pickDate(initialDate: _form.eventDate);
+      final picked = await _pickDateTime(
+        initialDate: _form.eventDate,
+        helpText: 'Selecciona la fecha y hora del evento',
+      );
       if (picked != null && mounted) {
         setState(() {
           _form.eventDate = picked;
@@ -883,7 +914,10 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     registrationDeadline: _form.registrationDeadline,
     registrationDeadlineError: _form.registrationDeadlineError,
     onPickRegistrationDeadline: () async {
-      final picked = await _pickDate(initialDate: _form.registrationDeadline);
+      final picked = await _pickDateTime(
+        initialDate: _form.registrationDeadline,
+        helpText: 'Cierre de inscripciones',
+      );
       if (picked != null && mounted) {
         setState(() {
           _form.registrationDeadline = picked;
@@ -894,7 +928,10 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     bracketPublishDate: _form.bracketPublishDate,
     bracketPublishDateError: _form.bracketPublishDateError,
     onPickBracketPublishDate: () async {
-      final picked = await _pickDate(initialDate: _form.bracketPublishDate);
+      final picked = await _pickDateTime(
+        initialDate: _form.bracketPublishDate,
+        helpText: 'Cuándo se publican los cuadros',
+      );
       if (picked != null && mounted) {
         setState(() {
           _form.bracketPublishDate = picked;

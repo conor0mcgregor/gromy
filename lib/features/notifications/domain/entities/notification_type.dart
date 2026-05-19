@@ -27,6 +27,8 @@ abstract final class NotificationType {
   static const String inscriptionCancelled = 'inscription_cancelled';
   static const String teamInvitation = 'team_invitation';
   static const String tournamentUpdate = 'tournament_update';
+  static const String tournamentCancelled = 'tournament_cancelled';
+  static const String locationChanged = 'location_changed';
 }
 
 /// Configuración visual para cada tipo de notificación.
@@ -130,6 +132,18 @@ class NotificationTypeConfig {
         color: Color(0xFF06B6D4),
         label: 'Actualización de torneo',
         priority: 1,
+      ),
+      NotificationType.tournamentCancelled => const NotificationTypeConfig(
+        icon: Icons.cancel_schedule_send_rounded,
+        color: Color(0xFFEF4444),
+        label: 'Torneo cancelado',
+        priority: 4,
+      ),
+      NotificationType.locationChanged => const NotificationTypeConfig(
+        icon: Icons.place_rounded,
+        color: Color(0xFFFF9F43),
+        label: 'Ubicación actualizada',
+        priority: 2,
       ),
       // Tipo desconocido → fallback seguro
       _ => const NotificationTypeConfig(

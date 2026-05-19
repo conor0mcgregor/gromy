@@ -29,6 +29,11 @@ module.exports = {
     "quotes": ["error", "double"],
     "import/no-unresolved": 0,
     "indent": ["error", 2],
+    "linebreak-style": "off",
+    "max-len": "off",
+    "operator-linebreak": "off",
+    "quote-props": "off",
+    "valid-jsdoc": "off",
     // TypeScript ya documenta firmas; JSDoc en cada helper no aporta aquí.
     "require-jsdoc": "off",
     "@typescript-eslint/no-non-null-assertion": "off",

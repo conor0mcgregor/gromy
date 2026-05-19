@@ -11,6 +11,7 @@ import '../features/notifications/presentation/controllers/notifications_control
 import '../features/notifications/presentation/screens/notifications_screen.dart';
 import '../features/profile/presentation/screens/profile_screen.dart';
 import '../features/tournament/presentation/screens/my_tournament_screen.dart';
+import 'notification_routes.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key, this.authController});
@@ -42,6 +43,9 @@ class _AppShellState extends State<AppShell> {
     if (_userId != null) {
       _controllerNotifications.init(_userId!);
     }
+
+    // Registrar rutas de navegación para push notifications
+    NotificationRoutes.register();
   }
 
   @override

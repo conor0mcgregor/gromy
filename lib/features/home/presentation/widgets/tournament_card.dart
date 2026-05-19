@@ -113,6 +113,7 @@ class _TournamentCardState extends State<TournamentCard>
           : 0;
 
   String get _occupancyLabel {
+    if (_occupancy == 1) return 'Lleno';
     if (_occupancy >= 0.8) return 'Casi lleno';
     if (_occupancy >= 0.6) return 'Bastantes plazas';
     return 'Plazas disponibles';

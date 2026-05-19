@@ -8,6 +8,7 @@ import '../widgets/notification_card.dart';
 import '../../domain/entities/app_notification.dart';
 import '../../domain/entities/notification_type.dart';
 import 'admin_invitation_details_screen.dart';
+import 'team_invitation_details_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  NotificationsScreen  ·  Pantalla principal de notificaciones
@@ -395,6 +396,18 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         MaterialPageRoute(
           builder: (_) =>
               AdminInvitationDetailsScreen(notification: notification),
+        ),
+      );
+      return;
+    }
+
+    // Navegación especializada para invitaciones de equipo
+    if (notification.type == NotificationType.teamInvitation) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              TeamInvitationDetailsScreen(notification: notification),
         ),
       );
       return;

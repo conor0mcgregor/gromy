@@ -6,14 +6,6 @@ import 'package:flutter/material.dart';
 import '../../../controllers/team_form_controller.dart';
 import '../../../widgets/team_member_tile.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Step2 · Resumen / Review del equipo
-//
-//  Muestra todos los datos introducidos antes de confirmar la creación:
-//  - Foto y nombre
-//  - Lista de miembros con roles
-// ─────────────────────────────────────────────────────────────────────────────
-
 class Step2TeamReview extends StatelessWidget {
   const Step2TeamReview({
     super.key,
@@ -28,49 +20,65 @@ class Step2TeamReview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final pendingAdmins = members.where((m) => m.isAdmin).length;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 8),
-
-        // ── Título ──
         _buildStepTitle(),
         const SizedBox(height: 28),
-
-        // ── Card resumen ──
-        _buildSummaryCard(),
+        _buildSummaryCard(pendingAdmins),
         const SizedBox(height: 20),
-
-        // ── Miembros ──
         if (members.isNotEmpty) ...[
-          _buildSectionLabel('Miembros (${members.length})'),
+          _buildSectionLabel('Invitaciones pendientes (${members.length})'),
+          const SizedBox(height: 6),
+          Text(
+            'Estas personas recibiran una invitacion al crear el equipo. Aun no contaran como miembros reales.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.38),
+              fontSize: 12.5,
+              height: 1.35,
+            ),
+          ),
           const SizedBox(height: 12),
-          ...members.map((m) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: TeamMemberTile(
-                  displayName: m.displayName,
-                  nickname: m.nickname,
-                  photoUrl: m.photoUrl,
-                  isAdmin: m.isAdmin,
-                  showAdminBadge: true,
-                ),
-              )),
+          ...members.map(
+            (m) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: TeamMemberTile(
+                displayName: m.displayName,
+                nickname: m.nickname,
+                photoUrl: m.photoUrl,
+                isAdmin: m.isAdmin,
+                showAdminBadge: true,
+                muted: true,
+                statusLabel: 'Pendiente',
+                statusColor: const Color(0xFFF59E0B),
+              ),
+            ),
+          ),
         ] else ...[
           _buildInfoCard(
             icon: Icons.info_outline_rounded,
-            text: 'No has añadido miembros. Podrás añadirlos después desde la gestión del equipo.',
+            text:
+                'No has preparado invitaciones. Podras invitar usuarios despues desde la gestion del equipo.',
           ),
         ],
-
         const SizedBox(height: 20),
-
-        // ── Aviso ──
         _buildInfoCard(
           icon: Icons.check_circle_outline_rounded,
-          text: 'Tú serás añadido automáticamente como miembro y administrador del equipo.',
+          text:
+              'Tu seras el unico miembro real al crearse el equipo y tambien su administrador inicial.',
           color: const Color(0xFF22C55E),
         ),
-
+        const SizedBox(height: 12),
+        _buildInfoCard(
+          icon: Icons.pending_actions_rounded,
+          text: members.isEmpty
+              ? 'No hay invitaciones pendientes por enviar en esta creacion.'
+              : 'Las ${members.length} invitaciones se enviaran al crear el equipo y quedaran claramente marcadas como pendientes.',
+          color: const Color(0xFFF59E0B),
+        ),
         const SizedBox(height: 16),
       ],
     );
@@ -86,9 +94,7 @@ class Step2TeamReview extends StatelessWidget {
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.1),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -138,7 +144,7 @@ class Step2TeamReview extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Revisa los datos antes de crear el equipo',
+                      'Revisa miembros reales e invitaciones antes de crear el equipo',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.55),
                         fontSize: 13,
@@ -155,7 +161,7 @@ class Step2TeamReview extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryCard() {
+  Widget _buildSummaryCard(int pendingAdmins) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
@@ -166,23 +172,18 @@ class Step2TeamReview extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             color: Colors.white.withValues(alpha: 0.05),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.1),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
           ),
           child: Row(
             children: [
-              // ── Foto ──
               _buildTeamPhoto(),
               const SizedBox(width: 18),
-
-              // ── Info ──
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      teamName.isEmpty ? '—' : teamName,
+                      teamName.isEmpty ? '-' : teamName,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
@@ -193,12 +194,17 @@ class Step2TeamReview extends StatelessWidget {
                     const SizedBox(height: 8),
                     _buildInfoChip(
                       Icons.people_rounded,
-                      '${members.length + 1} miembro${members.isNotEmpty ? 's' : ''}',
+                      '1 miembro real al crear',
+                    ),
+                    const SizedBox(height: 4),
+                    _buildInfoChip(
+                      Icons.schedule_send_rounded,
+                      '${members.length} invitacion${members.length == 1 ? '' : 'es'} pendiente${members.length == 1 ? '' : 's'}',
                     ),
                     const SizedBox(height: 4),
                     _buildInfoChip(
                       Icons.admin_panel_settings_rounded,
-                      '${members.where((m) => m.isAdmin).length + 1} admin${members.where((m) => m.isAdmin).isNotEmpty ? 's' : ''}',
+                      '1 admin real + $pendingAdmins admin pendiente${pendingAdmins == 1 ? '' : 's'}',
                     ),
                   ],
                 ),
@@ -228,7 +234,12 @@ class Step2TeamReview extends StatelessWidget {
       ),
       child: ClipOval(
         child: coverBytes != null
-            ? Image.memory(coverBytes!, fit: BoxFit.cover, width: 72, height: 72)
+            ? Image.memory(
+                coverBytes!,
+                fit: BoxFit.cover,
+                width: 72,
+                height: 72,
+              )
             : Center(
                 child: Text(
                   teamName.isNotEmpty ? teamName[0].toUpperCase() : '?',

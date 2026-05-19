@@ -451,7 +451,9 @@ class TournamentFormController extends ChangeNotifier {
       'diciembre',
     ];
 
-    return '${date.day} de ${months[date.month - 1]} de ${date.year}';
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+    return '${date.day} de ${months[date.month - 1]} de ${date.year}, $hour:$minute';
   }
 
   @override

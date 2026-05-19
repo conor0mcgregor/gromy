@@ -27,6 +27,15 @@ export {
   acceptAdminInvitation,
   rejectAdminInvitation,
   cancelAdminInvitation,
+  // Invitaciones de equipo
+  createTeamInvitation,
+  acceptTeamInvitation,
+  rejectTeamInvitation,
+  cancelTeamInvitation,
+  // Triggers de notificaciones de torneos
+  onTournamentCancelled,
+  onTournamentDatesChanged,
+  onTournamentLocationChanged,
 } from "./tournaments";
 
 // ── Módulo de brackets ──────────────────────────────────────────────────────
@@ -91,6 +100,3 @@ setGlobalOptions({maxInstances: 10});
 //    }
 //  );
 // ─────────────────────────────────────────────────────────────────────────────
-
-import {onRequest} from "firebase-functions/v2/https";
-import {NotificationDispatcher, NotificationTemplates} from "./notifications";

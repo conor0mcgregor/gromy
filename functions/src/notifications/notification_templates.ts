@@ -276,4 +276,60 @@ export class NotificationTemplates {
       body: params.body,
     };
   }
+
+  /**
+   * Torneo cancelado.
+   * @param {Object} params Parámetros.
+   * @param {string} params.userId ID del usuario.
+   * @param {string} params.tournamentName Nombre del torneo.
+   * @param {string} params.tournamentId ID del torneo.
+   * @return {NotificationPayload} Payload.
+   */
+  static tournamentCancelled(params: {
+    userId: string;
+    tournamentName: string;
+    tournamentId: string;
+  }): NotificationPayload {
+    return {
+      userId: params.userId,
+      type: "tournament_cancelled",
+      title: "Torneo cancelado",
+      body: `El torneo "${params.tournamentName}" ha sido cancelado.`,
+      actionRoute: "/tournament/detail",
+      data: {tournamentId: params.tournamentId},
+    };
+  }
+
+  /**
+   * Cambio de ubicación del torneo.
+   * @param {Object} params Parámetros.
+   * @param {string} params.userId ID del usuario.
+   * @param {string} params.tournamentName Nombre del torneo.
+   * @param {string} params.tournamentId ID del torneo.
+   * @param {string} [params.newLocation] Nueva ubicación.
+   * @return {NotificationPayload} Payload.
+   */
+  static locationChanged(params: {
+    userId: string;
+    tournamentName: string;
+    tournamentId: string;
+    newLocation?: string;
+  }): NotificationPayload {
+    const locationMsg = params.newLocation
+      ? ` Nueva ubicación: ${params.newLocation}.`
+      : "";
+    return {
+      userId: params.userId,
+      type: "location_changed",
+      title: "Ubicación actualizada",
+      body:
+        `La ubicación del torneo "${params.tournamentName}" ` +
+        `ha sido modificada.${locationMsg}`,
+      actionRoute: "/tournament/detail",
+      data: {
+        tournamentId: params.tournamentId,
+        newLocation: params.newLocation ?? "",
+      },
+    };
+  }
 }

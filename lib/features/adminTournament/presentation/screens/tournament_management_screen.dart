@@ -68,22 +68,51 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
     super.dispose();
   }
 
-  Future<DateTime?> _pickDate({DateTime? initial}) => showDatePicker(
-    context: context,
-    initialDate: initial ?? DateTime.now(),
-    firstDate: DateTime(2020),
-    lastDate: DateTime(2035),
-    builder: (ctx, child) => Theme(
-      data: ThemeData.dark().copyWith(
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF6C63FF),
-          surface: Color(0xFF12122E),
+  Future<DateTime?> _pickDate({DateTime? initial, required String helpText}) async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: initial ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2035),
+      helpText: helpText,
+      confirmText: 'Siguiente',
+      cancelText: 'Cancelar',
+      builder: (ctx, child) => Theme(
+        data: ThemeData.dark().copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: Color(0xFF6C63FF),
+            surface: Color(0xFF12122E),
+          ),
+          dialogTheme: const DialogThemeData(backgroundColor: Color(0xFF101127)),
         ),
-        dialogTheme: const DialogThemeData(backgroundColor: Color(0xFF101127)),
+        child: child ?? const SizedBox.shrink(),
       ),
-      child: child ?? const SizedBox.shrink(),
-    ),
-  );
+    );
+
+    if (date == null || !mounted) return null;
+
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial ?? DateTime.now()),
+      helpText: helpText,
+      confirmText: 'Confirmar',
+      cancelText: 'Cancelar',
+      builder: (ctx, child) => Theme(
+        data: ThemeData.dark().copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: Color(0xFF6C63FF),
+            surface: Color(0xFF12122E),
+          ),
+          dialogTheme: const DialogThemeData(backgroundColor: Color(0xFF101127)),
+        ),
+        child: child ?? const SizedBox.shrink(),
+      ),
+    );
+
+    if (time == null) return null;
+
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+  }
 
   Future<void> _pickCover() async {
     final picked = await _imagePicker.pickImage(
@@ -546,7 +575,10 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           value: _ctrl.edited.scheduledAt,
           errorText: _ctrl.eventDateError,
           onPick: () async {
-            final date = await _pickDate(initial: _ctrl.edited.scheduledAt);
+            final date = await _pickDate(
+              initial: _ctrl.edited.scheduledAt,
+              helpText: 'Fecha y hora del evento',
+            );
             if (date != null) _ctrl.updateScheduledAt(date);
           },
         ),
@@ -559,6 +591,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           onPick: () async {
             final date = await _pickDate(
               initial: _ctrl.edited.registrationDeadline,
+              helpText: 'Cierre de inscripciones',
             );
             if (date != null) _ctrl.updateRegistrationDeadline(date);
           },
@@ -573,6 +606,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           onPick: () async {
             final date = await _pickDate(
               initial: _ctrl.edited.bracketPublishDate,
+              helpText: 'Cuándo se publican los cuadros',
             );
             if (date != null) _ctrl.updateBracketPublishDate(date);
           },
@@ -646,8 +680,9 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           label: 'Cambiar ubicación',
           icon: Icons.map_rounded,
           onPressed: _openLocationPicker,
-          variant: GradientButtonVariant.violet,
+          variant: GradientButtonVariant.simple,
           size: GradientButtonSize.small,
+          textColor: Colors.black,
         ),
       ],
     );
@@ -1439,7 +1474,7 @@ class _DatePickerField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final formatted = value != null
-        ? DateFormat("dd 'de' MMMM, yyyy", 'es').format(value!)
+        ? DateFormat("dd 'de' MMMM, yyyy - HH:mm", 'es').format(value!)
         : (optional ? 'Sin definir' : 'Seleccionar fecha');
 
     return Column(

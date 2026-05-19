@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -11,6 +12,9 @@ import '../../../../core/widgets/toggle_switch.dart';
 import '../../../../database/team/models/app_team.dart';
 import '../../../../database/team/services/firestore_team_service.dart';
 import '../../data/services/team_storage_service.dart';
+import '../../../notifications/data/repository/team_invitation_repository_impl.dart';
+import '../../../notifications/domain/entities/pending_team_invitation.dart';
+import '../../../notifications/domain/use_cases/team_invitation_use_cases.dart';
 import '../../../user/data/models/app_user.dart';
 import '../../../user/data/services/firestore_user_service.dart';
 import '../widgets/team_member_tile.dart';
@@ -40,6 +44,7 @@ class _TeamManageScreenState extends State<TeamManageScreen>
   final _teamService = FirestoreTeamService();
   final _userService = FirestoreUserService();
   final _storageService = TeamStorageService();
+  final _teamInvitationRepository = CloudFunctionTeamInvitationRepository();
   final _imagePicker = ImagePicker();
 
   final _nameController = TextEditingController();
@@ -53,10 +58,12 @@ class _TeamManageScreenState extends State<TeamManageScreen>
 
   final Map<String, AppUser?> _userCache = {};
   bool _isLoadingUsers = true;
+  bool _isLoadingPendingInvitations = true;
+  List<PendingTeamInvitation> _pendingInvitations = [];
+  StreamSubscription<List<PendingTeamInvitation>>? _pendingInvitationsSub;
 
   late final AnimationController _fadeController;
   late final Animation<double> _fadeAnimation;
-
 
   @override
   void initState() {
@@ -75,10 +82,12 @@ class _TeamManageScreenState extends State<TeamManageScreen>
     _fadeController.forward();
 
     _loadUsers();
+    _watchPendingInvitations();
   }
 
   @override
   void dispose() {
+    _pendingInvitationsSub?.cancel();
     _fadeController.dispose();
     _nameController.dispose();
     _memberController.dispose();
@@ -110,12 +119,35 @@ class _TeamManageScreenState extends State<TeamManageScreen>
     }
   }
 
+  void _watchPendingInvitations() {
+    _pendingInvitationsSub?.cancel();
+    final watchUseCase = WatchPendingTeamInvitationsUseCase(
+      _teamInvitationRepository,
+    );
+    _pendingInvitationsSub = watchUseCase(teamId: _team.id).listen(
+      (invitations) {
+        if (!mounted) return;
+        setState(() {
+          _pendingInvitations = invitations;
+          _isLoadingPendingInvitations = false;
+        });
+      },
+      onError: (_) {
+        if (!mounted) return;
+        setState(() => _isLoadingPendingInvitations = false);
+      },
+    );
+  }
+
   // ── Acciones ───────────────────────────────────────────────────────────────
 
   Future<void> _saveName() async {
     final newName = _nameController.text.trim();
     if (newName.isEmpty || newName.length < 3) {
-      _showSnackBar('El nombre debe tener al menos 3 caracteres.', isError: true);
+      _showSnackBar(
+        'El nombre debe tener al menos 3 caracteres.',
+        isError: true,
+      );
       return;
     }
     if (newName == _team.name) return;
@@ -166,7 +198,7 @@ class _TeamManageScreenState extends State<TeamManageScreen>
   Future<void> _addMember() async {
     final raw = _memberController.text.trim();
     if (raw.isEmpty) {
-      setState(() => _memberError = 'Escribe un nickname.');
+      setState(() => _memberError = 'Escribe un nickname, email o UID.');
       return;
     }
 
@@ -176,26 +208,49 @@ class _TeamManageScreenState extends State<TeamManageScreen>
     });
 
     try {
+      // Buscar usuario por nickname, email o UID
+      AppUser? user;
       final cleanRaw = raw.startsWith('@') ? raw.substring(1) : raw;
-      final user = await _userService.getUserByNickname(cleanRaw);
-
-      if (user == null) {
-        setState(() => _memberError = 'No existe un usuario con ese nickname.');
-        return;
+      if (cleanRaw.contains('@')) {
+        user = await _userService.getUserByEmail(cleanRaw);
+      } else {
+        user = await _userService.getUserByNickname(cleanRaw);
+        user ??= await _userService.getUser(cleanRaw);
       }
 
-      if (_team.members.contains(user.uid)) {
+      if (user == null) {
+        setState(() => _memberError = 'No existe un usuario con esos datos.');
+        return;
+      }
+      final invitedUser = user;
+
+      if (_team.members.contains(invitedUser.uid)) {
         setState(() => _memberError = 'Este usuario ya es miembro del equipo.');
         return;
       }
 
-      await _teamService.addMember(teamId: _team.id, userId: user.uid);
+      // Enviar invitación en lugar de añadir directamente
+      if (_pendingInvitations.any((inv) => inv.userId == invitedUser.uid)) {
+        setState(
+          () =>
+              _memberError = 'Este usuario ya tiene una invitacion pendiente.',
+        );
+        return;
+      }
+
+      final sendUseCase = SendTeamInvitationUseCase(_teamInvitationRepository);
+      await sendUseCase(teamId: _team.id, invitedUserId: invitedUser.uid);
+
       _memberController.clear();
-      _userCache[user.uid] = user;
-      await _refreshTeam();
-      _showSnackBar('Miembro añadido.', isError: false);
+      _showSnackBar(
+        'Invitación enviada a @${invitedUser.nickname}. Será miembro cuando la acepte.',
+        isError: false,
+      );
+    } on Exception catch (e) {
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      setState(() => _memberError = msg);
     } catch (_) {
-      setState(() => _memberError = 'Error al añadir el miembro.');
+      setState(() => _memberError = 'Error al enviar la invitación.');
     } finally {
       if (mounted) setState(() => _isSearching = false);
     }
@@ -223,6 +278,29 @@ class _TeamManageScreenState extends State<TeamManageScreen>
       _showSnackBar('Miembro eliminado.', isError: false);
     } catch (_) {
       _showSnackBar('Error al eliminar el miembro.', isError: true);
+    }
+  }
+
+  Future<void> _cancelPendingInvitation(
+    PendingTeamInvitation invitation,
+  ) async {
+    final confirm = await _showConfirmDialog(
+      '¿Cancelar invitación?',
+      'Este usuario dejará de tener una invitación pendiente para entrar en el equipo.',
+    );
+    if (!confirm) return;
+
+    try {
+      final cancelUseCase = CancelTeamInvitationUseCase(
+        _teamInvitationRepository,
+      );
+      await cancelUseCase(notificationId: invitation.notificationId);
+      _showSnackBar('Invitación cancelada.', isError: false);
+    } on Exception catch (e) {
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      _showSnackBar(msg, isError: true);
+    } catch (_) {
+      _showSnackBar('No se pudo cancelar la invitación.', isError: true);
     }
   }
 
@@ -285,8 +363,9 @@ class _TeamManageScreenState extends State<TeamManageScreen>
               isDangerous
                   ? Icons.warning_amber_rounded
                   : Icons.info_outline_rounded,
-              color:
-                  isDangerous ? const Color(0xFFFF4D6A) : const Color(0xFF00D4FF),
+              color: isDangerous
+                  ? const Color(0xFFFF4D6A)
+                  : const Color(0xFF00D4FF),
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -298,8 +377,10 @@ class _TeamManageScreenState extends State<TeamManageScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar',
-                style: TextStyle(color: Colors.white54)),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(color: Colors.white54),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -333,8 +414,9 @@ class _TeamManageScreenState extends State<TeamManageScreen>
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor:
-            isError ? const Color(0xFFFF4D6A) : const Color(0xFF22C55E),
+        backgroundColor: isError
+            ? const Color(0xFFFF4D6A)
+            : const Color(0xFF22C55E),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -434,6 +516,8 @@ class _TeamManageScreenState extends State<TeamManageScreen>
                               _buildNameSection(),
                               const SizedBox(height: 28),
                               _buildAddMemberSection(),
+                              const SizedBox(height: 28),
+                              _buildPendingInvitationsSection(),
                               const SizedBox(height: 28),
                               _buildMembersSection(),
                               const SizedBox(height: 40),
@@ -609,7 +693,7 @@ class _TeamManageScreenState extends State<TeamManageScreen>
   Widget _buildAddMemberSection() {
     return _buildSectionCard(
       icon: Icons.person_add_rounded,
-      title: 'Añadir miembros',
+      title: 'Invitar usuarios',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -642,22 +726,63 @@ class _TeamManageScreenState extends State<TeamManageScreen>
                         onPressed: _addMember,
                         style: ElevatedButton.styleFrom(
                           shape: const CircleBorder(),
-                          padding: const EdgeInsets.all(12), // Ajusta el tamaño del botón
+                          padding: const EdgeInsets.all(
+                            12,
+                          ), // Ajusta el tamaño del botón
                           shadowColor: const Color(0xFF0DFF00),
                           elevation: 2,
                           backgroundColor: Colors.white,
                         ),
-                        child: const Icon(Icons.person_add_rounded, color: Colors.black,),
-                    ),
+                        child: const Icon(
+                          Icons.person_add_rounded,
+                          color: Colors.black,
+                        ),
+                      ),
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.08),
+              border: Border.all(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.18),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.pending_outlined,
+                  size: 16,
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.9),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Las invitaciones pendientes se muestran aparte y no cuentan como miembros reales hasta que se aceptan.',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: Colors.white.withValues(alpha: 0.58),
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           if (_memberError != null) ...[
             const SizedBox(height: 8),
             Row(
               children: [
-                const Icon(Icons.error_outline_rounded,
-                    color: Color(0xFFFF4D6A), size: 14),
+                const Icon(
+                  Icons.error_outline_rounded,
+                  color: Color(0xFFFF4D6A),
+                  size: 14,
+                ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
@@ -678,6 +803,143 @@ class _TeamManageScreenState extends State<TeamManageScreen>
   }
 
   // ── Sección: lista de miembros ──
+
+  Widget _buildPendingInvitationsSection() {
+    if (_isLoadingPendingInvitations) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Invitaciones pendientes',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: Colors.white.withValues(alpha: 0.4),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (_pendingInvitations.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: Colors.white.withValues(alpha: 0.03),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              Icons.mark_email_read_outlined,
+              size: 36,
+              color: Colors.white.withValues(alpha: 0.18),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'No hay invitaciones pendientes',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.42),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Cuando invites a alguien aparecerá aquí hasta que acepte.',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.26),
+                fontSize: 12.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Invitaciones pendientes',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.7),
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              '${_pendingInvitations.length}',
+              style: TextStyle(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.9),
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Estas personas todavía no pertenecen al equipo. La invitación debe aceptarse antes de contar como miembro real.',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.35),
+            fontSize: 12.5,
+          ),
+        ),
+        const SizedBox(height: 14),
+        ..._pendingInvitations.map(
+          (invitation) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: TeamMemberTile(
+              displayName: invitation.displayName,
+              nickname: invitation.nickname,
+              photoUrl: invitation.photoUrl,
+              muted: true,
+              statusLabel: 'Pendiente',
+              statusColor: const Color(0xFFF59E0B),
+              trailing: GestureDetector(
+                onTap: () => _cancelPendingInvitation(invitation),
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.08),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.1),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.close_rounded,
+                    color: Color(0xFFF59E0B),
+                    size: 18,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _buildMembersSection() {
     return Column(
@@ -707,7 +969,7 @@ class _TeamManageScreenState extends State<TeamManageScreen>
         ),
         const SizedBox(height: 4),
         Text(
-          'Usa el toggle para cambiar el rol de administrador',
+          'Solo aquí aparecen los miembros reales que ya forman parte del equipo.',
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.35),
             fontSize: 12.5,
@@ -761,7 +1023,9 @@ class _TeamManageScreenState extends State<TeamManageScreen>
                           height: 32,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: const Color(0xFFFF4D6A).withValues(alpha: 0.12),
+                            color: const Color(
+                              0xFFFF4D6A,
+                            ).withValues(alpha: 0.12),
                           ),
                           child: const Icon(
                             Icons.close_rounded,
@@ -803,8 +1067,11 @@ class _TeamManageScreenState extends State<TeamManageScreen>
             children: [
               const Row(
                 children: [
-                  Icon(Icons.warning_amber_rounded,
-                      color: Color(0xFFFF4D6A), size: 20),
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: Color(0xFFFF4D6A),
+                    size: 20,
+                  ),
                   SizedBox(width: 8),
                   Text(
                     'Zona de peligro',
@@ -858,9 +1125,7 @@ class _TeamManageScreenState extends State<TeamManageScreen>
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             color: Colors.white.withValues(alpha: 0.05),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.1),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
