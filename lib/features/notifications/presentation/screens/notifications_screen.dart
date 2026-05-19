@@ -2,9 +2,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../controllers/notifications_controller.dart';
+import '../controllers/team_invitation_controller.dart';
 import '../navigation/notification_navigation_handler.dart';
 import '../widgets/admin_invitation_card.dart';
 import '../widgets/notification_card.dart';
+import '../widgets/team_invitation_card.dart';
 import '../../domain/entities/app_notification.dart';
 import '../../domain/entities/notification_type.dart';
 import 'admin_invitation_details_screen.dart';
@@ -34,11 +36,14 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   late final AnimationController _fadeController;
   late final Animation<double> _fadeAnimation;
 
-  late final NotificationsController _controller = widget.controller;  String? _userId;
+  late final NotificationsController _controller = widget.controller;
+  late final TeamInvitationController _teamInvitationController;
+  String? _userId;
   @override
   void initState() {
     super.initState();
     _controller.addListener(_onStateChanged);
+    _teamInvitationController = TeamInvitationController();
 
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 400),
@@ -67,6 +72,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   void dispose() {
     _controller.removeListener(_onStateChanged);
     _controller.dispose();
+    _teamInvitationController.dispose();
     _fadeController.dispose();
     super.dispose();
   }
@@ -357,13 +363,34 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         itemBuilder: (context, index) {
           final notification = _controller.notifications[index];
 
-          // Usar tarjeta especializada para invitaciones de administrador
+          // Tarjeta especializada para invitaciones de administrador
           if (notification.type == NotificationType.adminInvitation) {
             return AdminInvitationCard(
               notification: notification,
               onTap: () => _handleNotificationTap(notification),
               onDismiss: () =>
                   _controller.removeNotification(notification.id),
+            );
+          }
+
+          // Tarjeta especializada para invitaciones de equipo (con botones inline)
+          if (notification.type == NotificationType.teamInvitation) {
+            return TeamInvitationCard(
+              notification: notification,
+              onDismiss: () =>
+                  _controller.removeNotification(notification.id),
+              onTap: () => _handleNotificationTap(notification),
+              onAccept: () async {
+                if (notification.isUnread) {
+                  _controller.markNotificationAsRead(notification.id);
+                }
+                return _teamInvitationController
+                    .acceptInvitation(notification.id);
+              },
+              onReject: () async {
+                return _teamInvitationController
+                    .rejectInvitation(notification.id);
+              },
             );
           }
 
