@@ -13,6 +13,7 @@ class AppTournament {
     required this.location,
     required this.sport,
     required this.accessType,
+    this.status = TournamentStatus.published,
     required this.organizerUid,
     required this.adminIds,
     required this.createdAt,
@@ -42,6 +43,7 @@ class AppTournament {
   final String location;
   final TournamentSport sport;
   final TournamentAccessType accessType;
+  final TournamentStatus status;
   final String organizerUid;
   final List<String> adminIds;
   final DateTime createdAt;
@@ -75,7 +77,6 @@ class AppTournament {
   /// Categorías opcionales del torneo (ej. 'Sub-18', 'Femenino', 'Amateur').
   final List<String> categories;
 
-
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -90,6 +91,7 @@ class AppTournament {
       'longitude': longitude,
       'sport': sport.name,
       'accessType': accessType.name,
+      'status': status.name,
       'organizerUid': organizerUid,
       'organizerEmail': organizerEmail,
       'organizerDisplayName': organizerDisplayName,
@@ -128,6 +130,7 @@ class AppTournament {
       accessType: TournamentAccessType.fromValue(
         map['accessType'] as String? ?? '',
       ),
+      status: TournamentStatus.fromValue(map['status'] as String? ?? ''),
       organizerUid: map['organizerUid'] as String? ?? '',
       organizerEmail: map['organizerEmail'] as String?,
       organizerDisplayName: map['organizerDisplayName'] as String?,
@@ -141,14 +144,12 @@ class AppTournament {
       bracketPublishDate: _nullableDateFromValue(map['bracketPublishDate']),
       contactEmail: map['contactEmail'] as String?,
       contactPhone: map['contactPhone'] as String?,
-      contactLinks:
-          (map['contactLinks'] as List<dynamic>? ?? const <dynamic>[])
-              .map((value) => value.toString())
-              .toList(),
-      categories:
-          (map['categories'] as List<dynamic>? ?? const <dynamic>[])
-              .map((value) => value.toString())
-              .toList(),
+      contactLinks: (map['contactLinks'] as List<dynamic>? ?? const <dynamic>[])
+          .map((value) => value.toString())
+          .toList(),
+      categories: (map['categories'] as List<dynamic>? ?? const <dynamic>[])
+          .map((value) => value.toString())
+          .toList(),
       createdAt: _dateFromValue(map['createdAt']),
       updatedAt: _dateFromValue(map['updatedAt']),
     );
@@ -164,6 +165,7 @@ class AppTournament {
     String? location,
     TournamentSport? sport,
     TournamentAccessType? accessType,
+    TournamentStatus? status,
     String? organizerUid,
     List<String>? adminIds,
     DateTime? createdAt,
@@ -193,6 +195,7 @@ class AppTournament {
       location: location ?? this.location,
       sport: sport ?? this.sport,
       accessType: accessType ?? this.accessType,
+      status: status ?? this.status,
       organizerUid: organizerUid ?? this.organizerUid,
       adminIds: adminIds ?? this.adminIds,
       createdAt: createdAt ?? this.createdAt,
@@ -230,4 +233,7 @@ class AppTournament {
     if (value is DateTime) return value;
     return null;
   }
+
+  bool get acceptsRegistrations => status.acceptsRegistrations;
+  bool get isPubliclyVisible => status.isPubliclyVisible;
 }

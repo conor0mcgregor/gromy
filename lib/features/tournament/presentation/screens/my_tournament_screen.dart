@@ -3,8 +3,12 @@ import 'package:flutter/material.dart';
 import '../../../adminTournament/presentation/screens/tournament_management_screen.dart';
 import '../../../home/presentation/widgets/tournament_card.dart';
 import '../../data/model/app_tournament.dart';
+import '../../data/model/tournament_draft.dart';
+import '../../data/repositories/tournament_draft_repository.dart';
+import '../../data/services/shared_preferences_tournament_draft_repository.dart';
 import '../controllers/my_tournaments_list_controller.dart';
 import 'create_tournament/create_tournament_screen.dart';
+import 'create_tournament/form_tournament_screen.dart';
 
 class MyTournamentScreen extends StatefulWidget {
   const MyTournamentScreen({super.key});
@@ -15,18 +19,54 @@ class MyTournamentScreen extends StatefulWidget {
 
 class _MyTournamentScreenState extends State<MyTournamentScreen> {
   late final MyTournamentsListController _controller;
+  late final TournamentDraftRepository _draftRepository;
+  List<TournamentDraft> _localDrafts = const [];
+  bool _isLoadingDrafts = false;
   bool _isCreatingTournament = false;
 
   @override
   void initState() {
     super.initState();
     _controller = MyTournamentsListController();
+    _draftRepository = SharedPreferencesTournamentDraftRepository();
+    _loadLocalDrafts();
   }
 
   void _toggleCreateMode() {
     setState(() {
       _isCreatingTournament = !_isCreatingTournament;
     });
+    if (!_isCreatingTournament) {
+      _loadLocalDrafts();
+    }
+  }
+
+  Future<void> _loadLocalDrafts() async {
+    final uid = _controller.currentUid;
+    if (uid == null) return;
+    setState(() => _isLoadingDrafts = true);
+    try {
+      final drafts = await _draftRepository.getDraftsForOwner(uid);
+      if (mounted) {
+        setState(() => _localDrafts = drafts);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingDrafts = false);
+      }
+    }
+  }
+
+  Future<void> _openDraft(TournamentDraft draft) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FormTournamentScreen(initialDraft: draft),
+      ),
+    );
+    if (mounted) {
+      _loadLocalDrafts();
+    }
   }
 
   @override
@@ -51,7 +91,9 @@ class _MyTournamentScreenState extends State<MyTournamentScreen> {
                           colors: [Color(0xFFFFFFFF), Color(0xFFB0A8FF)],
                         ).createShader(b),
                         child: Text(
-                          _isCreatingTournament ? 'Crear Torneo' : 'Mis Torneos',
+                          _isCreatingTournament
+                              ? 'Crear Torneo'
+                              : 'Mis Torneos',
                           style: const TextStyle(
                             fontSize: 30,
                             fontWeight: FontWeight.w900,
@@ -62,7 +104,7 @@ class _MyTournamentScreenState extends State<MyTournamentScreen> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        _isCreatingTournament 
+                        _isCreatingTournament
                             ? 'Configura tu nuevo evento'
                             : 'Torneos que administras o creaste',
                         style: TextStyle(
@@ -75,19 +117,28 @@ class _MyTournamentScreenState extends State<MyTournamentScreen> {
                   ),
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 250),
-                    transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
+                    transitionBuilder: (child, animation) =>
+                        ScaleTransition(scale: animation, child: child),
                     child: Container(
                       key: ValueKey(_isCreatingTournament),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: _isCreatingTournament 
-                              ? [const Color(0xFF4A4480), const Color(0xFF008FA8)]
-                              : [const Color(0xFF6C63FF), const Color(0xFF00D4FF)],
+                          colors: _isCreatingTournament
+                              ? [
+                                  const Color(0xFF4A4480),
+                                  const Color(0xFF008FA8),
+                                ]
+                              : [
+                                  const Color(0xFF6C63FF),
+                                  const Color(0xFF00D4FF),
+                                ],
                         ),
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF6C63FF).withValues(alpha: 0.35),
+                            color: const Color(
+                              0xFF6C63FF,
+                            ).withValues(alpha: 0.35),
                             blurRadius: 15,
                             offset: const Offset(0, 5),
                           ),
@@ -95,8 +146,10 @@ class _MyTournamentScreenState extends State<MyTournamentScreen> {
                       ),
                       child: IconButton(
                         icon: Icon(
-                          _isCreatingTournament ? Icons.close_rounded : Icons.add_rounded, 
-                          color: Colors.white
+                          _isCreatingTournament
+                              ? Icons.close_rounded
+                              : Icons.add_rounded,
+                          color: Colors.white,
                         ),
                         onPressed: _toggleCreateMode,
                       ),
@@ -123,7 +176,9 @@ class _MyTournamentScreenState extends State<MyTournamentScreen> {
                   );
                 },
                 child: _isCreatingTournament
-                    ? const CreateTournamentScreen(key: ValueKey('create_screen'))
+                    ? const CreateTournamentScreen(
+                        key: ValueKey('create_screen'),
+                      )
                     : KeyedSubtree(
                         key: const ValueKey('list_screen'),
                         child: _buildTournamentList(),
@@ -158,7 +213,7 @@ class _MyTournamentScreenState extends State<MyTournamentScreen> {
 
         final managedTournaments = snapshot.data ?? [];
 
-        if (managedTournaments.isEmpty) {
+        if (managedTournaments.isEmpty && _localDrafts.isEmpty) {
           return const _TournamentEmptyState(
             title: 'Sin torneos',
             message: 'Aún no has creado ni administras ningún torneo.',
@@ -168,11 +223,42 @@ class _MyTournamentScreenState extends State<MyTournamentScreen> {
 
         return ListView.builder(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
-          itemCount: managedTournaments.length,
+          itemCount:
+              managedTournaments.length +
+              (_localDrafts.isEmpty ? 0 : _localDrafts.length + 1),
           itemBuilder: (context, index) {
-            final tournament = managedTournaments[index];
+            if (_localDrafts.isNotEmpty) {
+              if (index == 0) {
+                return _LocalDraftsHeader(isLoading: _isLoadingDrafts);
+              }
+              if (index <= _localDrafts.length) {
+                final draft = _localDrafts[index - 1];
+                return _LocalDraftCard(
+                  draft: draft,
+                  onTap: () => _openDraft(draft),
+                );
+              }
+            }
+
+            final tournamentIndex =
+                index - (_localDrafts.isEmpty ? 0 : _localDrafts.length + 1);
+            if (tournamentIndex == 0 && managedTournaments.isNotEmpty) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _PublishedHeader(count: managedTournaments.length),
+                  _TournamentListItem(
+                    tournament: managedTournaments[tournamentIndex],
+                    currentUid: _controller.currentUid,
+                    animationDelay: Duration.zero,
+                  ),
+                ],
+              );
+            }
+
+            final tournament = managedTournaments[tournamentIndex];
             final isCreator = tournament.organizerUid == _controller.currentUid;
-            
+
             return TournamentCard(
               tournament: tournament,
               isMyTournament: isCreator,
@@ -180,9 +266,8 @@ class _MyTournamentScreenState extends State<MyTournamentScreen> {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => TournamentManagementScreen(
-                    tournament: tournament,
-                  ),
+                  builder: (_) =>
+                      TournamentManagementScreen(tournament: tournament),
                 ),
               ),
             );
@@ -220,6 +305,176 @@ class _TournamentLoadingState extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _LocalDraftsHeader extends StatelessWidget {
+  const _LocalDraftsHeader({required this.isLoading});
+
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 10),
+      child: Row(
+        children: [
+          const Icon(Icons.edit_document, color: Color(0xFF00D4FF), size: 18),
+          const SizedBox(width: 8),
+          const Text(
+            'Borradores locales',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(width: 8),
+          if (isLoading)
+            const SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PublishedHeader extends StatelessWidget {
+  const _PublishedHeader({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 18, 4, 10),
+      child: Text(
+        'Publicados ($count)',
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.55),
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _LocalDraftCard extends StatelessWidget {
+  const _LocalDraftCard({required this.draft, required this.onTap});
+
+  final TournamentDraft draft;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = draft.name?.trim().isNotEmpty == true
+        ? draft.name!.trim()
+        : 'Borrador sin título';
+    final subtitle = draft.eventDate == null
+        ? 'Última edición: ${_formatDate(draft.updatedAt)}'
+        : 'Evento: ${_formatDate(draft.eventDate!)}';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: const Color(0xFF00D4FF).withValues(alpha: 0.14),
+                  ),
+                  child: const Icon(
+                    Icons.save_outlined,
+                    color: Color(0xFF00D4FF),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.48),
+                          fontSize: 12.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: Colors.white38,
+                  size: 16,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+}
+
+class _TournamentListItem extends StatelessWidget {
+  const _TournamentListItem({
+    required this.tournament,
+    required this.currentUid,
+    required this.animationDelay,
+  });
+
+  final AppTournament tournament;
+  final String? currentUid;
+  final Duration animationDelay;
+
+  @override
+  Widget build(BuildContext context) {
+    return TournamentCard(
+      tournament: tournament,
+      isMyTournament: tournament.organizerUid == currentUid,
+      animationDelay: animationDelay,
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => TournamentManagementScreen(tournament: tournament),
+        ),
       ),
     );
   }

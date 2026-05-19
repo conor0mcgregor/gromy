@@ -12,6 +12,9 @@ import '../../../../inscription/screen/preinscription_screen.dart';
 import '../../../../user/data/models/app_user.dart';
 import '../../../../user/data/services/firestore_user_service.dart';
 import '../../../data/model/app_tournament.dart';
+import '../../../data/model/tournament_draft.dart';
+import '../../../data/repositories/tournament_draft_repository.dart';
+import '../../../data/services/shared_preferences_tournament_draft_repository.dart';
 import '../../controllers/create_tournament_controller.dart';
 import '../../controllers/tournament_form_controller.dart';
 
@@ -30,7 +33,14 @@ import 'form/steps/step7_review.dart';
 import 'form/widgets/form_helpers.dart';
 
 class FormTournamentScreen extends StatefulWidget {
-  const FormTournamentScreen({super.key});
+  const FormTournamentScreen({
+    super.key,
+    this.initialDraft,
+    this.draftRepository,
+  });
+
+  final TournamentDraft? initialDraft;
+  final TournamentDraftRepository? draftRepository;
 
   @override
   State<FormTournamentScreen> createState() => _FormTournamentScreenState();
@@ -40,6 +50,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     with TickerProviderStateMixin {
   late final CreateTournamentController _submitController;
   late final TournamentFormController _form;
+  late final TournamentDraftRepository _draftRepository;
 
   // ── Controladores de animación de pantalla ──
   late final AnimationController _fadeController;
@@ -59,8 +70,16 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
   final _imagePicker = ImagePicker();
   String? _acknowledgedDuplicateWarningKey;
   bool _isShowingDuplicateWarningPopup = false;
+  String? _localDraftId;
+  Timer? _autosaveTimer;
+  bool _isSavingDraft = false;
+  bool _hasUnsavedLocalChanges = false;
+  bool _isApplyingDraft = false;
+  String? _autosaveMessage;
+  bool _autosaveFailed = false;
 
   bool get _isSubmitting => _submitController.isSubmitting;
+  bool get _hasSavedDraft => _localDraftId != null;
 
   @override
   void initState() {
@@ -70,10 +89,17 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       ..addListener(() {
         if (mounted) setState(() {});
       });
+    _draftRepository =
+        widget.draftRepository ?? SharedPreferencesTournamentDraftRepository();
+    _localDraftId = widget.initialDraft?.id;
 
     _form = TournamentFormController()
       ..addListener(() {
+        if (!_isApplyingDraft && _form.hasMeaningfulDraftInput) {
+          _hasUnsavedLocalChanges = true;
+        }
         if (mounted) setState(() {});
+        _scheduleAutosave();
       });
 
     _fadeController = AnimationController(
@@ -106,11 +132,16 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     _fadeController.forward();
     _slideController.forward();
     _stepController.forward();
+
+    if (widget.initialDraft != null) {
+      unawaited(_loadInitialDraft(widget.initialDraft!));
+    }
   }
 
   @override
   void dispose() {
     _submitController.dispose();
+    _autosaveTimer?.cancel();
     _form.dispose();
     _fadeController.dispose();
     _slideController.dispose();
@@ -146,16 +177,6 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       return;
     }
 
-    if (_form.currentStep == 3) {
-      final duplicate = await _checkDuplicate();
-      if (duplicate != null) {
-        final acknowledged = await _showDuplicateWarningPopupIfNeeded(
-          duplicate,
-        );
-        if (!acknowledged) return;
-      }
-    }
-
     if (_form.currentStep < TournamentFormController.totalSteps - 1) {
       await _animateStepTransition(() {
         _form.currentStep++;
@@ -163,12 +184,6 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
           duration: const Duration(milliseconds: 400),
           curve: Curves.easeInOutCubic,
         );
-
-        // Si entramos en el paso de geolocalización (paso 3) y ya tenemos
-        // fecha y lugar, disparamos la comprobación de duplicados.
-        if (_form.currentStep == 3) {
-          unawaited(_checkDuplicateAndShowPopup());
-        }
       });
     } else {
       await _handleSubmit();
@@ -184,10 +199,6 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
           duration: const Duration(milliseconds: 400),
           curve: Curves.easeInOutCubic,
         );
-
-        if (_form.currentStep == 3) {
-          unawaited(_checkDuplicateAndShowPopup());
-        }
       });
     }
   }
@@ -203,6 +214,14 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
 
   Future<void> _handleSubmit() async {
     if (_isSubmitting) return;
+
+    final duplicate = await _checkDuplicate();
+    if (duplicate != null) {
+      final acknowledged = await _showDuplicateWarningPopupIfNeeded(duplicate);
+      if (!acknowledged) return;
+    }
+
+    await _saveLocalDraft(showFeedback: false);
 
     final maxParticipants =
         int.tryParse(_form.maxParticipantsController.text.trim()) ?? 0;
@@ -236,6 +255,9 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     );
 
     if (success) {
+      if (_localDraftId != null) {
+        await _draftRepository.deleteDraft(_localDraftId!);
+      }
       if (mounted) {
         setState(() {
           _canPop = true;
@@ -251,11 +273,160 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       } else {
         // Error genérico (Firebase, red, validación, etc.)
         _showSnackBar(
-          _submitController.errorMessage ?? 'Error al crear el torneo.',
+          '${_submitController.errorMessage ?? 'Error al crear el torneo.'} '
+          'Tu borrador local sigue guardado.',
           isError: true,
         );
       }
     }
+  }
+
+  Future<void> _loadInitialDraft(TournamentDraft draft) async {
+    try {
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUid == null || draft.ownerUid != currentUid) {
+        _showSnackBar(
+          'No puedes editar un borrador de otro usuario.',
+          isError: true,
+        );
+        return;
+      }
+      _isApplyingDraft = true;
+      await _form.loadDraft(draft);
+      _isApplyingDraft = false;
+      _hasUnsavedLocalChanges = false;
+      if (mounted) {
+        _showSnackBar('Borrador local cargado.', isError: false);
+      }
+    } catch (_) {
+      _isApplyingDraft = false;
+      _showSnackBar('No se pudo cargar el borrador local.', isError: true);
+    }
+  }
+
+  void _scheduleAutosave() {
+    _autosaveTimer?.cancel();
+    if (!_form.hasMeaningfulDraftInput) return;
+    _autosaveTimer = Timer(const Duration(seconds: 2), () {
+      unawaited(_saveLocalDraft(showFeedback: false, isAutosave: true));
+    });
+  }
+
+  void _markDraftDirtyAndScheduleAutosave() {
+    if (!_form.hasMeaningfulDraftInput) return;
+    _hasUnsavedLocalChanges = true;
+    _scheduleAutosave();
+  }
+
+  Future<bool> _saveLocalDraft({
+    required bool showFeedback,
+    bool isAutosave = false,
+  }) async {
+    if (_isSavingDraft) return false;
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUid == null) {
+      if (showFeedback) {
+        _showSnackBar(
+          'Debes iniciar sesión para guardar un borrador.',
+          isError: true,
+        );
+      }
+      return false;
+    }
+    if (!_form.hasMeaningfulDraftInput) {
+      if (showFeedback) {
+        _showSnackBar('Añade algún dato antes de guardar.', isError: true);
+      }
+      return false;
+    }
+
+    setState(() {
+      _isSavingDraft = true;
+      _autosaveMessage = isAutosave ? 'Autoguardando...' : null;
+      _autosaveFailed = false;
+    });
+
+    try {
+      final saved = await _draftRepository.saveDraft(
+        _form.toDraft(ownerUid: currentUid, draftId: _localDraftId),
+      );
+      _localDraftId = saved.id;
+      _hasUnsavedLocalChanges = false;
+      if (!mounted) return true;
+      setState(() {
+        _autosaveMessage = isAutosave
+            ? 'Borrador local guardado'
+            : 'Guardado como borrador local';
+        _autosaveFailed = false;
+      });
+      if (showFeedback) {
+        _showSnackBar('Borrador guardado localmente.', isError: false);
+      }
+      return true;
+    } catch (_) {
+      if (!mounted) return false;
+      setState(() {
+        _autosaveMessage = 'No se pudo autoguardar';
+        _autosaveFailed = true;
+      });
+      if (showFeedback) {
+        _showSnackBar('No se pudo guardar el borrador local.', isError: true);
+      }
+      return false;
+    } finally {
+      if (mounted) {
+        setState(() => _isSavingDraft = false);
+      }
+    }
+  }
+
+  Future<void> _handleSaveDraftPressed() async {
+    final saved = await _saveLocalDraft(showFeedback: false);
+    if (!saved || !mounted) return;
+    await _showDraftSavedDialog();
+  }
+
+  Future<void> _showDraftSavedDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF101127),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        title: const Text(
+          'Borrador guardado',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Tu borrador de torneo se ha guardado localmente. Puedes seguir editándolo más tarde.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'Seguir editando',
+              style: TextStyle(color: Colors.white54),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _leaveKeepingDraft();
+            },
+            child: const Text(
+              'Salir y conservar',
+              style: TextStyle(
+                color: Color(0xFF00D4FF),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   // ── Diálogos ───────────────────────────────────────────────
@@ -343,13 +514,6 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     return '${eventDate.millisecondsSinceEpoch}|${location.trim().toLowerCase()}';
   }
 
-  Future<void> _checkDuplicateAndShowPopup() async {
-    final duplicate = await _checkDuplicate();
-    if (duplicate != null) {
-      await _showDuplicateWarningPopupIfNeeded(duplicate);
-    }
-  }
-
   void _openExistingTournament(AppTournament duplicate) {
     Navigator.push(
       context,
@@ -361,9 +525,94 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
 
   bool _canPop = false;
 
-  Future<bool> _showExitDialog() async {
+  Future<void> _handleBackNavigation() async {
+    if (!_form.hasMeaningfulDraftInput) {
+      _leaveKeepingDraft();
+      return;
+    }
+
+    if (_hasSavedDraft && !_hasUnsavedLocalChanges) {
+      _leaveKeepingDraft();
+      return;
+    }
+
+    await _showUnsavedChangesDialog();
+  }
+
+  void _leaveKeepingDraft() {
+    if (!mounted) return;
+    setState(() {
+      _canPop = true;
+    });
+    Navigator.pop(context);
+  }
+
+  Future<void> _showUnsavedChangesDialog() async {
     FocusScope.of(context).unfocus();
-    final bool? confirm = await showDialog<bool>(
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF101127),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.save_outlined, color: Color(0xFF00D4FF)),
+            SizedBox(width: 8),
+            Text('Cambios sin guardar', style: TextStyle(color: Colors.white)),
+          ],
+        ),
+        content: const Text(
+          'Puedes guardar el borrador local antes de salir, descartarlo definitivamente o seguir editando.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'Seguir editando',
+              style: TextStyle(color: Colors.white54),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await _discardDraftAndLeave();
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFFF4D6A),
+            ),
+            child: const Text(
+              'Descartar borrador',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              final saved = await _saveLocalDraft(showFeedback: false);
+              if (saved) {
+                _leaveKeepingDraft();
+              }
+            },
+            child: const Text(
+              'Guardar y salir',
+              style: TextStyle(
+                color: Color(0xFF00D4FF),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDiscard() async {
+    FocusScope.of(context).unfocus();
+    final bool? shouldDiscard = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF101127),
@@ -375,18 +624,20 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
           children: [
             Icon(Icons.warning_amber_rounded, color: Color(0xFFFF4D6A)),
             SizedBox(width: 8),
-            Text('¿Borrar y salir?', style: TextStyle(color: Colors.white)),
+            Text('¿Descartar borrador?', style: TextStyle(color: Colors.white)),
           ],
         ),
-        content: const Text(
-          'Se eliminarán todos los datos que has introducido. ¿Estás seguro de que quieres salir?',
-          style: TextStyle(color: Colors.white70),
+        content: Text(
+          _hasSavedDraft
+              ? 'Se eliminará el borrador local guardado y perderás los cambios de este formulario.'
+              : 'Se eliminarán todos los datos que has introducido en este formulario.',
+          style: const TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text(
-              'Cancelar',
+              'Seguir editando',
               style: TextStyle(color: Colors.white54),
             ),
           ),
@@ -396,7 +647,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
               foregroundColor: const Color(0xFFFF4D6A),
             ),
             child: const Text(
-              'Sí, borrar todo',
+              'Sí, descartar',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
@@ -404,17 +655,24 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       ),
     );
 
-    return confirm == true;
+    if (shouldDiscard == true) {
+      await _discardDraftAndLeave();
+    }
   }
 
-  Future<void> _confirmDiscard() async {
-    final bool shouldPop = await _showExitDialog();
-    if (shouldPop && mounted) {
-      setState(() {
-        _canPop = true;
-      });
-      Navigator.pop(context);
+  Future<void> _discardDraftAndLeave() async {
+    _autosaveTimer?.cancel();
+    final draftId = _localDraftId;
+    if (draftId != null) {
+      await _draftRepository.deleteDraft(draftId);
     }
+    if (!mounted) return;
+    setState(() {
+      _localDraftId = null;
+      _hasUnsavedLocalChanges = false;
+      _canPop = true;
+    });
+    Navigator.pop(context);
   }
 
   Future<DateTime?> _pickDate({DateTime? initialDate}) async {
@@ -465,6 +723,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
         _form.coverImage = picked;
         _form.coverBytes = bytes;
       });
+      _markDraftDirtyAndScheduleAutosave();
     } catch (error, stackTrace) {
       developer.log(
         'Error selecting tournament cover',
@@ -481,6 +740,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       _form.coverImage = null;
       _form.coverBytes = null;
     });
+    _markDraftDirtyAndScheduleAutosave();
   }
 
   Future<void> _addAdmin() async {
@@ -537,7 +797,10 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       }
 
       if (_form.extraAdmins.any((e) => e.uid == uid)) {
-        setState(() => _form.adminError = 'Ese usuario ya está en la lista de invitaciones.');
+        setState(
+          () => _form.adminError =
+              'Ese usuario ya está en la lista de invitaciones.',
+        );
         return;
       }
 
@@ -546,6 +809,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
         _form.adminController.clear();
         _form.adminError = null;
       });
+      _markDraftDirtyAndScheduleAutosave();
     } catch (_) {
       setState(() => _form.adminError = 'No se pudo añadir el admin.');
     } finally {
@@ -560,6 +824,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       _form.extraAdmins.removeWhere((e) => e.uid == uid);
       _form.adminError = null;
     });
+    _markDraftDirtyAndScheduleAutosave();
   }
 
   void _addCategory() {
@@ -575,6 +840,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     if (added) {
       _form.categoryController.clear();
       FocusScope.of(context).unfocus();
+      _markDraftDirtyAndScheduleAutosave();
     } else {
       _showSnackBar('Esa categoría ya ha sido añadida.', isError: true);
     }
@@ -582,6 +848,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
 
   void _removeCategory(String name) {
     _form.removeCategory(name);
+    _markDraftDirtyAndScheduleAutosave();
   }
 
   void _showSnackBar(String message, {bool isError = true}) {
@@ -616,15 +883,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       canPop: _canPop,
       onPopInvokedWithResult: (bool didPop, Object? result) async {
         if (didPop) return;
-        final bool shouldPop = await _showExitDialog();
-        if (shouldPop) {
-          if (context.mounted) {
-            setState(() {
-              _canPop = true;
-            });
-            Navigator.pop(context);
-          }
-        }
+        await _handleBackNavigation();
       },
       child: Scaffold(
         body: Stack(
@@ -751,6 +1010,59 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
+            if (_autosaveMessage != null) ...[
+              Flexible(
+                child: Text(
+                  _autosaveMessage!,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: _autosaveFailed
+                        ? const Color(0xFFFFB347)
+                        : Colors.white.withValues(alpha: 0.5),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+            ],
+            InkWell(
+              onTap: _isSavingDraft ? null : _handleSaveDraftPressed,
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF00D4FF).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFF00D4FF).withValues(alpha: 0.28),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _isSavingDraft ? Icons.sync_rounded : Icons.save_outlined,
+                      color: const Color(0xFF00D4FF),
+                      size: 16,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _isSavingDraft ? 'Guardando...' : 'Guardar borrador',
+                      style: const TextStyle(
+                        color: Color(0xFF00D4FF),
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
             InkWell(
               onTap: _confirmDiscard,
               borderRadius: BorderRadius.circular(8),
@@ -878,6 +1190,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
           _form.eventDateError = null;
           _acknowledgedDuplicateWarningKey = null;
         });
+        _markDraftDirtyAndScheduleAutosave();
       }
     },
     registrationDeadline: _form.registrationDeadline,
@@ -889,6 +1202,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
           _form.registrationDeadline = picked;
           _form.registrationDeadlineError = null;
         });
+        _markDraftDirtyAndScheduleAutosave();
       }
     },
     bracketPublishDate: _form.bracketPublishDate,
@@ -900,6 +1214,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
           _form.bracketPublishDate = picked;
           _form.bracketPublishDateError = null;
         });
+        _markDraftDirtyAndScheduleAutosave();
       }
     },
     formatDate: _form.formatDate,
@@ -923,19 +1238,18 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       _form.clearFieldError('location');
       _form.onLocationQueryChanged(query);
       _acknowledgedDuplicateWarningKey = null;
-      // Al cambiar la búsqueda, limpiamos el aviso de duplicado previo si lo hubiera
       if (_submitController.duplicateTournament != null) {
         _submitController.clearDuplicate();
       }
     },
     onSuggestionSelected: (result) {
       _form.selectLocation(result);
-      unawaited(_checkDuplicateAndShowPopup());
       setState(() {});
+      _markDraftDirtyAndScheduleAutosave();
     },
     onMapTap: (lat, lng) async {
       await _form.onMapTap(lat, lng);
-      await _checkDuplicateAndShowPopup();
+      _markDraftDirtyAndScheduleAutosave();
     },
   );
 
@@ -962,10 +1276,13 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     onMembersPerTeamChanged: (_) => _form.clearFieldError('membersPerTeam'),
     selectedAccessType: _form.selectedAccessType,
     accessTypeError: _form.accessTypeError,
-    onAccessTypeChanged: (type) => setState(() {
-      _form.selectedAccessType = type;
-      _form.accessTypeError = null;
-    }),
+    onAccessTypeChanged: (type) {
+      setState(() {
+        _form.selectedAccessType = type;
+        _form.accessTypeError = null;
+      });
+      _markDraftDirtyAndScheduleAutosave();
+    },
   );
 
   Widget _buildStep5() => Step5Rules(
@@ -995,8 +1312,14 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     contactPhoneController: _form.contactPhoneController,
     onContactPhoneChanged: (_) {},
     contactLinkControllers: _form.contactLinkControllers,
-    onAddContactLink: () => setState(() => _form.addContactLink()),
-    onRemoveContactLink: (i) => setState(() => _form.removeContactLink(i)),
+    onAddContactLink: () {
+      setState(() => _form.addContactLink());
+      _markDraftDirtyAndScheduleAutosave();
+    },
+    onRemoveContactLink: (i) {
+      setState(() => _form.removeContactLink(i));
+      _markDraftDirtyAndScheduleAutosave();
+    },
   );
 
   Widget _buildStep8Review() => Step7Review(
@@ -1041,8 +1364,9 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
         ? null
         : _form.contactPhoneController.text.trim(),
     contactLinks: _form.contactLinks,
-    pendingAdminLabels:
-        _form.extraAdmins.map((a) => a.label).toList(growable: false),
+    pendingAdminLabels: _form.extraAdmins
+        .map((a) => a.label)
+        .toList(growable: false),
   );
 
   // ── Step page wrapper ──

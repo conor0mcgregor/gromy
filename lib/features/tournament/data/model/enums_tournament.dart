@@ -23,8 +23,7 @@ enum TournamentSport {
     return switch (this) {
       TournamentSport.football ||
       TournamentSport.basketball ||
-      TournamentSport.volleyball =>
-        true,
+      TournamentSport.volleyball => true,
       _ => false,
     };
   }
@@ -56,4 +55,26 @@ enum TournamentAccessType {
       orElse: () => TournamentAccessType.publicOpen,
     );
   }
+}
+
+enum TournamentStatus {
+  draft('Borrador'),
+  published('Publicado'),
+  closed('Cerrado'),
+  finished('Finalizado'),
+  cancelled('Cancelado');
+
+  const TournamentStatus(this.label);
+
+  final String label;
+
+  static TournamentStatus fromValue(String value) {
+    return TournamentStatus.values.firstWhere(
+      (status) => status.name == value,
+      orElse: () => TournamentStatus.published,
+    );
+  }
+
+  bool get acceptsRegistrations => this == TournamentStatus.published;
+  bool get isPubliclyVisible => this == TournamentStatus.published;
 }

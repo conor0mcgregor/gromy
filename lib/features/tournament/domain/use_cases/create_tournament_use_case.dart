@@ -82,10 +82,12 @@ class CreateTournamentUseCase {
       longitude: longitude,
       sport: sport,
       accessType: accessType,
+      status: TournamentStatus.published,
       organizerUid: uid,
       organizerEmail: email?.trim().isEmpty == true ? null : email?.trim(),
-      organizerDisplayName:
-          displayName?.trim().isEmpty == true ? null : displayName?.trim(),
+      organizerDisplayName: displayName?.trim().isEmpty == true
+          ? null
+          : displayName?.trim(),
       adminIds: adminIds,
       participantCount: 0,
       registrationDeadline: registrationDeadline,
