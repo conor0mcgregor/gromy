@@ -113,8 +113,7 @@ class FirestoreTournamentService implements TournamentRepository {
 
   // ── Lectura ────────────────────────────────────────────────────────────────
 
-  @override
-  Stream<List<AppTournament>> watchTournaments() {
+  Stream<List<AppTournament>> _watchAllPublicTournaments() {
     return _tournaments.snapshots().map((snapshot) {
       final list = <AppTournament>[];
       for (final doc in snapshot.docs) {
@@ -125,8 +124,17 @@ class FirestoreTournamentService implements TournamentRepository {
           print('Error mapeando torneo: $e');
         }
       }
-      list.sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
       return list;
+    });
+  }
+
+  @override
+  Stream<List<AppTournament>> watchTournaments() {
+    return _watchAllPublicTournaments().map((all) {
+      final pastThreshold = DateTime.now().subtract(const Duration(days: 1));
+      final active = all.where((t) => !t.scheduledAt.isBefore(pastThreshold)).toList();
+      active.sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
+      return active;
     });
   }
 
@@ -148,7 +156,7 @@ class FirestoreTournamentService implements TournamentRepository {
   @override
   Stream<List<AppTournament>> watchMyTournaments(String uid) {
     return Rx.combineLatest2(
-      watchTournaments(),
+      _watchAllPublicTournaments(),
       _watchPrivateTournaments(),
           (List<AppTournament> public, List<AppTournament> private) {
         final all = [...public, ...private];
@@ -161,7 +169,7 @@ class FirestoreTournamentService implements TournamentRepository {
   @override
   Stream<List<AppTournament>> watchTournamentsAdmin(String uid) {
     return Rx.combineLatest2(
-      watchTournaments(),
+      _watchAllPublicTournaments(),
       _watchPrivateTournaments(),
           (List<AppTournament> public, List<AppTournament> private) {
         final all = [...public, ...private];
@@ -180,7 +188,19 @@ class FirestoreTournamentService implements TournamentRepository {
     required ParticipantEntityType entityType,
     ParticipantStatus status = ParticipantStatus.pending,
     String? categoryId,
-  }) {
+  }) async {
+    final docRef = await _getTournamentDoc(tournamentId);
+    final doc = await docRef.get();
+    if (doc.exists && doc.data() != null) {
+      final t = AppTournament.fromMap(doc.data()!);
+      final pastThreshold = DateTime.now().subtract(const Duration(days: 1));
+      if (t.scheduledAt.isBefore(pastThreshold)) {
+        throw Exception('El torneo ha finalizado, ya no se admiten inscripciones.');
+      }
+    } else {
+      throw Exception('El torneo no existe.');
+    }
+
     return _participantRepo.joinTournament(
       tournamentId: tournamentId,
       entityId: entityId,
