@@ -17,6 +17,7 @@ import '../../../../database/team/models/app_team.dart';
 import '../domain/models/enrollment_status.dart';
 import '../presentation/controllers/preinscription_controller.dart';
 import '../../events/presentation/controllers/favorites_controller.dart';
+import '../../profile/presentation/screens/other_user_profile_screen.dart';
 import 'inscription_screen.dart';
 
 // ════════════════════════════════════════════════════════════════
@@ -96,8 +97,8 @@ class _PreinscriptionScreenState extends State<PreinscriptionScreen> {
         final uid = FirebaseAuth.instance.currentUser?.uid;
         final isTournamentAdmin =
             uid != null &&
-            (widget.tournament.organizerUid == uid ||
-                widget.tournament.adminIds.contains(uid));
+                (widget.tournament.organizerUid == uid ||
+                    widget.tournament.adminIds.contains(uid));
 
         return Scaffold(
           backgroundColor: const Color(0xFF0F172A),
@@ -121,14 +122,14 @@ class _PreinscriptionScreenState extends State<PreinscriptionScreen> {
           bottomNavigationBar: _controller.state == PreinscriptionState.loading
               ? const _LoadingBottomBar()
               : _StickyEnrollBar(
-                  tournament: widget.tournament,
-                  isEnrolled: status.isEnrolled,
-                  onCancelInscription: status.isEnrolled
-                      ? _controller.cancelInscription
-                      : null,
-                  enrolledTeam: status.enrolledTeam,
-                  canCancelTeam: status.canCancel,
-                ),
+            tournament: widget.tournament,
+            isEnrolled: status.isEnrolled,
+            onCancelInscription: status.isEnrolled
+                ? _controller.cancelInscription
+                : null,
+            enrolledTeam: status.enrolledTeam,
+            canCancelTeam: status.canCancel,
+          ),
 
           // ── Contenido scrollable ──
           body: SingleChildScrollView(
@@ -234,7 +235,7 @@ class _CoverHero extends StatelessWidget {
               fit: BoxFit.cover,
               filterQuality: FilterQuality.medium,
               loadingBuilder: (_, child, progress) =>
-                  progress == null ? child : _buildPlaceholder(),
+              progress == null ? child : _buildPlaceholder(),
               errorBuilder: (_, e, s) => _buildPlaceholder(),
             )
           else
@@ -364,7 +365,10 @@ class _TournamentHeader extends StatelessWidget {
         // Chip organizador
         if (tournament.organizerDisplayName != null &&
             tournament.organizerDisplayName!.isNotEmpty)
-          _OrganizerChip(name: tournament.organizerDisplayName!),
+          _OrganizerChip(
+            name: tournament.organizerDisplayName!,
+            organizerUid: tournament.organizerUid,
+          ),
 
         if (tournament.organizerDisplayName != null &&
             tournament.organizerDisplayName!.isNotEmpty)
@@ -388,43 +392,56 @@ class _TournamentHeader extends StatelessWidget {
 }
 
 class _OrganizerChip extends StatelessWidget {
-  const _OrganizerChip({required this.name});
+  const _OrganizerChip({required this.name, required this.organizerUid});
   final String name;
+  final String organizerUid;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.person_rounded,
-            size: 14,
-            color: Colors.white.withValues(alpha: 0.5),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OtherUserProfileScreen(targetUid: organizerUid),
           ),
-          const SizedBox(width: 6),
-          Text(
-            'Organizado por ',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.45),
-              fontSize: 12,
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.person_rounded,
+              size: 14,
+              color: Colors.white.withValues(alpha: 0.5),
             ),
-          ),
-          Text(
-            name,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+            const SizedBox(width: 6),
+            Text(
+              'Organizado por ',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.45),
+                fontSize: 12,
+              ),
             ),
-          ),
-        ],
+            Text(
+              name,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                decoration: TextDecoration.underline,
+                decorationColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -500,7 +517,7 @@ class _DescriptionSection extends StatelessWidget {
     final hasRules = tournament.allInformation.isNotEmpty;
     final hasAdditional =
         tournament.additionalInfo != null &&
-        tournament.additionalInfo!.isNotEmpty;
+            tournament.additionalInfo!.isNotEmpty;
 
     if (!hasRules && !hasAdditional) {
       return const SizedBox.shrink();
@@ -578,7 +595,7 @@ class _ContactsSection extends StatelessWidget {
     final hasLinks = tournament.contactLinks.isNotEmpty;
     final hasOrganizer =
         tournament.organizerDisplayName != null &&
-        tournament.organizerDisplayName!.isNotEmpty;
+            tournament.organizerDisplayName!.isNotEmpty;
 
     // Si no hay ningún dato de contacto, no mostramos la sección
     if (!hasEmail && !hasPhone && !hasLinks && !hasOrganizer) {
@@ -621,7 +638,7 @@ class _ContactsSection extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           ...tournament.contactLinks.map(
-            (link) => Padding(
+                (link) => Padding(
               padding: const EdgeInsets.only(bottom: 6),
               child: Row(
                 children: [
@@ -980,69 +997,69 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
         top: false,
         child: widget.isEnrolled
             ? Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (widget.enrolledTeam != null) ...[
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(
-                        'Inscrito como: ${widget.enrolledTeam!.name}',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ] else ...[
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 12),
-                      child: Text(
-                        'Ya estás inscrito en este torneo',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                  GradientButton(
-                    label: widget.canCancelTeam
-                        ? (_isCancelling
-                              ? 'Cancelando...'
-                              : 'Cancelar inscripción')
-                        : 'Solo administradores pueden cancelar',
-                    icon: widget.canCancelTeam
-                        ? (_isCancelling
-                              ? Icons.hourglass_top_rounded
-                              : Icons.cancel_rounded)
-                        : Icons.lock_outline_rounded,
-                    onPressed: (widget.canCancelTeam && !_isCancelling)
-                        ? _handleCancel
-                        : null,
-                    variant: GradientButtonVariant.danger,
-                    size: GradientButtonSize.large,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (widget.enrolledTeam != null) ...[
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  'Inscrito como: ${widget.enrolledTeam!.name}',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
                   ),
-                ],
-              )
-            : GradientButton(
-                label: isFull ? 'Torneo completo' : 'Inscribirse al torneo',
-                icon: isFull ? Icons.block_rounded : Icons.how_to_reg_rounded,
-                onPressed: isFull
-                    ? null
-                    : () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              InscriptionScreen(tournament: widget.tournament),
-                        ),
-                      ),
-                variant: isFull
-                    ? GradientButtonVariant.sunset
-                    : GradientButtonVariant.select,
-                size: GradientButtonSize.large,
+                ),
               ),
+            ] else ...[
+              const Padding(
+                padding: EdgeInsets.only(bottom: 12),
+                child: Text(
+                  'Ya estás inscrito en este torneo',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+            GradientButton(
+              label: widget.canCancelTeam
+                  ? (_isCancelling
+                  ? 'Cancelando...'
+                  : 'Cancelar inscripción')
+                  : 'Solo administradores pueden cancelar',
+              icon: widget.canCancelTeam
+                  ? (_isCancelling
+                  ? Icons.hourglass_top_rounded
+                  : Icons.cancel_rounded)
+                  : Icons.lock_outline_rounded,
+              onPressed: (widget.canCancelTeam && !_isCancelling)
+                  ? _handleCancel
+                  : null,
+              variant: GradientButtonVariant.danger,
+              size: GradientButtonSize.large,
+            ),
+          ],
+        )
+            : GradientButton(
+          label: isFull ? 'Torneo completo' : 'Inscribirse al torneo',
+          icon: isFull ? Icons.block_rounded : Icons.how_to_reg_rounded,
+          onPressed: isFull
+              ? null
+              : () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+                  InscriptionScreen(tournament: widget.tournament),
+            ),
+          ),
+          variant: isFull
+              ? GradientButtonVariant.sunset
+              : GradientButtonVariant.select,
+          size: GradientButtonSize.large,
+        ),
       ),
     );
   }

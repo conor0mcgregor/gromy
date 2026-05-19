@@ -6,6 +6,7 @@ import 'package:gromy/database/session/repositories/app_access_resolver.dart';
 import 'package:gromy/features/auth/data/models/auth_result.dart';
 import 'package:gromy/features/auth/data/repositories/auth_repository.dart';
 import 'package:gromy/features/user/data/models/app_user.dart';
+import 'package:gromy/features/user/data/models/public_app_user.dart';
 import 'package:gromy/features/user/data/repositories/user_repository.dart';
 
 typedef EmailAuthHandler =
@@ -130,6 +131,23 @@ class FakeUserRepository implements UserRepository {
     getUserCalls++;
     lastUidRead = uid;
     return onGetUser?.call(uid);
+  }
+
+  @override
+  Future<PublicAppUser?> getOtherUserProfile(String targetUid) async {
+    // Para tests, podemos simular que si getUser funciona, mapeamos
+    // esos campos a PublicAppUser, o devolvemos nulo si no está implementado
+    // un handler específico.
+    final user = await onGetUser?.call(targetUid);
+    if (user == null) return null;
+    return PublicAppUser(
+      uid: user.uid,
+      nickname: user.nickname,
+      name: user.name,
+      lastName: user.lastName,
+      photoUrl: user.photoUrl,
+      biography: user.biography,
+    );
   }
 
   @override

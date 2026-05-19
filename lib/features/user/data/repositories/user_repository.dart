@@ -1,4 +1,5 @@
 import '../models/app_user.dart';
+import '../models/public_app_user.dart';
 
 class NicknameAlreadyInUseException implements Exception {
   const NicknameAlreadyInUseException();
@@ -17,6 +18,9 @@ abstract interface class UserRepository {
 
   /// Devuelve el usuario con [uid] o `null` si no existe.
   Future<AppUser?> getUser(String uid);
+
+  /// Devuelve el perfil público de otro usuario mediante backend.
+  Future<PublicAppUser?> getOtherUserProfile(String targetUid);
 
   /// Comprueba si ya existe un documento para [uid].
   Future<bool> userExists(String uid);

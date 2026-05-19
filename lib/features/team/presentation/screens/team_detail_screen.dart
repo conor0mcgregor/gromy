@@ -10,6 +10,7 @@ import '../../../../database/team/models/app_team.dart';
 import '../../../../database/team/services/firestore_team_service.dart';
 import '../../../user/data/services/firestore_user_service.dart';
 import '../../../user/data/models/app_user.dart';
+import '../../../profile/presentation/screens/other_user_profile_screen.dart';
 import '../widgets/team_member_tile.dart';
 import 'team_manage_screen.dart';
 
@@ -304,8 +305,8 @@ class _TeamDetailScreenState extends State<TeamDetailScreen>
         gradient: hasPhoto
             ? null
             : const LinearGradient(
-                colors: [Color(0xFF6C63FF), Color(0xFF00D4FF)],
-              ),
+          colors: [Color(0xFF6C63FF), Color(0xFF00D4FF)],
+        ),
         border: Border.all(
           color: Colors.white.withValues(alpha: 0.2),
           width: 2.5,
@@ -321,29 +322,29 @@ class _TeamDetailScreenState extends State<TeamDetailScreen>
       child: ClipOval(
         child: hasPhoto
             ? Image.network(
-                _team.photoUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => Center(
-                  child: Text(
-                    initial,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 36,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              )
-            : Center(
-                child: Text(
-                  initial,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 36,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+          _team.photoUrl!,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => Center(
+            child: Text(
+              initial,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 36,
+                fontWeight: FontWeight.w800,
               ),
+            ),
+          ),
+        )
+            : Center(
+          child: Text(
+            initial,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 36,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -456,6 +457,14 @@ class _TeamDetailScreenState extends State<TeamDetailScreen>
                 photoUrl: user?.photoUrl,
                 isAdmin: isAdmin,
                 showAdminBadge: true,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => OtherUserProfileScreen(targetUid: uid),
+                    ),
+                  );
+                },
               ),
             );
           }),
