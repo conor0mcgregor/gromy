@@ -7,6 +7,7 @@ import '../../../user/data/models/app_user.dart';
 import '../../../user/data/services/firestore_user_service.dart';
 import 'package:gromy/core/widgets/gradient_button.dart';
 import 'edit_profile_screen.dart';
+import 'historical_tournaments_screen.dart';
 
 class ProfileInfoTab extends StatefulWidget {
   const ProfileInfoTab({super.key, required this.authController});
@@ -187,6 +188,23 @@ class _ProfileInfoTabState extends State<ProfileInfoTab> {
                 icon: Icons.edit_rounded,
                 variant: GradientButtonVariant.simple,
                 textColor: Colors.black,
+              ),
+
+              const SizedBox(height: 16),
+
+              // Botón Historial de Torneos
+              GradientButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => HistoricalTournamentsScreen(uid: user.uid),
+                    ),
+                  );
+                },
+                label: 'Historial de Torneos',
+                icon: Icons.history_rounded,
+                variant: GradientButtonVariant.ocean,
               ),
 
               const SizedBox(height: 32),

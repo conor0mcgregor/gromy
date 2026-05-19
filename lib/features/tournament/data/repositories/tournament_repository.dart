@@ -61,6 +61,10 @@ abstract interface class TournamentRepository {
   /// Devuelve un stream con los torneos en los que [uid] está inscrito.
   Stream<List<AppTournament>> watchEnrolledTournaments(String uid);
 
+  /// Devuelve un stream con los torneos históricos (pasados) en los que
+  /// [uid] participó, excluyendo solicitudes rechazadas.
+  Stream<List<AppTournament>> watchHistoricalTournaments(String uid);
+
   /// Cancela la inscripción de un participante en un torneo.
   Future<void> cancelInscription({
     required String tournamentId,
