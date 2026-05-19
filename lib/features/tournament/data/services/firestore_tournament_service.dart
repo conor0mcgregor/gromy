@@ -28,14 +28,14 @@ class FirestoreTournamentService implements TournamentRepository {
     TournamentStorageService? storageService,
     ParticipantRepository? participantRepository,
   }) : _db =
-           firestore ??
-           FirebaseFirestore.instanceFor(
-             app: Firebase.app(),
-             databaseId: 'gromy-db',
-           ),
-       _storageService = storageService ?? FirebaseTournamentStorageService(),
-       _participantRepo =
-           participantRepository ?? FirestoreParticipantService();
+      firestore ??
+          FirebaseFirestore.instanceFor(
+            app: Firebase.app(),
+            databaseId: 'gromy-db',
+          ),
+        _storageService = storageService ?? FirebaseTournamentStorageService(),
+        _participantRepo =
+            participantRepository ?? FirestoreParticipantService();
 
   final FirebaseFirestore _db;
   final TournamentStorageService _storageService;
@@ -48,8 +48,8 @@ class FirestoreTournamentService implements TournamentRepository {
       _db.collection('private_tournaments');
 
   Future<DocumentReference<Map<String, dynamic>>> _getTournamentDoc(
-    String id,
-  ) async {
+      String id,
+      ) async {
     final doc = await _tournaments.doc(id).get();
     if (doc.exists) {
       return _tournaments.doc(id);
@@ -62,9 +62,9 @@ class FirestoreTournamentService implements TournamentRepository {
   @override
   Future<AppTournament> createTournament(AppTournament tournament) async {
     final collection =
-        tournament.accessType == TournamentAccessType.privateInviteOnly
-            ? _privateTournaments
-            : _tournaments;
+    tournament.accessType == TournamentAccessType.privateInviteOnly
+        ? _privateTournaments
+        : _tournaments;
     final docRef = tournament.id.isEmpty
         ? collection.doc()
         : collection.doc(tournament.id);
@@ -84,9 +84,9 @@ class FirestoreTournamentService implements TournamentRepository {
   }) async {
     // 1. Reservar un ID en Firestore para usarlo en la ruta de Storage.
     final collection =
-        tournament.accessType == TournamentAccessType.privateInviteOnly
-            ? _privateTournaments
-            : _tournaments;
+    tournament.accessType == TournamentAccessType.privateInviteOnly
+        ? _privateTournaments
+        : _tournaments;
     final docRef = tournament.id.isEmpty
         ? collection.doc()
         : collection.doc(tournament.id);
@@ -113,8 +113,7 @@ class FirestoreTournamentService implements TournamentRepository {
 
   // ── Lectura ────────────────────────────────────────────────────────────────
 
-  @override
-  Stream<List<AppTournament>> watchTournaments() {
+  Stream<List<AppTournament>> _watchAllPublicTournaments() {
     return _tournaments.snapshots().map((snapshot) {
       final list = <AppTournament>[];
       for (final doc in snapshot.docs) {
@@ -125,8 +124,17 @@ class FirestoreTournamentService implements TournamentRepository {
           print('Error mapeando torneo: $e');
         }
       }
-      list.sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
       return list;
+    });
+  }
+
+  @override
+  Stream<List<AppTournament>> watchTournaments() {
+    return _watchAllPublicTournaments().map((all) {
+      final pastThreshold = DateTime.now().subtract(const Duration(days: 1));
+      final active = all.where((t) => !t.scheduledAt.isBefore(pastThreshold)).toList();
+      active.sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
+      return active;
     });
   }
 
@@ -148,9 +156,9 @@ class FirestoreTournamentService implements TournamentRepository {
   @override
   Stream<List<AppTournament>> watchMyTournaments(String uid) {
     return Rx.combineLatest2(
-      watchTournaments(),
+      _watchAllPublicTournaments(),
       _watchPrivateTournaments(),
-      (List<AppTournament> public, List<AppTournament> private) {
+          (List<AppTournament> public, List<AppTournament> private) {
         final all = [...public, ...private];
         return all.where((t) => t.organizerUid == uid).toList()
           ..sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
@@ -161,9 +169,9 @@ class FirestoreTournamentService implements TournamentRepository {
   @override
   Stream<List<AppTournament>> watchTournamentsAdmin(String uid) {
     return Rx.combineLatest2(
-      watchTournaments(),
+      _watchAllPublicTournaments(),
       _watchPrivateTournaments(),
-      (List<AppTournament> public, List<AppTournament> private) {
+          (List<AppTournament> public, List<AppTournament> private) {
         final all = [...public, ...private];
         return all.where((t) => t.adminIds.contains(uid)).toList()
           ..sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
@@ -180,7 +188,19 @@ class FirestoreTournamentService implements TournamentRepository {
     required ParticipantEntityType entityType,
     ParticipantStatus status = ParticipantStatus.pending,
     String? categoryId,
-  }) {
+  }) async {
+    final docRef = await _getTournamentDoc(tournamentId);
+    final doc = await docRef.get();
+    if (doc.exists && doc.data() != null) {
+      final t = AppTournament.fromMap(doc.data()!);
+      final pastThreshold = DateTime.now().subtract(const Duration(days: 1));
+      if (t.scheduledAt.isBefore(pastThreshold)) {
+        throw Exception('El torneo ha finalizado, ya no se admiten inscripciones.');
+      }
+    } else {
+      throw Exception('El torneo no existe.');
+    }
+
     return _participantRepo.joinTournament(
       tournamentId: tournamentId,
       entityId: entityId,
@@ -203,8 +223,8 @@ class FirestoreTournamentService implements TournamentRepository {
   @override
   Stream<List<AppTournament>> watchEnrolledTournaments(String uid) {
     return _participantRepo.watchEnrolledParticipants(uid).asyncMap((
-      participants,
-    ) async {
+        participants,
+        ) async {
       final tournaments = <AppTournament>[];
       for (final p in participants) {
         try {
@@ -220,6 +240,38 @@ class FirestoreTournamentService implements TournamentRepository {
           print('Error fetching tournament for participant: $e');
         }
       }
+      return tournaments;
+    });
+  }
+
+  @override
+  Stream<List<AppTournament>> watchHistoricalTournaments(String uid) {
+    return _participantRepo.watchEnrolledParticipants(uid).asyncMap((
+        participants,
+        ) async {
+      final tournaments = <AppTournament>[];
+      final validParticipants = participants.where((p) => p.status != ParticipantStatus.rejected).toList();
+      final now = DateTime.now();
+      final pastThreshold = now.subtract(const Duration(days: 1));
+
+      for (final p in validParticipants) {
+        try {
+          var doc = await _tournaments.doc(p.tournamentId).get();
+          if (!doc.exists) {
+            doc = await _privateTournaments.doc(p.tournamentId).get();
+          }
+          if (doc.exists && doc.data() != null) {
+            final t = AppTournament.fromMap(doc.data()!);
+            if (t.scheduledAt.isBefore(pastThreshold)) {
+              tournaments.add(t);
+            }
+          }
+        } catch (e) {
+          // ignore: avoid_print
+          print('Error fetching historical tournament: $e');
+        }
+      }
+      tournaments.sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
       return tournaments;
     });
   }
@@ -295,9 +347,9 @@ class FirestoreTournamentService implements TournamentRepository {
 
     final snapshot = await _tournaments
         .where(
-          'scheduledAt',
-          isGreaterThanOrEqualTo: Timestamp.fromDate(dayStart),
-        )
+      'scheduledAt',
+      isGreaterThanOrEqualTo: Timestamp.fromDate(dayStart),
+    )
         .where('scheduledAt', isLessThan: Timestamp.fromDate(dayEnd))
         .get()
         .timeout(const Duration(seconds: 10));
@@ -309,7 +361,7 @@ class FirestoreTournamentService implements TournamentRepository {
         final t = AppTournament.fromMap(doc.data());
         final sameScheduledAt =
             t.scheduledAt.millisecondsSinceEpoch ==
-            scheduledAt.millisecondsSinceEpoch;
+                scheduledAt.millisecondsSinceEpoch;
         final sameLocation =
             t.location.trim().toLowerCase() == normalizedLocation;
         if (sameScheduledAt && sameLocation) return t;
