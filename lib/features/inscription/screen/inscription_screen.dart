@@ -47,13 +47,40 @@ class _InscriptionScreenState extends State<InscriptionScreen> {
   void _onControllerChange() {
     if (!mounted) return;
     setState(() {});
+
+    // Inscripción exitosa
     if (_ctrl.submitState == InscriptionSubmitState.success) {
       _showSuccessAndPop();
-    } else if (_ctrl.submitState == InscriptionSubmitState.error &&
+      return;
+    }
+    if (_ctrl.submitState == InscriptionSubmitState.error &&
         _ctrl.submitError != null) {
       _showErrorSnackbar(_ctrl.submitError!);
       _ctrl.resetSubmitState();
+      return;
     }
+
+    // Borrador guardado / error al guardar
+    if (_ctrl.draftState == InscriptionDraftState.saved) {
+      _showDraftSnackbar('Borrador guardado correctamente ✓', isError: false);
+      _ctrl.resetDraftState();
+    } else if (_ctrl.draftState == InscriptionDraftState.error &&
+        _ctrl.draftError != null) {
+      _showDraftSnackbar(_ctrl.draftError!, isError: true);
+      _ctrl.resetDraftState();
+    }
+  }
+
+  void _showDraftSnackbar(String message, {required bool isError}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor:
+            isError ? _error : const Color(0xFF22C55E),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   void _showSuccessAndPop() {
@@ -82,36 +109,42 @@ class _InscriptionScreenState extends State<InscriptionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bg,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: BarSmallBotton(
-          icon: Icons.arrow_back_ios_new,
-          onTap: () => Navigator.of(context).maybePop(),
-        ),
-        actions: [
-          BarSmallBotton(
-            icon: Icons.close_rounded,
+    return PopScope(
+      // Autosave silencioso al salir con el gesto de back / maybePop
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) await _ctrl.autoSaveDraftSilent();
+      },
+      child: Scaffold(
+        backgroundColor: _bg,
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: BarSmallBotton(
+            icon: Icons.arrow_back_ios_new,
             onTap: () => Navigator.of(context).maybePop(),
           ),
-          const SizedBox(width: 12),
-        ],
-        title: const Text(
-          'Inscripción',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.3,
+          actions: [
+            BarSmallBotton(
+              icon: Icons.close_rounded,
+              onTap: () => Navigator.of(context).maybePop(),
+            ),
+            const SizedBox(width: 12),
+          ],
+          title: const Text(
+            'Inscripción',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.3,
+            ),
           ),
+          centerTitle: true,
         ),
-        centerTitle: true,
+        body: _buildBody(),
       ),
-      body: _buildBody(),
     );
   }
 
@@ -384,6 +417,17 @@ class _TeamSelector extends StatelessWidget {
         }
 
         final teams = snapshot.data ?? [];
+
+        // Pre-seleccionar equipo del borrador cuando se carga por primera vez
+        if (ctrl.draftTeamId != null && ctrl.selectedTeam == null) {
+          final draftTeam = teams.where((t) => t.id == ctrl.draftTeamId).firstOrNull;
+          if (draftTeam != null) {
+            // Usamos un post-frame para no mutar estado durante el build
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              ctrl.selectTeam(draftTeam);
+            });
+          }
+        }
 
         if (teams.isEmpty) {
           return _NoTeamsState(ctrl: ctrl);
@@ -676,7 +720,7 @@ class _CoverHero extends StatelessWidget {
             Image.network(
               uri,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _buildPlaceholder(),
+              errorBuilder: (_, _e, _s) => _buildPlaceholder(),
             )
           else
             _buildPlaceholder(),
@@ -726,6 +770,8 @@ class _SubmitButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isLoading = ctrl.submitState == InscriptionSubmitState.submitting;
+    final isSavingDraft = ctrl.isSavingDraft;
+    final isAnyLoading = isLoading || isSavingDraft;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -745,15 +791,98 @@ class _SubmitButton extends StatelessWidget {
           const SizedBox(height: 12),
         ],
 
+        // Botón principal: Confirmar inscripción
         GradientButton(
           label: isLoading ? 'Inscribiendo...' : 'Confirmar inscripción',
           icon: isLoading ? null : Icons.how_to_reg_rounded,
           isLoading: isLoading,
           variant: GradientButtonVariant.forest,
           size: GradientButtonSize.large,
-          onPressed: ctrl.canSubmit ? () => ctrl.confirmEnrollment() : null,
+          onPressed: (!isAnyLoading && ctrl.canSubmit)
+              ? () => ctrl.confirmEnrollment()
+              : null,
         ),
+
+        const SizedBox(height: 12),
+
+        // Botón secundario: Guardar borrador
+        _SaveDraftButton(ctrl: ctrl, isDisabled: isAnyLoading),
       ],
+    );
+  }
+}
+
+// ── Save Draft Button ──────────────────────────────────────────────────────
+
+class _SaveDraftButton extends StatelessWidget {
+  const _SaveDraftButton({
+    required this.ctrl,
+    required this.isDisabled,
+  });
+  final InscriptionController ctrl;
+  final bool isDisabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final isSaving = ctrl.isSavingDraft;
+
+    return GestureDetector(
+      onTap: (isDisabled || isSaving) ? null : () => ctrl.saveDraft(),
+      child: AnimatedOpacity(
+        opacity: isDisabled ? 0.5 : 1.0,
+        duration: const Duration(milliseconds: 180),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: const Color(0xFF6C63FF).withValues(alpha: 0.4),
+              width: 1.5,
+            ),
+            color: const Color(0xFF6C63FF).withValues(alpha: 0.07),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (isSaving) ...[
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Color(0xFF6C63FF),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Text(
+                  'Guardando borrador...',
+                  style: TextStyle(
+                    color: Color(0xFF6C63FF),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ] else ...[
+                const Icon(
+                  Icons.bookmark_border_rounded,
+                  color: Color(0xFF6C63FF),
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Guardar borrador',
+                  style: TextStyle(
+                    color: Color(0xFF6C63FF),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

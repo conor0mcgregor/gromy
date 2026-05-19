@@ -64,7 +64,10 @@ class _PreinscriptionScreenState extends State<PreinscriptionScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = PreinscriptionController(tournamentId: widget.tournament.id);
+    _controller = PreinscriptionController(
+      tournamentId: widget.tournament.id,
+      tournament: widget.tournament,
+    );
 
     // Si ya tenemos los datos (navegación desde "Mis torneos"), los usamos
     if (widget.initialIsEnrolled != null) {
@@ -122,6 +125,7 @@ class _PreinscriptionScreenState extends State<PreinscriptionScreen> {
               ? const _LoadingBottomBar()
               : _StickyEnrollBar(
                   tournament: widget.tournament,
+                  controller: _controller,
                   isEnrolled: status.isEnrolled,
                   onCancelInscription: status.isEnrolled
                       ? _controller.cancelInscription
@@ -867,12 +871,14 @@ class _AddressCard extends StatelessWidget {
 class _StickyEnrollBar extends StatefulWidget {
   const _StickyEnrollBar({
     required this.tournament,
+    required this.controller,
     this.isEnrolled = false,
     this.onCancelInscription,
     this.enrolledTeam,
     this.canCancelTeam = true,
   });
   final AppTournament tournament;
+  final PreinscriptionController controller;
   final bool isEnrolled;
   final Future<void> Function()? onCancelInscription;
   final AppTeam? enrolledTeam;
@@ -1026,23 +1032,165 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
                   ),
                 ],
               )
-            : GradientButton(
-                label: isFull ? 'Torneo completo' : 'Inscribirse al torneo',
-                icon: isFull ? Icons.block_rounded : Icons.how_to_reg_rounded,
-                onPressed: isFull
-                    ? null
-                    : () => Navigator.push(
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Banner de borrador (visible solo si hay borrador y no inscrito)
+                  if (widget.controller.hasDraft) ...[
+                    _DraftBanner(
+                      onResume: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              InscriptionScreen(tournament: widget.tournament),
+                          builder: (_) => InscriptionScreen(
+                            tournament: widget.tournament,
+                          ),
                         ),
                       ),
-                variant: isFull
-                    ? GradientButtonVariant.sunset
-                    : GradientButtonVariant.select,
-                size: GradientButtonSize.large,
+                      onDiscard: () => widget.controller.discardDraft(),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  // Botón de inscripción principal
+                  GradientButton(
+                    label: isFull ? 'Torneo completo' : 'Inscribirse al torneo',
+                    icon: isFull ? Icons.block_rounded : Icons.how_to_reg_rounded,
+                    onPressed: isFull
+                        ? null
+                        : () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  InscriptionScreen(tournament: widget.tournament),
+                            ),
+                          ),
+                    variant: isFull
+                        ? GradientButtonVariant.sunset
+                        : GradientButtonVariant.select,
+                    size: GradientButtonSize.large,
+                  ),
+                ],
               ),
+      ),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  APPBAR WIDGETS
+// ════════════════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════════════════
+//  DRAFT BANNER
+// ════════════════════════════════════════════════════════════════
+
+class _DraftBanner extends StatelessWidget {
+  const _DraftBanner({
+    required this.onResume,
+    required this.onDiscard,
+  });
+
+  final VoidCallback onResume;
+  final VoidCallback onDiscard;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: const Color(0xFF6C63FF).withValues(alpha: 0.1),
+            border: Border.all(
+              color: const Color(0xFF6C63FF).withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            children: [
+              // Icono
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: const Color(0xFF6C63FF).withValues(alpha: 0.18),
+                ),
+                child: const Icon(
+                  Icons.bookmark_rounded,
+                  color: Color(0xFF6C63FF),
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Texto
+              Expanded(
+                child: Text(
+                  'Tienes un borrador guardado',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Acciones
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Retomar
+                  GestureDetector(
+                    onTap: onResume,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        color: const Color(0xFF6C63FF).withValues(alpha: 0.25),
+                        border: Border.all(
+                          color:
+                              const Color(0xFF6C63FF).withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: const Text(
+                        'Retomar',
+                        style: TextStyle(
+                          color: Color(0xFF6C63FF),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  // Descartar
+                  GestureDetector(
+                    onTap: onDiscard,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.white.withValues(alpha: 0.05),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.12),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.delete_outline_rounded,
+                        color: Color(0xFFFF4D6A),
+                        size: 16,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

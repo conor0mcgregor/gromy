@@ -1,0 +1,44 @@
+// ─────────────────────────────────────────────────────────────────────────────
+//  Firestore Security Rules  ·  Borradores de Inscripción
+//
+//  Estas reglas deben integrarse en firestore.rules del proyecto,
+//  dentro del bloque `match /databases/{database}/documents { ... }`.
+//
+//  Colección: `registrationDrafts`
+//  ID del documento: "{userId}_{tournamentId}"
+//
+//  Principios de seguridad:
+//  - Solo el propio usuario puede crear, leer, actualizar y borrar su borrador.
+//  - Nadie más (ni admins de torneo) puede acceder a borradores ajenos.
+//  - Un borrador solo contiene datos de formulario temporales (teamId, categoryId).
+//    No tiene impacto en el estado del torneo ni en el recuento de participantes.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Pegar dentro de:
+// rules_version = '2';
+// service cloud.firestore {
+//   match /databases/{database}/documents {
+//     ...
+//   }
+// }
+
+// ── Borradores de inscripción ─────────────────────────────────────────────
+match /registrationDrafts/{draftId} {
+  // Leer: solo el propietario del borrador.
+  allow read: if request.auth != null
+               && resource.data.userId == request.auth.uid;
+
+  // Crear: solo si el usuario se asigna como propietario del borrador.
+  allow create: if request.auth != null
+                && request.resource.data.userId == request.auth.uid
+                && request.resource.data.status == 'draft';
+
+  // Actualizar (upsert): solo el propietario.
+  allow update: if request.auth != null
+                && resource.data.userId == request.auth.uid
+                && request.resource.data.userId == request.auth.uid;
+
+  // Eliminar: solo el propietario.
+  allow delete: if request.auth != null
+                && resource.data.userId == request.auth.uid;
+}
