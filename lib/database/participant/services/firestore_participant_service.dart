@@ -113,6 +113,19 @@ class FirestoreParticipantService implements ParticipantRepository {
   }
 
   @override
+  Future<AppParticipant?> getParticipant({
+    required String tournamentId,
+    required String participantId,
+  }) async {
+    final doc = await _participantsRef(
+      tournamentId,
+    ).doc(participantId).get().timeout(const Duration(seconds: 10));
+    final data = doc.data();
+    if (!doc.exists || data == null) return null;
+    return AppParticipant.fromMap(data);
+  }
+
+  @override
   Future<void> updateStatus({
     required String tournamentId,
     required String participantId,
@@ -120,8 +133,19 @@ class FirestoreParticipantService implements ParticipantRepository {
   }) async {
     await _participantsRef(tournamentId)
         .doc(participantId)
-        .update({'status': status.name})
+        .update({'status': status.firestoreValue})
         .timeout(const Duration(seconds: 10));
+  }
+
+  @override
+  Future<void> updateParticipant({
+    required String tournamentId,
+    required String participantId,
+    required Map<String, dynamic> data,
+  }) async {
+    await _participantsRef(
+      tournamentId,
+    ).doc(participantId).update(data).timeout(const Duration(seconds: 10));
   }
 
   @override

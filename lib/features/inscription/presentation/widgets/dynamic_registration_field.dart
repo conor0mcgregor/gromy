@@ -10,6 +10,7 @@ class DynamicRegistrationField extends StatefulWidget {
     required this.onChanged,
     this.errorText,
     this.dark = true,
+    this.enabled = true,
   });
 
   final RegistrationField field;
@@ -17,6 +18,7 @@ class DynamicRegistrationField extends StatefulWidget {
   final ValueChanged<dynamic> onChanged;
   final String? errorText;
   final bool dark;
+  final bool enabled;
 
   @override
   State<DynamicRegistrationField> createState() =>
@@ -82,7 +84,13 @@ class _DynamicRegistrationFieldState extends State<DynamicRegistrationField> {
           ),
         ],
         const SizedBox(height: 8),
-        _buildInput(context),
+        Opacity(
+          opacity: widget.enabled ? 1 : 0.55,
+          child: IgnorePointer(
+            ignoring: !widget.enabled,
+            child: _buildInput(context),
+          ),
+        ),
         if (widget.errorText != null) ...[
           const SizedBox(height: 6),
           Text(

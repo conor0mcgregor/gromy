@@ -173,6 +173,23 @@ class FirestoreTournamentService implements TournamentRepository {
   // ── Participantes (delegación en ParticipantRepository) ───────────────────
 
   @override
+  Future<AppTournament?> getTournament(String tournamentId) async {
+    var doc = await _tournaments
+        .doc(tournamentId)
+        .get()
+        .timeout(const Duration(seconds: 10));
+    if (!doc.exists) {
+      doc = await _privateTournaments
+          .doc(tournamentId)
+          .get()
+          .timeout(const Duration(seconds: 10));
+    }
+    final data = doc.data();
+    if (!doc.exists || data == null) return null;
+    return AppTournament.fromMap(data);
+  }
+
+  @override
   Future<AppParticipant> joinTournament({
     required String tournamentId,
     required String entityId,

@@ -31,11 +31,24 @@ abstract interface class ParticipantRepository {
   /// Obtiene la lista de participantes una sola vez (lectura puntual).
   Future<List<AppParticipant>> getParticipants(String tournamentId);
 
+  /// Obtiene una inscripción concreta.
+  Future<AppParticipant?> getParticipant({
+    required String tournamentId,
+    required String participantId,
+  });
+
   /// Actualiza el estado de la inscripción de un participante.
   Future<void> updateStatus({
     required String tournamentId,
     required String participantId,
     required ParticipantStatus status,
+  });
+
+  /// Actualiza datos editables de una inscripción.
+  Future<void> updateParticipant({
+    required String tournamentId,
+    required String participantId,
+    required Map<String, dynamic> data,
   });
 
   /// Cancela la inscripción de una entidad en el torneo.

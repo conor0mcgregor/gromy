@@ -39,6 +39,9 @@ abstract interface class TournamentRepository {
   /// Devuelve un stream con los torneos en los que [uid] es administrador.
   Stream<List<AppTournament>> watchTournamentsAdmin(String uid);
 
+  /// Obtiene un torneo por ID desde colecciones públicas o privadas.
+  Future<AppTournament?> getTournament(String tournamentId);
+
   // ── Participantes (conveniencias de alto nivel) ────────────────────────────
 
   /// Inscribe una entidad al torneo.
