@@ -559,11 +559,18 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
         ),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.save_outlined, color: Color(0xFF00D4FF)),
-            SizedBox(width: 8),
-            Text('Cambios sin guardar', style: TextStyle(color: Colors.white)),
+            const Icon(Icons.save_outlined, color: Color(0xFF00D4FF)),
+            const SizedBox(width: 8),
+            Expanded( // Mantenemos el Expanded para que sepa dónde está la pared
+              child: Text(
+                'Cambios sin guardar',
+                style: const TextStyle(color: Colors.white),
+                softWrap: true, // Le permite romper la línea y bajar cuando no cabe
+                maxLines: 2,    // Permite que ocupe hasta 2 renglones
+              ),
+            )
           ],
         ),
         content: const Text(

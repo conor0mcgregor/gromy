@@ -381,63 +381,155 @@ class _LocalDraftCard extends StatelessWidget {
         : 'Evento: ${_formatDate(draft.eventDate!)}';
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Material(
-        color: Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
+          splashColor: const Color(0xFF00D4FF).withValues(alpha: 0.07),
+          highlightColor: const Color(0xFF00D4FF).withValues(alpha: 0.04),
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+              borderRadius: BorderRadius.circular(20),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF00D4FF).withValues(alpha: 0.07),
+                  Colors.white.withValues(alpha: 0.03),
+                ],
+              ),
+              border: Border.all(
+                color: const Color(0xFF00D4FF).withValues(alpha: 0.18),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF00D4FF).withValues(alpha: 0.06),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
             child: Row(
               children: [
+                // ── Icono con gradiente ──────────────────────────────────────
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 48,
+                  height: 48,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    color: const Color(0xFF00D4FF).withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(15),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        const Color(0xFF00D4FF).withValues(alpha: 0.22),
+                        const Color(0xFF6C63FF).withValues(alpha: 0.14),
+                      ],
+                    ),
+                    border: Border.all(
+                      color: const Color(0xFF00D4FF).withValues(alpha: 0.28),
+                    ),
                   ),
                   child: const Icon(
-                    Icons.save_outlined,
+                    Icons.edit_note_rounded,
                     color: Color(0xFF00D4FF),
+                    size: 22,
                   ),
                 ),
                 const SizedBox(width: 14),
+
+                // ── Título y subtítulo ───────────────────────────────────────
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Badge "Borrador"
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              color: const Color(0xFF00D4FF).withValues(
+                                alpha: 0.12,
+                              ),
+                              border: Border.all(
+                                color: const Color(0xFF00D4FF).withValues(
+                                  alpha: 0.3,
+                                ),
+                              ),
+                            ),
+                            child: const Text(
+                              'Borrador',
+                              style: TextStyle(
+                                color: Color(0xFF00D4FF),
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.4,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 5),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.48),
-                          fontSize: 12.5,
-                        ),
+                      Row(
+                        children: [
+                          Icon(
+                            draft.eventDate == null
+                                ? Icons.update_rounded
+                                : Icons.calendar_today_rounded,
+                            size: 11,
+                            color: Colors.white.withValues(alpha: 0.38),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            subtitle,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.45),
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-                const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  color: Colors.white38,
-                  size: 16,
+                const SizedBox(width: 10),
+
+                // ── Flecha ───────────────────────────────────────────────────
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    color: Colors.white.withValues(alpha: 0.06),
+                  ),
+                  child: Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    color: Colors.white.withValues(alpha: 0.35),
+                    size: 13,
+                  ),
                 ),
               ],
             ),
