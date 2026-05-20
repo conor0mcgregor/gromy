@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/models/app_match.dart';
 import 'bracket_connector_painter.dart';
+import 'bracket_layout_calculator.dart';
 import 'draggable_match_card.dart';
 import 'match_card.dart';
 
@@ -58,33 +59,20 @@ class BracketBoard extends StatelessWidget {
   final void Function(AppMatch match)? onMatchTap;
 
   /// Callback cuando un participante es soltado en un slot.
-  /// [source] → datos del participante arrastrado.
-  /// [targetMatch] → match destino.
-  /// [targetSlot] → 1 (superior) o 2 (inferior).
   final void Function(
     ParticipantDragData source,
     AppMatch targetMatch,
     int targetSlot,
   )? onParticipantDropped;
 
-  /// ID del match seleccionado como origen para intercambio manual.
   final String? pendingSwapSourceMatchId;
-
-  /// Slot seleccionado como origen para intercambio manual.
   final int? pendingSwapSourceSlot;
-
-  /// Callback cuando el usuario hace doble toque en un slot para intercambio manual.
   final void Function(AppMatch match, int slot)? onParticipantDoubleTap;
 
-  /// Ancho de cada match card.
   final double matchCardWidth;
 
-  // ── Constantes de layout ────────────────────────────────────────────────
-
   static const _roundGap = 80.0;
-  static const _matchGapBase = 16.0;
   static const _headerHeight = 44.0;
-  static const _matchCardHeight = 110.0;
   static const _paddingH = 40.0;
   static const _paddingV = 30.0;
 
@@ -94,18 +82,25 @@ class BracketBoard extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    // Calcular las posiciones para cada match
-    final positions = _calculatePositions();
+    final layout = BracketLayoutCalculator(
+      matchesByRound: matchesByRound,
+      totalRounds: totalRounds,
+      matchCardWidth: matchCardWidth,
+      roundGap: _roundGap,
+      headerHeight: _headerHeight,
+      paddingH: _paddingH,
+      paddingV: _paddingV,
+    ).compute();
+
+    final positions = layout.positions;
     final connections = _buildConnections();
     final completedConnections = _buildCompletedConnections();
-    final totalSize = _calculateTotalSize();
 
     return SizedBox(
-      width: totalSize.width,
-      height: totalSize.height,
+      width: layout.size.width,
+      height: layout.size.height,
       child: Stack(
         children: [
-          // Líneas de conexión (fondo)
           Positioned.fill(
             child: CustomPaint(
               painter: BracketConnectorPainter(
@@ -115,83 +110,11 @@ class BracketBoard extends StatelessWidget {
               ),
             ),
           ),
-
-          // Headers de rounds
           ..._buildRoundHeaders(),
-
-          // Match cards
           ..._buildMatchCards(positions),
         ],
       ),
     );
-  }
-
-  // ── Cálculos de posicionamiento ─────────────────────────────────────────
-
-  Size _calculateTotalSize() {
-    final totalWidth =
-        _paddingH * 2 +
-        totalRounds * matchCardWidth +
-        (totalRounds - 1) * _roundGap;
-
-    // La primera ronda tiene la mayor cantidad de matches
-    final maxMatchesInRound = matchesByRound.values.fold<int>(
-      0,
-      (max, list) => list.length > max ? list.length : max,
-    );
-
-    final totalHeight =
-        _paddingV * 2 +
-        _headerHeight +
-        maxMatchesInRound * _matchCardHeight +
-        (maxMatchesInRound - 1) * _matchGapBase;
-
-    return Size(totalWidth, totalHeight.clamp(400, double.infinity));
-  }
-
-  Map<String, Rect> _calculatePositions() {
-    final positions = <String, Rect>{};
-
-    for (int round = 0; round < totalRounds; round++) {
-      final matches = matchesByRound[round] ?? [];
-      if (matches.isEmpty) continue;
-
-      final x = _paddingH + round * (matchCardWidth + _roundGap);
-
-      // El primer round tiene el spacing base.
-      // Cada round subsiguiente tiene el doble de spacing para centrar
-      // visualmente entre los dos matches padre.
-      final firstRoundMatchCount = matchesByRound[0]?.length ?? 1;
-      final totalFirstRoundHeight =
-          firstRoundMatchCount * _matchCardHeight +
-          (firstRoundMatchCount - 1) * _matchGapBase;
-
-      for (int i = 0; i < matches.length; i++) {
-        final match = matches[i];
-
-        double y;
-        if (round == 0) {
-          // Primera ronda: distribución uniforme
-          y =
-              _paddingV +
-              _headerHeight +
-              i * (_matchCardHeight + _matchGapBase);
-        } else {
-          // Rounds siguientes: centrar entre los dos matches padre
-          final sectionHeight = totalFirstRoundHeight / matches.length;
-          y =
-              _paddingV +
-              _headerHeight +
-              i * sectionHeight +
-              sectionHeight / 2 -
-              _matchCardHeight / 2;
-        }
-
-        positions[match.id] = Rect.fromLTWH(x, y, matchCardWidth, _matchCardHeight);
-      }
-    }
-
-    return positions;
   }
 
   Map<String, String> _buildConnections() {
@@ -221,8 +144,6 @@ class BracketBoard extends StatelessWidget {
 
     return completed;
   }
-
-  // ── Construcción de widgets ─────────────────────────────────────────────
 
   List<Widget> _buildRoundHeaders() {
     final headers = <Widget>[];
@@ -278,59 +199,48 @@ class BracketBoard extends StatelessWidget {
 
       final x = _paddingH + round * (matchCardWidth + _roundGap);
 
-      final firstRoundMatchCount = matchesByRound[0]?.length ?? 1;
-      final totalFirstRoundHeight =
-          firstRoundMatchCount * _matchCardHeight +
-          (firstRoundMatchCount - 1) * _matchGapBase;
+      for (final match in matches) {
+        final rect = positions[match.id];
+        if (rect == null) continue;
 
-      for (int i = 0; i < matches.length; i++) {
-        final match = matches[i];
-
-        double y;
-        if (round == 0) {
-          y =
-              _paddingV +
-              _headerHeight +
-              i * (_matchCardHeight + _matchGapBase);
-        } else {
-          final sectionHeight = totalFirstRoundHeight / matches.length;
-          y =
-              _paddingV +
-              _headerHeight +
-              i * sectionHeight +
-              sectionHeight / 2 -
-              _matchCardHeight / 2;
-        }
-
-        // En modo admin draft primera ronda → DraggableMatchCard
-        // En los demás casos → MatchCard estático
         final useDrag = isAdmin && isDraftMode && round == 0;
 
         cards.add(
           Positioned(
             left: x,
-            top: y,
-            child: useDrag
-                ? DraggableMatchCard(
-                    key: ValueKey('dmc_${match.id}'),
-                    match: match,
-                    isDraftMode: isDraftMode,
-                    isDraggingAny: isDraggingAny,
-                    width: matchCardWidth,
-                    onTap: () => onMatchTap?.call(match),
-                    onDropped: (source, targetSlot) {
-                      onParticipantDropped?.call(source, match, targetSlot);
-                    },
-                    pendingSwapSourceSlot: pendingSwapSourceMatchId == match.id ? pendingSwapSourceSlot : null,
-                    onParticipantDoubleTap: onParticipantDoubleTap != null ? (slot) => onParticipantDoubleTap!(match, slot) : null,
-                  )
-                : MatchCard(
-                    key: ValueKey('mc_${match.id}'),
-                    match: match,
-                    isAdmin: isAdmin,
-                    width: matchCardWidth,
-                    onTap: onMatchTap != null ? () => onMatchTap!(match) : null,
-                  ),
+            top: rect.top,
+            child: SizedBox(
+              width: matchCardWidth,
+              height: rect.height,
+              child: useDrag
+                  ? DraggableMatchCard(
+                      key: ValueKey('dmc_${match.id}'),
+                      match: match,
+                      isDraftMode: isDraftMode,
+                      isDraggingAny: isDraggingAny,
+                      width: matchCardWidth,
+                      onTap: () => onMatchTap?.call(match),
+                      onDropped: (source, targetSlot) {
+                        onParticipantDropped?.call(source, match, targetSlot);
+                      },
+                      pendingSwapSourceSlot:
+                          pendingSwapSourceMatchId == match.id
+                          ? pendingSwapSourceSlot
+                          : null,
+                      onParticipantDoubleTap: onParticipantDoubleTap != null
+                          ? (slot) => onParticipantDoubleTap!(match, slot)
+                          : null,
+                    )
+                  : MatchCard(
+                      key: ValueKey('mc_${match.id}'),
+                      match: match,
+                      isAdmin: isAdmin,
+                      width: matchCardWidth,
+                      onTap: onMatchTap != null
+                          ? () => onMatchTap!(match)
+                          : null,
+                    ),
+            ),
           ),
         );
       }

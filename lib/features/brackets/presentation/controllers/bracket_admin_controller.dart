@@ -360,6 +360,27 @@ class BracketAdminController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Valida un intercambio sin ejecutarlo. Devuelve mensaje de error o null.
+  String? validateSwapPreview({
+    required AppMatch sourceMatch,
+    required int sourceSlot,
+    required AppMatch targetMatch,
+    required int targetSlot,
+  }) {
+    if (_activeBracket == null) return 'Bracket no encontrado.';
+
+    final validation = _swapUseCase.validate(
+      bracket: _activeBracket!,
+      sourceMatch: sourceMatch,
+      sourceSlot: sourceSlot,
+      targetMatch: targetMatch,
+      targetSlot: targetSlot,
+    );
+
+    if (validation is SwapInvalid) return validation.reason;
+    return null;
+  }
+
   /// Intercambia participantes via drag & drop (solo en draft).
   /// Valida localmente antes de llamar al backend.
   /// Devuelve [null] si el intercambio fue exitoso, o un mensaje de error.
