@@ -980,11 +980,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
             ],
           ),
           if (_ctrl.adminError != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              _ctrl.adminError!,
-              style: const TextStyle(color: Color(0xFFFF4D6A), fontSize: 12),
-            ),
+            _SectionErrorText(message: _ctrl.adminError!),
           ],
           const SizedBox(height: 6),
           // Nota explicativa
@@ -1098,6 +1094,9 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           enabled: !_ctrl.isSendingPlayerInvite,
           onChanged: _ctrl.onPlayerInviteQueryChanged,
         ),
+        if (_ctrl.playerInviteError != null) ...[
+          _SectionErrorText(message: _ctrl.playerInviteError!),
+        ],
         if (_ctrl.isSearchingPlayerInvite) ...[
           const SizedBox(height: 10),
           const _SectionLoading(label: 'Buscando jugadores...'),
@@ -1122,9 +1121,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                 onInvite: () async {
                   final ok = await _ctrl.sendPlayerInvitation(user);
                   if (ok) {
-                    _showSnack('Invitacion enviada a @${user.nickname}');
-                  } else if (_ctrl.adminError != null) {
-                    _showSnack(_ctrl.adminError!, isError: true);
+                    _showSnack('Invitación enviada a @${user.nickname}');
                   }
                 },
               ),
@@ -2098,6 +2095,40 @@ class _CategoryHeader extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SectionErrorText extends StatelessWidget {
+  const _SectionErrorText({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.error_outline_rounded,
+            size: 16,
+            color: Color(0xFFFF4D6A),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFFFF4D6A),
+                fontSize: 12,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

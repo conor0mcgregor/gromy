@@ -165,6 +165,7 @@ class TournamentManagementController extends ChangeNotifier {
   String? _errorMessage;
   String? _successMessage;
   String? _adminError;
+  String? _playerInviteError;
   String? _nameError;
   String? _descriptionError;
   String? _allInfoError;
@@ -224,6 +225,7 @@ class TournamentManagementController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   String? get successMessage => _successMessage;
   String? get adminError => _adminError;
+  String? get playerInviteError => _playerInviteError;
   String? get nameError => _nameError;
   String? get descriptionError => _descriptionError;
   String? get allInfoError => _allInfoError;
@@ -702,6 +704,7 @@ class TournamentManagementController extends ChangeNotifier {
 
     _isAddingAdmin = true;
     _adminError = null;
+    _playerInviteError = null;
     notifyListeners();
 
     try {
@@ -784,6 +787,7 @@ class TournamentManagementController extends ChangeNotifier {
 
   void onPlayerInviteQueryChanged(String query) {
     _playerInviteDebounce?.cancel();
+    _playerInviteError = null;
     final trimmed = query.trim();
     if (trimmed.length < 2) {
       _playerInviteSuggestions = [];
@@ -799,7 +803,7 @@ class TournamentManagementController extends ChangeNotifier {
 
   Future<void> _searchPlayerInvite(String query) async {
     _isSearchingPlayerInvite = true;
-    _adminError = null;
+    _playerInviteError = null;
     notifyListeners();
 
     try {
@@ -808,7 +812,7 @@ class TournamentManagementController extends ChangeNotifier {
           .where((user) => user.uid != _currentUid)
           .toList(growable: false);
     } catch (e) {
-      _adminError = 'Error buscando jugadores: $e';
+      _playerInviteError = 'No se pudo buscar jugadores. Inténtalo de nuevo.';
       _playerInviteSuggestions = [];
     }
 
@@ -818,14 +822,15 @@ class TournamentManagementController extends ChangeNotifier {
 
   Future<bool> sendPlayerInvitation(AppUser user) async {
     if (_edited.accessType != TournamentAccessType.privateInviteOnly) {
-      _adminError =
-          'Las invitaciones directas solo estan disponibles en torneos privados.';
+      _playerInviteError =
+          'Las invitaciones directas solo están disponibles en torneos privados.';
       notifyListeners();
       return false;
     }
 
     if (_isSendingPlayerInvite) return false;
     _isSendingPlayerInvite = true;
+    _playerInviteError = null;
     _adminError = null;
     notifyListeners();
 
@@ -841,11 +846,19 @@ class TournamentManagementController extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _adminError = e.toString().replaceFirst('Exception: ', '');
+      _playerInviteError = _errorMessageFrom(e);
       _isSendingPlayerInvite = false;
       notifyListeners();
       return false;
     }
+  }
+
+  String _errorMessageFrom(Object error) {
+    if (error is Exception) {
+      final message = error.toString().replaceFirst('Exception: ', '').trim();
+      if (message.isNotEmpty) return message;
+    }
+    return 'No se pudo enviar la invitación. Inténtalo de nuevo.';
   }
 
   void removeAdminLocally(String adminUid) {
@@ -1115,6 +1128,7 @@ class TournamentManagementController extends ChangeNotifier {
     _errorMessage = null;
     _successMessage = null;
     _adminError = null;
+    _playerInviteError = null;
     _clearValidationErrors();
     notifyListeners();
   }
