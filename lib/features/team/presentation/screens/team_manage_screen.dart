@@ -1,5 +1,5 @@
 import 'dart:ui';
-
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -14,6 +14,7 @@ import '../../data/services/team_storage_service.dart';
 import '../../../user/data/models/app_user.dart';
 import '../../../user/data/services/firestore_user_service.dart';
 import '../../../profile/presentation/screens/other_user_profile_screen.dart';
+import '../../../../app/app_shell.dart';
 import '../widgets/team_member_tile.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -743,6 +744,16 @@ class _TeamManageScreenState extends State<TeamManageScreen>
                 isAdmin: isAdmin,
                 showAdminBadge: false,
                 onTap: () {
+                  if (FirebaseAuth.instance.currentUser?.uid == uid) {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AppShell(initialIndex: 4),
+                      ),
+                          (route) => false,
+                    );
+                    return;
+                  }
                   Navigator.push(
                     context,
                     MaterialPageRoute(
