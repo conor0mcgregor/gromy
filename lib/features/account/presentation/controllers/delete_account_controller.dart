@@ -40,7 +40,11 @@ class DeleteAccountController extends ChangeNotifier {
     }
   }
 
-  Future<AccountDeletionResult> deleteAccount() async {
+  bool get requiresPassword => _useCase.requiresPasswordConfirmation();
+
+  String? get userEmail => _useCase.currentUserEmail;
+
+  Future<AccountDeletionResult> deleteAccount({String? password}) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) {
       return const AccountDeletionFailure('No hay una sesion activa.');
@@ -51,7 +55,7 @@ class DeleteAccountController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final result = await _useCase.execute(uid);
+      final result = await _useCase.execute(uid, password: password);
       if (result case AccountDeletionBlocked(:final message)) {
         errorMessage = message;
         await load();

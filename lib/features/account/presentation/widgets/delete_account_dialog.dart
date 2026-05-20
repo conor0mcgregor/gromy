@@ -16,7 +16,9 @@ class DeleteAccountDialog extends StatefulWidget {
 
 class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
   late final DeleteAccountController _controller;
+  final _passwordController = TextEditingController();
   bool _accepted = false;
+  bool _obscurePassword = true;
 
   @override
   void initState() {
@@ -29,6 +31,7 @@ class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
   void dispose() {
     _controller.removeListener(_onChange);
     _controller.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -37,14 +40,17 @@ class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
   }
 
   Future<void> _delete() async {
-    final result = await _controller.deleteAccount();
+    final password = _controller.requiresPassword
+        ? _passwordController.text
+        : null;
+    final result = await _controller.deleteAccount(password: password);
     if (!mounted) return;
 
     switch (result) {
       case AccountDeletionSuccess():
         Navigator.of(context).pop(true);
-      case AccountDeletionBlocked(:final message) ||
-          AccountDeletionFailure(:final message):
+      case AccountDeletionBlocked(:final message):
+      case AccountDeletionFailure(:final message):
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(message),
@@ -57,8 +63,13 @@ class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
   @override
   Widget build(BuildContext context) {
     final state = _controller.state;
+    final needsPassword = _controller.requiresPassword;
+    final passwordReady = !needsPassword || _passwordController.text.isNotEmpty;
     final canSubmit =
-        state?.canDelete == true && _accepted && !_controller.isDeleting;
+        state?.canDelete == true &&
+        _accepted &&
+        passwordReady &&
+        !_controller.isDeleting;
 
     return Dialog(
       backgroundColor: const Color(0xFF15152B),
@@ -126,11 +137,58 @@ class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
                   ...state.blockingReasons.map(
                     (reason) => BlockingReasonCard(reason: reason),
                   ),
-                ] else
+                ] else ...[
                   const Text(
-                    'Se anonimizaran tus datos personales, se retirara tu acceso y se conservara solo la trazabilidad minima necesaria.',
+                    'Se eliminaran tu cuenta de Firebase, tus datos en Firestore y referencias asociadas. Esta accion no se puede deshacer.',
                     style: TextStyle(color: Colors.white70, height: 1.4),
                   ),
+                  const SizedBox(height: 16),
+                  if (needsPassword) ...[
+                    if (_controller.userEmail != null)
+                      Text(
+                        'Confirma con la contrasena de ${_controller.userEmail}',
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 13,
+                        ),
+                      ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      enabled: !_controller.isDeleting,
+                      onChanged: (_) => setState(() {}),
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: 'Contrasena actual',
+                        hintStyle: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.4),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white.withValues(alpha: 0.06),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        suffixIcon: IconButton(
+                          onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off_rounded
+                                : Icons.visibility_rounded,
+                            color: Colors.white54,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ] else
+                    const Text(
+                      'Al confirmar, verificaremos tu identidad con tu proveedor de inicio de sesion.',
+                      style: TextStyle(color: Colors.white54, fontSize: 13),
+                    ),
+                ],
                 const SizedBox(height: 16),
                 CheckboxListTile(
                   value: _accepted,
@@ -142,7 +200,7 @@ class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
                   contentPadding: EdgeInsets.zero,
                   controlAffinity: ListTileControlAffinity.leading,
                   title: const Text(
-                    'Entiendo las consecuencias de eliminar mi cuenta.',
+                    'Entiendo que mi cuenta y datos se eliminaran permanentemente.',
                     style: TextStyle(color: Colors.white, fontSize: 14),
                   ),
                 ),

@@ -22,7 +22,7 @@ class DeleteAccountWarningCard extends StatelessWidget {
           SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Esta accion eliminara tu acceso a la plataforma. Algunos datos minimos podran conservarse de forma anonimizada por motivos legales, soporte o trazabilidad.',
+              'Esta accion eliminara permanentemente tu cuenta, datos personales y acceso. Podras volver a registrarte con el mismo email o nickname como usuario nuevo.',
               style: TextStyle(color: Colors.white, fontSize: 14, height: 1.4),
             ),
           ),

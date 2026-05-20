@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 
 import '../models/app_user.dart';
 import '../models/public_app_user.dart';
+import '../models/public_user_profile.dart';
 import '../repositories/user_repository.dart';
 
 /// Implementación de [UserRepository] usando Cloud Firestore.
@@ -70,19 +71,25 @@ class FirestoreUserService implements UserRepository {
 
   @override
   Future<PublicAppUser?> getOtherUserProfile(String targetUid) async {
+    final profile = await getOtherUserPublicProfile(targetUid);
+    return profile?.user;
+  }
+
+  @override
+  Future<PublicUserProfile?> getOtherUserPublicProfile(String targetUid) async {
     try {
       final functions = FirebaseFunctions.instanceFor(
         app: Firebase.app(),
-        region: 'us-central1', // Ajustar si tus funciones usan otra región
+        region: 'us-central1',
       );
       final callable = functions.httpsCallable('getUserProfile');
       final result = await callable.call({'targetUid': targetUid});
 
       if (result.data == null) return null;
       final map = Map<String, dynamic>.from(result.data as Map);
-      return PublicAppUser.fromMap(map);
+      return PublicUserProfile.fromMap(map);
     } catch (e) {
-      print("[FIRESTORE_USER_SERVICE] Error fetching other user profile: $e");
+      print("[FIRESTORE_USER_SERVICE] Error fetching public profile: $e");
       return null;
     }
   }

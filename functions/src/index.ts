@@ -52,6 +52,7 @@ export {
 // ── Módulo de usuarios ──────────────────────────────────────────────────────
 export {
   getUserProfile,
+  deleteUserAccount,
 } from "./users";
 
 // Start writing functions

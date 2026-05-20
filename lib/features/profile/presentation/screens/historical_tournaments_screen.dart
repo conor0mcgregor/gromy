@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gromy/features/tournament/data/services/firestore_tournament_service.dart';
 
-import '../../../../core/getColors/getter_colors.dart';
 import '../../../home/presentation/widgets/tournament_card.dart';
 import '../../../inscription/screen/preinscription_screen.dart';
 import '../../../tournament/data/model/app_tournament.dart';

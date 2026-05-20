@@ -7,6 +7,7 @@ import 'package:gromy/features/auth/data/models/auth_result.dart';
 import 'package:gromy/features/auth/data/repositories/auth_repository.dart';
 import 'package:gromy/features/user/data/models/app_user.dart';
 import 'package:gromy/features/user/data/models/public_app_user.dart';
+import 'package:gromy/features/user/data/models/public_user_profile.dart';
 import 'package:gromy/features/user/data/repositories/user_repository.dart';
 
 typedef EmailAuthHandler =
@@ -174,6 +175,12 @@ class FakeUserRepository implements UserRepository {
     isNicknameAvailableCalls++;
     lastNicknameChecked = nickname;
     return onIsNicknameAvailable?.call(nickname) ?? true;
+  }
+
+  @override
+  Future<PublicUserProfile?> getOtherUserPublicProfile(String targetUid) {
+    // TODO: implement getOtherUserPublicProfile
+    throw UnimplementedError();
   }
 }
 

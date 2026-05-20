@@ -1,8 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-
 import '../models/account_deletion_state.dart';
 import '../repositories/account_repository.dart';
 
@@ -10,22 +8,16 @@ class FirebaseAccountService implements AccountRepository {
   FirebaseAccountService({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
-    FirebaseStorage? storage,
   }) : _auth = auth ?? FirebaseAuth.instance,
        _db =
            firestore ??
            FirebaseFirestore.instanceFor(
              app: Firebase.app(),
              databaseId: 'gromy-db',
-           ),
-       _storage = storage ?? FirebaseStorage.instance;
+           );
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _db;
-  final FirebaseStorage _storage;
-
-  static const _deletedDisplayName = 'Usuario eliminado';
-  static const _deletedNickname = 'usuario_eliminado';
 
   @override
   Future<AccountDeletionState> getDeletionState(String userId) async {
@@ -97,110 +89,8 @@ class FirebaseAccountService implements AccountRepository {
   }
 
   @override
-  Future<void> anonymizeUserAccount(String userId) async {
-    final userRef = _db.collection('users').doc(userId);
-    final userDoc = await userRef.get().timeout(const Duration(seconds: 10));
-    if (!userDoc.exists) {
-      throw StateError('No existe el documento de usuario.');
-    }
-
-    final queryResults = await Future.wait([
-      _db
-          .collection('users')
-          .doc(userId)
-          .collection('fcm_tokens')
-          .get()
-          .timeout(const Duration(seconds: 10)),
-      _db
-          .collection('tournaments')
-          .where('organizerUid', isEqualTo: userId)
-          .get()
-          .timeout(const Duration(seconds: 10)),
-      _db
-          .collection('private_tournaments')
-          .where('organizerUid', isEqualTo: userId)
-          .get()
-          .timeout(const Duration(seconds: 10)),
-      _db
-          .collection('teams')
-          .where('members', arrayContains: userId)
-          .get()
-          .timeout(const Duration(seconds: 10)),
-      _db
-          .collection('teams')
-          .where('adminIds', arrayContains: userId)
-          .get()
-          .timeout(const Duration(seconds: 10)),
-    ]);
-
-    final tokenDocs = queryResults[0].docs;
-    final tournamentDocs = [...queryResults[1].docs, ...queryResults[2].docs];
-    final teamDocs = {
-      for (final doc in [...queryResults[3].docs, ...queryResults[4].docs])
-        doc.id: doc,
-    }.values;
-
-    final batch = _db.batch();
-    batch.set(userRef, {
-      'isDeleted': true,
-      'deletedAt': FieldValue.serverTimestamp(),
-      'displayName': _deletedDisplayName,
-      'nickname': _deletedNickname,
-      'name': 'Usuario',
-      'lastName': 'eliminado',
-      'email': null,
-      'photoUrl': null,
-      'biography': null,
-      'phone': null,
-      'phoneNumber': null,
-      'fcmToken': FieldValue.delete(),
-      'fcmTokens': FieldValue.delete(),
-      'notificationTokens': FieldValue.delete(),
-      'personalDataRemoved': true,
-    }, SetOptions(merge: true));
-
-    batch.set(_db.collection('account_deletions').doc(userId), {
-      'userId': userId,
-      'deletedAt': FieldValue.serverTimestamp(),
-      'strategy': 'logical_deletion_anonymization',
-      'personalDataRemoved': true,
-    }, SetOptions(merge: true));
-
-    for (final doc in tokenDocs) {
-      batch.delete(doc.reference);
-    }
-
-    for (final doc in tournamentDocs) {
-      batch.update(doc.reference, {
-        'organizerDisplayName': _deletedDisplayName,
-        'organizerEmail': null,
-        'contactEmail': null,
-        'contactPhone': null,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    }
-
-    for (final doc in teamDocs) {
-      batch.update(doc.reference, {
-        'members': FieldValue.arrayRemove([userId]),
-        'adminIds': FieldValue.arrayRemove([userId]),
-      });
-    }
-
-    await batch.commit().timeout(const Duration(seconds: 10));
-  }
-
-  @override
-  Future<void> removePersonalStorage(String userId) async {
-    final refs = [_storage.ref('profile_images/$userId.jpg')];
-
-    for (final ref in refs) {
-      try {
-        await ref.delete();
-      } on FirebaseException catch (e) {
-        if (e.code != 'object-not-found') rethrow;
-      }
-    }
+  Future<void> deleteAccountPermanently(String userId) async {
+    // El borrado real se ejecuta en Cloud Function deleteUserAccount.
   }
 
   @override
@@ -313,13 +203,19 @@ class FirebaseAccountService implements AccountRepository {
     required String userId,
     required List<String> statuses,
   }) async {
-    final snapshot = await _db
-        .collection(collection)
-        .where('userId', isEqualTo: userId)
-        .where('status', whereIn: statuses)
-        .limit(1)
-        .get()
-        .timeout(const Duration(seconds: 10));
-    return snapshot.docs.isNotEmpty;
+    try {
+      final snapshot = await _db
+          .collection(collection)
+          .where('userId', isEqualTo: userId)
+          .where('status', whereIn: statuses)
+          .limit(1)
+          .get()
+          .timeout(const Duration(seconds: 10));
+      return snapshot.docs.isNotEmpty;
+    } catch (_) {
+      // Coleccion o indice inexistente: no bloquear la eliminacion.
+      return false;
+    }
   }
+
 }

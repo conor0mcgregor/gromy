@@ -105,6 +105,14 @@ class _ProfileInfoTabState extends State<ProfileInfoTab> {
     );
 
     if (!mounted || deleted != true) return;
+
+    try {
+      await widget.authController.logout();
+    } catch (_) {
+      // La Cloud Function ya elimino Auth; el logout local es best-effort.
+    }
+
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Tu cuenta ha sido eliminada correctamente.'),
@@ -330,7 +338,7 @@ class _ProfileInfoTabState extends State<ProfileInfoTab> {
                     ),
                     const SizedBox(height: 10),
                     const Text(
-                      'Gestiona la baja de tu cuenta y la anonimizacion de tus datos personales.',
+                      'Elimina permanentemente tu cuenta y todos tus datos de la plataforma.',
                       style: TextStyle(color: Colors.white70, height: 1.35),
                     ),
                     const SizedBox(height: 16),

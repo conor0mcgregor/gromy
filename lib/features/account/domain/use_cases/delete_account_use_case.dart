@@ -12,7 +12,16 @@ class DeleteAccountUseCase {
     return _service.getDeletionState(userId);
   }
 
-  Future<AccountDeletionResult> execute(String userId) {
-    return _service.deleteAccount(userId);
+  Future<AccountDeletionResult> execute(
+    String userId, {
+    String? password,
+  }) {
+    return _service.deleteAccount(userId: userId, password: password);
   }
+
+  bool requiresPasswordConfirmation() {
+    return _service.requiresPasswordConfirmation();
+  }
+
+  String? get currentUserEmail => _service.currentUserEmail;
 }

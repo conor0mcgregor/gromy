@@ -1,10 +1,10 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
-import {getFirestore} from "firebase-admin/firestore";
+import {getFirestore, Timestamp} from "firebase-admin/firestore";
+import {buildUserProfileExtras} from "./user_profile_stats";
 
 const DB_ID = "gromy-db";
 
 export const getUserProfile = onCall(async (request) => {
-  // 1. Verify authentication
   if (!request.auth) {
     throw new HttpsError(
       "unauthenticated",
@@ -16,7 +16,7 @@ export const getUserProfile = onCall(async (request) => {
   if (!targetUid || typeof targetUid !== "string") {
     throw new HttpsError(
       "invalid-argument",
-      "Se requiere un targetUid válido."
+      "Se requiere un targetUid valido."
     );
   }
 
@@ -30,23 +30,43 @@ export const getUserProfile = onCall(async (request) => {
 
     const userData = userDoc.data()!;
 
-    // Here we can apply privacy blocks in the future (HU22, HU25, HU27)
-    // For now, we only expose public fields.
-    const publicProfile = {
+    if (userData.isDeleted === true) {
+      throw new HttpsError("not-found", "Este perfil no esta disponible.");
+    }
+
+    const createdAt = userData.createdAt as Timestamp | undefined;
+    let stats = {
+      totalPlayed: 0,
+      wins: 0,
+      losses: 0,
+      winRate: 0,
+      tournamentsWon: 0,
+    };
+    let tournamentHistory: unknown[] = [];
+    try {
+      const extras = await buildUserProfileExtras(db, targetUid);
+      stats = extras.stats;
+      tournamentHistory = extras.history;
+    } catch (extrasError) {
+      console.warn("getUserProfile extras skipped:", extrasError);
+    }
+
+    return {
       uid: userData.uid,
       nickname: userData.nickname,
       name: userData.name,
       lastName: userData.lastName,
       photoUrl: userData.photoUrl,
       biography: userData.biography,
+      memberSince: createdAt?.toDate().toISOString() ?? null,
+      stats,
+      tournamentHistory,
     };
-
-    return publicProfile;
   } catch (error) {
     if (error instanceof HttpsError) throw error;
     throw new HttpsError(
       "internal",
-      "Ocurrió un error al consultar el perfil."
+      "Ocurrio un error al consultar el perfil."
     );
   }
 });
