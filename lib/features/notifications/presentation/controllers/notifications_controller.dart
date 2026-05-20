@@ -57,14 +57,18 @@ class NotificationsController extends ChangeNotifier {
 
   StreamSubscription<List<AppNotification>>? _notificationsSub;
   StreamSubscription<int>? _unreadCountSub;
+  String? _activeUserId;
 
   // ── Inicialización ─────────────────────────────────────────────────────────
 
   /// Inicia la escucha en tiempo real de las notificaciones del usuario.
   void init(String userId) {
+    if (_activeUserId == userId && _notificationsSub != null) return;
+
+    _activeUserId = userId;
     _state = NotificationsState.loading;
     _errorMessage = null;
-    notifyListeners();
+    // No notifyListeners aquí: puede llamarse durante el build (p. ej. IndexedStack).
 
     _notificationsSub?.cancel();
     _unreadCountSub?.cancel();

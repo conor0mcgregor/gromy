@@ -91,6 +91,7 @@ class _AppShellState extends State<AppShell> {
 
   @override
   void dispose() {
+    _controllerNotifications.dispose();
     if (_ownsAuthController) {
       _authController.dispose();
     }

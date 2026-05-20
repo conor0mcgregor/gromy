@@ -55,8 +55,12 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     );
 
     _userId = FirebaseAuth.instance.currentUser?.uid;
+    // AppShell ya llama init(); diferimos por si esta pantalla se monta sola.
     if (_userId != null) {
-      _controller.init(_userId!);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _controller.init(_userId!);
+      });
     }
   }
 
@@ -71,7 +75,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   @override
   void dispose() {
     _controller.removeListener(_onStateChanged);
-    _controller.dispose();
     _teamInvitationController.dispose();
     _fadeController.dispose();
     super.dispose();
