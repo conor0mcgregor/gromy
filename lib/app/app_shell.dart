@@ -18,9 +18,10 @@ import '../features/tournament/presentation/screens/my_tournament_screen.dart';
 import 'notification_routes.dart';
 
 class AppShell extends StatefulWidget {
-  const AppShell({super.key, this.authController});
+  const AppShell({super.key, this.authController, this.initialIndex = 0});
 
   final AuthController? authController;
+  final int initialIndex;
 
 
   @override
@@ -39,6 +40,7 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
+    _currentIndex = widget.initialIndex;
     _ownsAuthController = widget.authController == null;
     _authController = widget.authController ?? AuthController();
     _controllerNotifications = NotificationsController();

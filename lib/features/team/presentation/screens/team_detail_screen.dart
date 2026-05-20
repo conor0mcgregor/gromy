@@ -11,6 +11,7 @@ import '../../../../database/team/services/firestore_team_service.dart';
 import '../../../user/data/services/firestore_user_service.dart';
 import '../../../user/data/models/app_user.dart';
 import '../../../profile/presentation/screens/other_user_profile_screen.dart';
+import '../../../../app/app_shell.dart';
 import '../widgets/team_member_tile.dart';
 import 'team_manage_screen.dart';
 
@@ -458,6 +459,16 @@ class _TeamDetailScreenState extends State<TeamDetailScreen>
                 isAdmin: isAdmin,
                 showAdminBadge: true,
                 onTap: () {
+                  if (FirebaseAuth.instance.currentUser?.uid == uid) {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AppShell(initialIndex: 4),
+                      ),
+                          (route) => false,
+                    );
+                    return;
+                  }
                   Navigator.push(
                     context,
                     MaterialPageRoute(
