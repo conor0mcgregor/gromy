@@ -128,10 +128,11 @@ class _PreinscriptionScreenState extends State<PreinscriptionScreen> {
             onCancelInscription: status.isEnrolled
                 ? _controller.cancelInscription
                 : null,
-            participant: status.participant,enrolledTeam: status.enrolledTeam,
+            participant: status.participant,
+            enrolledTeam: status.enrolledTeam,
             canCancelTeam: status.canCancel,
-          hasPendingJoinRequest: status.hasPendingJoinRequest,
-                ),
+            hasPendingJoinRequest: status.hasPendingJoinRequest,
+          ),
 
           // ── Contenido scrollable ──
           body: SingleChildScrollView(
@@ -1127,24 +1128,19 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
             : GradientButton(
                 label: !acceptsRegistrations
                     ? 'Inscripción no disponible'
+                    : hasPendingJoinRequest
+                    ? 'Solicitud pendiente de revision'
                     : isFull
                     ? 'Torneo completo'
                     : 'Inscribirse al torneo',
                 icon: !acceptsRegistrations || isFull
                     ? Icons.block_rounded
-                    : Icons.how_to_reg_rounded,
-                onPressed: !acceptsRegistrations || isFull
-                label: hasPendingJoinRequest
-                    ? 'Solicitud pendiente de revision'
-                    : isFull
-                    ? 'Torneo completo'
-                    : 'Inscribirse al torneo',
-                icon: hasPendingJoinRequest
+                    : hasPendingJoinRequest
                     ? Icons.pending_actions_rounded
-                    : isFull
-                    ? Icons.block_rounded
                     : Icons.how_to_reg_rounded,
-                onPressed: isFull || hasPendingJoinRequest
+                onPressed: !acceptsRegistrations ||
+                        isFull ||
+                        hasPendingJoinRequest
                     ? null
                     : () => Navigator.push(
                         context,
@@ -1153,7 +1149,7 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
                               InscriptionScreen(tournament: widget.tournament),
                         ),
                       ),
-                variant: isFull
+                variant: isFull || !acceptsRegistrations
                     ? GradientButtonVariant.sunset
                     : GradientButtonVariant.select,
                 size: GradientButtonSize.large,

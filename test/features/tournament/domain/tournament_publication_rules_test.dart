@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gromy/core/models/registration_form.dart';
 import 'package:gromy/database/participant/models/app_participant.dart';
 import 'package:gromy/features/tournament/data/model/app_tournament.dart';
 import 'package:gromy/features/tournament/data/model/enums_tournament.dart';
@@ -129,12 +130,22 @@ class _FakeTournamentRepository implements TournamentRepository {
   }
 
   @override
+  Future<AppTournament?> getTournament(String tournamentId) async => null;
+
+  @override
+  Stream<List<AppTournament>> watchHistoricalTournaments(String uid) {
+    return Stream.value(const <AppTournament>[]);
+  }
+
+  @override
   Future<AppParticipant> joinTournament({
     required String tournamentId,
     required String entityId,
     required ParticipantEntityType entityType,
     ParticipantStatus status = ParticipantStatus.pending,
     String? categoryId,
+    int registrationFormVersion = 0,
+    List<RegistrationResponse> registrationResponses = const [],
   }) {
     throw UnimplementedError();
   }
@@ -165,4 +176,6 @@ class _FakeTournamentRepository implements TournamentRepository {
 
   @override
   Future<void> decrementParticipantCount(String tournamentId) async {}
+
+
 }
