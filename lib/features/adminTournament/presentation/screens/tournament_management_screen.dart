@@ -18,6 +18,7 @@ import '../../../participants/presentation/widgets/participants_section.dart';
 import '../../../participants/presentation/widgets/team_card.dart';
 import '../../../inscription/screen/tournament_join_requests_screen.dart';
 import '../../../tournament/data/model/app_tournament.dart';
+import '../../../tournament/presentation/screens/create_tournament/form/widgets/registration_form_builder.dart';
 import '../../../tournament/presentation/screens/create_tournament/form/steps/step3_geolocation.dart';
 import '../controllers/tournament_management_controller.dart';
 import 'participants_management.dart';
@@ -361,6 +362,8 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                             _buildLinksSection(),
                             const SizedBox(height: 20),
                             _buildCategoriesSection(),
+                            const SizedBox(height: 20),
+                            _buildRegistrationFormSection(),
                             const SizedBox(height: 20),
                             _buildAdminsSection(),
                             const SizedBox(height: 20),
@@ -761,6 +764,17 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           ),
         ],
       ],
+    );
+  }
+
+  Widget _buildRegistrationFormSection() {
+    return RegistrationFormBuilder(
+      schema: _ctrl.edited.registrationForm,
+      errorText: _ctrl.registrationFormError,
+      onUpsertField: _ctrl.upsertRegistrationField,
+      onRemoveField: _ctrl.removeRegistrationField,
+      onToggleField: _ctrl.toggleRegistrationField,
+      onMoveField: _ctrl.moveRegistrationField,
     );
   }
 

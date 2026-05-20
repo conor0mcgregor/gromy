@@ -1,3 +1,4 @@
+import '../../../../core/models/registration_form.dart';
 import '../../../tournament/data/model/app_tournament.dart';
 import '../../data/repositories/admin_tournament_repository.dart';
 
@@ -27,6 +28,13 @@ class UpdateTournamentUseCase {
     }
     if (updated.name.trim().isEmpty) {
       throw ArgumentError('El nombre del torneo no puede estar vacío.');
+    }
+
+    final registrationFormErrors = RegistrationFormValidator.validateSchema(
+      updated.registrationForm,
+    );
+    if (registrationFormErrors.isNotEmpty) {
+      throw ArgumentError(registrationFormErrors.first);
     }
 
     if (_listChanged(original.adminIds, updated.adminIds) &&

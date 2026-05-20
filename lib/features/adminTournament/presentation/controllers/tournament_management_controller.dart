@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../core/models/registration_form.dart';
 import '../../../notifications/data/repository/admin_invitation_repository_impl.dart';
 import '../../../notifications/domain/use_cases/admin_invitation_use_cases.dart';
 import '../../../participants/data/models/participant_display.dart';
@@ -169,6 +170,7 @@ class TournamentManagementController extends ChangeNotifier {
   String? _maxParticipantsError;
   String? _membersPerTeamError;
   String? _contactEmailError;
+  String? _registrationFormError;
 
   List<ParticipantDisplay> _participants = [];
   List<TournamentAdminView> _adminUsers = [];
@@ -222,6 +224,7 @@ class TournamentManagementController extends ChangeNotifier {
   String? get maxParticipantsError => _maxParticipantsError;
   String? get membersPerTeamError => _membersPerTeamError;
   String? get contactEmailError => _contactEmailError;
+  String? get registrationFormError => _registrationFormError;
   List<ParticipantDisplay> get participants => _participants;
   List<TournamentAdminView> get adminUsers => _adminUsers;
   List<PendingAdminInvitation> get pendingInvitations => _pendingInvitations;
@@ -405,6 +408,69 @@ class TournamentManagementController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void upsertRegistrationField(RegistrationField field) {
+    final normalized = _normalizeRegistrationField(field);
+    final fields = [..._edited.registrationForm.fields];
+    final index = fields.indexWhere((item) => item.id == normalized.id);
+    if (index >= 0) {
+      fields[index] = normalized.copyWith(updatedAt: DateTime.now());
+    } else {
+      fields.add(normalized.copyWith(order: fields.length));
+    }
+    _edited = _copyEdited(
+      registrationForm: _edited.registrationForm.copyWith(
+        fields: _withOrderedFields(fields),
+      ),
+    );
+    _registrationFormError = null;
+    notifyListeners();
+  }
+
+  void removeRegistrationField(String id) {
+    final fields = _edited.registrationForm.fields
+        .where((field) => field.id != id)
+        .toList(growable: false);
+    _edited = _copyEdited(
+      registrationForm: _edited.registrationForm.copyWith(
+        fields: _withOrderedFields(fields),
+      ),
+    );
+    _registrationFormError = null;
+    notifyListeners();
+  }
+
+  void toggleRegistrationField(String id, bool enabled) {
+    final fields = _edited.registrationForm.fields.map((field) {
+      if (field.id != id) return field;
+      return field.copyWith(enabled: enabled, updatedAt: DateTime.now());
+    }).toList();
+    _edited = _copyEdited(
+      registrationForm: _edited.registrationForm.copyWith(
+        fields: _withOrderedFields(fields),
+      ),
+    );
+    _registrationFormError = null;
+    notifyListeners();
+  }
+
+  void moveRegistrationField(String id, int delta) {
+    final fields = [..._edited.registrationForm.fields]
+      ..sort((a, b) => a.order.compareTo(b.order));
+    final index = fields.indexWhere((field) => field.id == id);
+    if (index < 0) return;
+    final target = index + delta;
+    if (target < 0 || target >= fields.length) return;
+    final field = fields.removeAt(index);
+    fields.insert(target, field);
+    _edited = _copyEdited(
+      registrationForm: _edited.registrationForm.copyWith(
+        fields: _withOrderedFields(fields),
+      ),
+    );
+    _registrationFormError = null;
+    notifyListeners();
+  }
+
   void addContactLinkField() {
     contactLinkCtrls.add(TextEditingController());
     notifyListeners();
@@ -426,9 +492,15 @@ class TournamentManagementController extends ChangeNotifier {
     final logisticsOk = _validateLogistics();
     final contactOk = _validateContact();
     final locationOk = _validateLocation();
+    final registrationFormOk = _validateRegistrationForm();
 
     notifyListeners();
-    return infoOk && datesOk && logisticsOk && contactOk && locationOk;
+    return infoOk &&
+        datesOk &&
+        logisticsOk &&
+        contactOk &&
+        locationOk &&
+        registrationFormOk;
   }
 
   void _clearValidationErrors() {
@@ -442,6 +514,7 @@ class TournamentManagementController extends ChangeNotifier {
     _maxParticipantsError = null;
     _membersPerTeamError = null;
     _contactEmailError = null;
+    _registrationFormError = null;
   }
 
   bool _validateInfo() {
@@ -568,6 +641,38 @@ class TournamentManagementController extends ChangeNotifier {
     }
 
     return true;
+  }
+
+  bool _validateRegistrationForm() {
+    final errors = RegistrationFormValidator.validateSchema(
+      _edited.registrationForm,
+    );
+    _registrationFormError = errors.isEmpty ? null : errors.first;
+    return errors.isEmpty;
+  }
+
+  RegistrationField _normalizeRegistrationField(RegistrationField field) {
+    final options = field.type.usesOptions
+        ? field.options
+              .map((option) => option.trim())
+              .where((option) => option.isNotEmpty)
+              .toSet()
+              .toList()
+        : <String>[];
+    return field.copyWith(
+      label: field.label.trim(),
+      description: field.description?.trim().isEmpty == true
+          ? null
+          : field.description?.trim(),
+      options: options,
+    );
+  }
+
+  List<RegistrationField> _withOrderedFields(List<RegistrationField> fields) {
+    final sorted = [...fields]..sort((a, b) => a.order.compareTo(b.order));
+    return [
+      for (var i = 0; i < sorted.length; i++) sorted[i].copyWith(order: i),
+    ];
   }
 
   Future<bool> addAdminFromInput() async {
@@ -961,6 +1066,7 @@ class TournamentManagementController extends ChangeNotifier {
     List<String>? adminIds,
     String? portadaUrl,
     int? participantCount,
+    RegistrationFormSchema? registrationForm,
   }) {
     return AppTournament(
       id: _edited.id,
@@ -994,6 +1100,7 @@ class TournamentManagementController extends ChangeNotifier {
       contactPhone: setContactPhone ? contactPhone : _edited.contactPhone,
       contactLinks: contactLinks ?? _edited.contactLinks,
       categories: categories ?? _edited.categories,
+      registrationForm: registrationForm ?? _edited.registrationForm,
     );
   }
 
@@ -1015,9 +1122,36 @@ class TournamentManagementController extends ChangeNotifier {
         a.participantCount != b.participantCount ||
         a.organizerDisplayName != b.organizerDisplayName ||
         a.organizerEmail != b.organizerEmail ||
+        !_registrationFormsEqual(a.registrationForm, b.registrationForm) ||
         !_listEquals(a.contactLinks, b.contactLinks) ||
         !_listEquals(a.categories, b.categories) ||
         !_listEquals(a.adminIds, b.adminIds);
+  }
+
+  bool _registrationFormsEqual(
+    RegistrationFormSchema a,
+    RegistrationFormSchema b,
+  ) {
+    if (a.version != b.version || a.fields.length != b.fields.length) {
+      return false;
+    }
+    for (var i = 0; i < a.fields.length; i++) {
+      final left = a.fields[i];
+      final right = b.fields[i];
+      if (left.id != right.id ||
+          left.label != right.label ||
+          left.description != right.description ||
+          left.type != right.type ||
+          left.required != right.required ||
+          left.order != right.order ||
+          left.enabled != right.enabled ||
+          left.createdAt != right.createdAt ||
+          left.updatedAt != right.updatedAt ||
+          !_listEquals(left.options, right.options)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   bool _listEquals(List<String> a, List<String> b) {
