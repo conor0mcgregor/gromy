@@ -972,6 +972,7 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
   Widget build(BuildContext context) {
     final isFull =
         widget.tournament.participantCount >= widget.tournament.maxParticipants;
+    final acceptsRegistrations = widget.tournament.acceptsRegistrations;
 
     return Container(
       padding: EdgeInsets.only(
@@ -1044,22 +1045,28 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
           ],
         )
             : GradientButton(
-          label: isFull ? 'Torneo completo' : 'Inscribirse al torneo',
-          icon: isFull ? Icons.block_rounded : Icons.how_to_reg_rounded,
-          onPressed: isFull
-              ? null
-              : () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  InscriptionScreen(tournament: widget.tournament),
-            ),
-          ),
-          variant: isFull
-              ? GradientButtonVariant.sunset
-              : GradientButtonVariant.select,
-          size: GradientButtonSize.large,
-        ),
+                label: !acceptsRegistrations
+                    ? 'Inscripción no disponible'
+                    : isFull
+                    ? 'Torneo completo'
+                    : 'Inscribirse al torneo',
+                icon: !acceptsRegistrations || isFull
+                    ? Icons.block_rounded
+                    : Icons.how_to_reg_rounded,
+                onPressed: !acceptsRegistrations || isFull
+                    ? null
+                    : () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              InscriptionScreen(tournament: widget.tournament),
+                        ),
+                      ),
+                variant: isFull
+                    ? GradientButtonVariant.sunset
+                    : GradientButtonVariant.select,
+                size: GradientButtonSize.large,
+              ),
       ),
     );
   }

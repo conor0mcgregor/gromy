@@ -5,6 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
+import '../../../invitation/presentation/controllers/generate_invitation_controller.dart';
+import '../../../tournament/data/model/enums_tournament.dart';
+
 import '../../../../core/getColors/getter_colors.dart';
 import '../../../../core/widgets/bar_small_botton.dart';
 import '../../../../core/widgets/dividers.dart';
@@ -41,6 +44,8 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
   final _categoryCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
+  GenerateInvitationController? _invitationCtrl;
+
   @override
   void initState() {
     super.initState();
@@ -52,6 +57,15 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
       duration: const Duration(milliseconds: 500),
     )..forward();
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
+
+    // Preparar controller de invitaciones solo si el torneo es privado
+    if (widget.tournament.accessType ==
+        TournamentAccessType.privateInviteOnly) {
+      _invitationCtrl = GenerateInvitationController(
+        tournamentId: widget.tournament.id,
+        organizerUid: widget.tournament.organizerUid,
+      )..addListener(_onCtrlChange);
+    }
   }
 
   void _onCtrlChange() {
@@ -62,6 +76,9 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
   void dispose() {
     _ctrl
       ..removeListener(_onCtrlChange)
+      ..dispose();
+    _invitationCtrl
+      ?..removeListener(_onCtrlChange)
       ..dispose();
     _fadeCtrl.dispose();
     _categoryCtrl.dispose();
@@ -392,6 +409,12 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                             const SizedBox(height: 20),
                             _buildAdminsSection(),
                             const SizedBox(height: 20),
+                            if (_ctrl.isCreator &&
+                                _invitationCtrl != null)
+                              _buildInvitationLinkSection(),
+                            if (_ctrl.isCreator &&
+                                _invitationCtrl != null)
+                              const SizedBox(height: 20),
                             if (_ctrl.isCreator) _buildDangerZone(),
                           ],
                         ),
@@ -972,6 +995,202 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
     );
   }
 
+
+  // ── Sección: Enlace de Invitación (solo torneos privados + creador) ─────
+
+  Widget _buildInvitationLinkSection() {
+    final inv = _invitationCtrl!;
+    return _buildSection(
+      icon: Icons.link_rounded,
+      title: 'Enlace de invitación',
+      color: const Color(0xFF00D4FF),
+      children: [
+        // Descripción
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: const Color(0xFF00D4FF).withValues(alpha: 0.06),
+            border: Border.all(
+              color: const Color(0xFF00D4FF).withValues(alpha: 0.15),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.info_outline_rounded,
+                size: 14,
+                color: const Color(0xFF00D4FF).withValues(alpha: 0.7),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Genera un enlace seguro para invitar a personas a este torneo privado. '
+                  'El enlace expira en 30 días y puede revocarse en cualquier momento.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.55),
+                    height: 1.45,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Mostrar enlace generado o botón de generar
+        if (inv.hasLink) ...[
+          // Caja del enlace
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.white.withValues(alpha: 0.05),
+              border: Border.all(
+                color: const Color(0xFF22C55E).withValues(alpha: 0.35),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    inv.invitationLink,
+                    style: const TextStyle(
+                      color: Color(0xFF22C55E),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Botón copiar
+                GestureDetector(
+                  onTap: inv.isBusy ? null : inv.copyLinkToClipboard,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 250),
+                    child: inv.copiedToClipboard
+                        ? const Icon(
+                            Icons.check_circle_rounded,
+                            key: ValueKey('check'),
+                            color: Color(0xFF22C55E),
+                            size: 22,
+                          )
+                        : Icon(
+                            Icons.copy_rounded,
+                            key: const ValueKey('copy'),
+                            color: Colors.white.withValues(alpha: 0.6),
+                            size: 22,
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (inv.copiedToClipboard) ...[
+            const SizedBox(height: 6),
+            Text(
+              '¡Enlace copiado al portapapeles!',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF22C55E),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          // Acciones: revocar
+          Row(
+            children: [
+              Expanded(
+                child: GradientButton(
+                  label: inv.isRevoking ? 'Revocando...' : 'Revocar enlace',
+                  icon: Icons.block_rounded,
+                  isLoading: inv.isRevoking,
+                  onPressed: inv.isBusy
+                      ? null
+                      : () => _handleRevokeInvitation(inv),
+                  variant: GradientButtonVariant.danger,
+                  size: GradientButtonSize.small,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: GradientButton(
+                  label: 'Nuevo enlace',
+                  icon: Icons.refresh_rounded,
+                  onPressed: inv.isBusy
+                      ? null
+                      : () => _handleGenerateInvitation(inv),
+                  variant: GradientButtonVariant.ocean,
+                  size: GradientButtonSize.small,
+                ),
+              ),
+            ],
+          ),
+        ] else ...[
+          // Botón generar
+          GradientButton(
+            label: inv.isGenerating ? 'Generando enlace...' : 'Generar enlace de invitación',
+            icon: Icons.add_link_rounded,
+            isLoading: inv.isGenerating,
+            onPressed: inv.isGenerating
+                ? null
+                : () => _handleGenerateInvitation(inv),
+            variant: GradientButtonVariant.ocean,
+            size: GradientButtonSize.medium,
+          ),
+        ],
+
+        // Error de invitación
+        if (inv.errorMessage != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            inv.errorMessage!,
+            style: const TextStyle(
+              color: Color(0xFFFF4D6A),
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _handleGenerateInvitation(
+    GenerateInvitationController inv,
+  ) async {
+    await inv.generateLink();
+    if (inv.errorMessage != null && mounted) {
+      _showSnack(inv.errorMessage!, isError: true);
+    } else if (mounted && inv.hasLink) {
+      _showSnack('Enlace de invitación generado');
+    }
+  }
+
+  Future<void> _handleRevokeInvitation(
+    GenerateInvitationController inv,
+  ) async {
+    final confirmed = await _confirm(
+      title: 'Revocar enlace',
+      message:
+          '¿Seguro que quieres revocar este enlace? Los usuarios que lo tengan no podrán usarlo.',
+      confirmLabel: 'Revocar',
+      destructive: true,
+    );
+    if (!confirmed) return;
+
+    final ok = await inv.revokeLink();
+    if (mounted) {
+      _showSnack(
+        ok ? 'Enlace revocado correctamente' : (inv.errorMessage ?? 'Error al revocar'),
+        isError: !ok,
+      );
+    }
+  }
 
   Widget _buildDangerZone() {
     return

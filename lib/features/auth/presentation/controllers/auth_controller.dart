@@ -256,6 +256,25 @@ class AuthController extends ChangeNotifier {
 
   Future<void> logout() => _authRepo.signOut();
 
+  /// Solicita un correo de recuperación de contraseña para [email].
+  ///
+  /// Siempre devuelve `true` para mostrar el mismo mensaje genérico
+  /// independientemente de si el correo existe en el sistema.
+  Future<bool> sendPasswordResetEmail(String email) async {
+    _setLoading(true);
+
+    try {
+      await _authRepo.sendPasswordResetEmail(email.trim());
+      return true;
+    } catch (_) {
+      // Cualquier error inesperado se absorbe: el flujo nunca revela
+      // si el correo existe ni muestra errores del proveedor.
+      return true;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<bool> _runBool(Future<AuthResult> Function() op) async {
     _setLoading(true);
     _clearError();

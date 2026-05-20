@@ -34,13 +34,12 @@ class EnrollInTournamentUseCase {
     UserRepository? userRepository,
     TournamentRepository? tournamentRepository,
     FirebaseAuth? auth,
-  })  : _participantRepo =
-      participantRepository ?? FirestoreParticipantService(),
-        _teamRepo = teamRepository ?? FirestoreTeamService(),
-        _userRepo = userRepository ?? FirestoreUserService(),
-        _tournamentRepo =
-            tournamentRepository ?? FirestoreTournamentService(),
-        _auth = auth ?? FirebaseAuth.instance;
+  }) : _participantRepo =
+           participantRepository ?? FirestoreParticipantService(),
+       _teamRepo = teamRepository ?? FirestoreTeamService(),
+       _userRepo = userRepository ?? FirestoreUserService(),
+       _tournamentRepo = tournamentRepository ?? FirestoreTournamentService(),
+       _auth = auth ?? FirebaseAuth.instance;
 
   final ParticipantRepository _participantRepo;
   final TeamRepository _teamRepo;
@@ -122,8 +121,14 @@ class EnrollInTournamentUseCase {
     required ParticipantEntityType entityType,
     String? categoryId,
   }) async {
+    if (!tournament.acceptsRegistrations) {
+      throw Exception('Este torneo aún no está disponible para inscripciones.');
+    }
+
     // 1. Obtener todos los participantes actuales del torneo
-    final currentParticipants = await _participantRepo.getParticipants(tournament.id);
+    final currentParticipants = await _participantRepo.getParticipants(
+      tournament.id,
+    );
 
     // 2. Extraer todos los userIds ya inscritos
     final enrolledUserIds = <String>{};
@@ -155,7 +160,9 @@ class EnrollInTournamentUseCase {
     final duplicateUsers = joiningUserIds.intersection(enrolledUserIds);
     if (duplicateUsers.isNotEmpty) {
       if (entityType == ParticipantEntityType.team) {
-        throw Exception('No se puede inscribir el equipo porque cuenta con al menos un usuario ya inscrito en el torneo.');
+        throw Exception(
+          'No se puede inscribir el equipo porque cuenta con al menos un usuario ya inscrito en el torneo.',
+        );
       } else {
         throw AlreadyEnrolledException(tournamentId: tournament.id);
       }

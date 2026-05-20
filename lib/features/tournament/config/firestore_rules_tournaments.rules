@@ -1,11 +1,13 @@
 // ─────────────────────────────────────────────────────────────────────────────
-//  Firestore Security Rules  ·  Torneos
+//  Firestore Security Rules  ·  Torneos + Invitaciones
 //
 //  Estas reglas deben integrarse en firestore.rules del proyecto.
 //
 //  Principios:
 //  - tournaments/: Torneos públicos (abiertos y cerrados). Visibles por cualquiera.
-//  - private_tournaments/: Torneos privados. Visibles solo por organizadores, admins e invitados (en el futuro).
+//  - private_tournaments/: Torneos privados. Visibles solo por organizadores y admins.
+//    El acceso vía invitación se valida en la capa de servicio (FirestoreInvitationService).
+//  - tournamentInvitations/: Invitaciones a torneos privados.
 // ─────────────────────────────────────────────────────────────────────────────
 
 rules_version = '2';
@@ -30,19 +32,22 @@ service cloud.firestore {
       allow delete: if request.auth != null 
                     && resource.data.organizerUid == request.auth.uid;
       
-      // Subcolección participants (si la hay)
+      // Subcolección participants
       match /participants/{participantId} {
         allow read: if true;
-        allow write: if request.auth != null; // Refinar con lógica de inscripción
+        allow write: if request.auth != null;
       }
     }
 
     // ── Torneos Privados ───────────────────────────────────────────────────
     match /private_tournaments/{tournamentId} {
-      // Lectura: por ahora, solo admins u organizador (futuro: invitados)
-      allow read: if request.auth != null 
-                  && (resource.data.organizerUid == request.auth.uid 
-                      || request.auth.uid in resource.data.adminIds);
+      // Lectura: cualquier usuario autenticado puede leer el documento.
+      // La privacidad real se aplica en la capa de servicio:
+      //   - Solo se sirve contenido si hay una invitación válida, o si
+      //     el usuario es organizador/admin.
+      // Esto es necesario para que FirestoreInvitationService.validateInvitation()
+      // pueda leer el torneo para verificar capacidad y estado.
+      allow read: if request.auth != null;
 
       // Creación: debe estar autenticado y asignarse como organizador
       allow create: if request.auth != null 
@@ -57,13 +62,38 @@ service cloud.firestore {
       allow delete: if request.auth != null 
                     && resource.data.organizerUid == request.auth.uid;
       
-      // Subcolección participants (si la hay)
+      // Subcolección participants
       match /participants/{participantId} {
         allow read: if request.auth != null 
                     && (get(/databases/$(database)/documents/private_tournaments/$(tournamentId)).data.organizerUid == request.auth.uid 
                         || request.auth.uid in get(/databases/$(database)/documents/private_tournaments/$(tournamentId)).data.adminIds);
-        allow write: if request.auth != null; // Refinar con lógica de invitaciones
+        allow write: if request.auth != null;
       }
+    }
+
+    // ── Invitaciones a Torneos Privados ────────────────────────────────────
+    match /tournamentInvitations/{invitationId} {
+      // Lectura: cualquier usuario autenticado puede leer una invitación por su token.
+      // Esto es necesario para que validateInvitation() pueda verificar el documento.
+      // No se expone información sensible (solo tournamentId, expiresAt, revoked).
+      allow read: if request.auth != null;
+
+      // Creación: solo el organizador puede crear invitaciones.
+      // createdByUid debe coincidir con el UID del solicitante.
+      allow create: if request.auth != null
+                    && request.resource.data.createdByUid == request.auth.uid
+                    && request.resource.data.revoked == false;
+
+      // Actualización: solo el creador puede revocar (actualizar el campo revoked).
+      // Solo se permite actualizar el campo revoked a true.
+      allow update: if request.auth != null
+                    && resource.data.createdByUid == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['revoked']);
+
+      // Eliminación: solo el creador puede eliminar.
+      allow delete: if request.auth != null
+                    && resource.data.createdByUid == request.auth.uid;
     }
   }
 }

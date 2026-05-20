@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../data/model/enums_tournament.dart';
+import '../../data/model/tournament_draft.dart';
 import '../../data/services/geocoding_service.dart';
 
 /// Entrada de administrador: UID + etiqueta visible.
@@ -22,7 +23,23 @@ class FormAdminEntry {
 /// y la búsqueda de ubicación. No contiene lógica de persistencia.
 class TournamentFormController extends ChangeNotifier {
   TournamentFormController({GeocodingService? geocodingService})
-    : _geocodingService = geocodingService ?? GeocodingService();
+    : _geocodingService = geocodingService ?? GeocodingService() {
+    for (final controller in [
+      nameController,
+      descriptionController,
+      locationController,
+      maxParticipantsController,
+      membersPerTeamController,
+      rulesController,
+      categoryController,
+      adminController,
+      contactEmailController,
+      contactPhoneController,
+      ...contactLinkControllers,
+    ]) {
+      controller.addListener(notifyListeners);
+    }
+  }
 
   final GeocodingService _geocodingService;
 
@@ -76,6 +93,7 @@ class TournamentFormController extends ChangeNotifier {
   // Step 6: Categorías
   /// Controller del campo de texto para introducir el nombre de la categoría.
   final categoryController = TextEditingController();
+
   /// Lista de categorías añadidas por el usuario (opcional).
   final List<String> categories = [];
 
@@ -96,6 +114,106 @@ class TournamentFormController extends ChangeNotifier {
   int currentStep = 0;
 
   bool isTeamSport = false;
+
+  bool get hasMeaningfulDraftInput {
+    return nameController.text.trim().isNotEmpty ||
+        descriptionController.text.trim().isNotEmpty ||
+        coverImage != null ||
+        selectedSport != null ||
+        eventDate != null ||
+        locationController.text.trim().isNotEmpty ||
+        maxParticipantsController.text.trim().isNotEmpty ||
+        membersPerTeamController.text.trim().isNotEmpty ||
+        selectedAccessType != null ||
+        rulesController.text.trim().isNotEmpty ||
+        categories.isNotEmpty ||
+        contactEmailController.text.trim().isNotEmpty ||
+        contactPhoneController.text.trim().isNotEmpty ||
+        contactLinks.isNotEmpty ||
+        extraAdmins.isNotEmpty;
+  }
+
+  TournamentDraft toDraft({required String ownerUid, String? draftId}) {
+    return TournamentDraft(
+      id: draftId ?? '',
+      ownerUid: ownerUid,
+      updatedAt: DateTime.now(),
+      name: nameController.text,
+      description: descriptionController.text,
+      coverImagePath: coverImage?.path,
+      sport: selectedSport,
+      isTeamSport: isTeamSport,
+      eventDate: eventDate,
+      registrationDeadline: registrationDeadline,
+      bracketPublishDate: bracketPublishDate,
+      location: locationController.text,
+      latitude: latitude,
+      longitude: longitude,
+      maxParticipants: int.tryParse(maxParticipantsController.text.trim()),
+      membersPerTeam: int.tryParse(membersPerTeamController.text.trim()),
+      accessType: selectedAccessType,
+      rules: rulesController.text,
+      categories: List<String>.from(categories),
+      contactEmail: contactEmailController.text,
+      contactPhone: contactPhoneController.text,
+      contactLinks: contactLinks,
+      extraAdminUids: extraAdmins.map((entry) => entry.uid).toList(),
+      extraAdminLabels: extraAdmins.map((entry) => entry.label).toList(),
+    );
+  }
+
+  Future<void> loadDraft(TournamentDraft draft) async {
+    nameController.text = draft.name ?? '';
+    descriptionController.text = draft.description ?? '';
+    if (draft.coverImagePath != null) {
+      coverImage = XFile(draft.coverImagePath!);
+      try {
+        coverBytes = await coverImage!.readAsBytes();
+      } catch (_) {
+        coverImage = null;
+        coverBytes = null;
+      }
+    }
+    selectedSport = draft.sport;
+    isTeamSport = draft.isTeamSport;
+    eventDate = draft.eventDate;
+    registrationDeadline = draft.registrationDeadline;
+    bracketPublishDate = draft.bracketPublishDate;
+    locationController.text = draft.location ?? '';
+    latitude = draft.latitude;
+    longitude = draft.longitude;
+    maxParticipantsController.text = draft.maxParticipants?.toString() ?? '';
+    membersPerTeamController.text = draft.membersPerTeam?.toString() ?? '';
+    selectedAccessType = draft.accessType;
+    rulesController.text = draft.rules ?? '';
+    categories
+      ..clear()
+      ..addAll(draft.categories);
+    contactEmailController.text = draft.contactEmail ?? '';
+    contactPhoneController.text = draft.contactPhone ?? '';
+    for (final controller in contactLinkControllers) {
+      controller.dispose();
+    }
+    contactLinkControllers
+      ..clear()
+      ..addAll(
+        (draft.contactLinks.isEmpty ? [''] : draft.contactLinks).map(
+          (value) =>
+              TextEditingController(text: value)..addListener(notifyListeners),
+        ),
+      );
+    extraAdmins
+      ..clear()
+      ..addAll(
+        List.generate(draft.extraAdminUids.length, (index) {
+          final label = index < draft.extraAdminLabels.length
+              ? draft.extraAdminLabels[index]
+              : draft.extraAdminUids[index];
+          return FormAdminEntry(uid: draft.extraAdminUids[index], label: label);
+        }),
+      );
+    notifyListeners();
+  }
 
   /// Actualiza la disciplina y sincroniza [isTeamSport] con reglas por deporte.
   void selectSport(TournamentSport sport) {
@@ -352,7 +470,9 @@ class TournamentFormController extends ChangeNotifier {
 
   // Contact links
   void addContactLink() {
-    contactLinkControllers.add(TextEditingController());
+    contactLinkControllers.add(
+      TextEditingController()..addListener(notifyListeners),
+    );
     notifyListeners();
   }
 

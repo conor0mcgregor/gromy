@@ -142,6 +142,21 @@ class FirebaseAuthService implements AuthRepository {
     ]);
   }
 
+  // ── Password Reset ───────────────────────────────────────────────────────────
+
+  @override
+  Future<AuthSuccess> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+    } on FirebaseAuthException {
+      // Silenciado intencionalmente: no se debe revelar si el correo existe.
+    } catch (_) {
+      // Silenciado intencionalmente: errores de red, proveedor, rate-limit, etc.
+    }
+    // Siempre éxito desde el punto de vista del llamador.
+    return AuthSuccess();
+  }
+
   // ── Helpers privados ────────────────────────────────────────────────────────
 
   /// Convierte los códigos de error de Firebase en mensajes en español.
