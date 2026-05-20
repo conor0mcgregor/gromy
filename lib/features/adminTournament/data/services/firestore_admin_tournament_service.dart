@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 
+import '../../../../core/models/registration_form.dart';
 import '../../../tournament/data/model/app_tournament.dart';
 import '../repositories/admin_tournament_repository.dart';
 
@@ -136,6 +137,12 @@ class FirestoreAdminTournamentService implements AdminTournamentRepository {
     if (!_stringListEquals(original.categories, updated.categories)) {
       data['categories'] = updated.categories;
     }
+    if (!_registrationFormsEqual(
+      original.registrationForm,
+      updated.registrationForm,
+    )) {
+      data['registrationForm'] = updated.registrationForm.toMap();
+    }
     if (!_stringListEquals(original.adminIds, updated.adminIds)) {
       data['adminIds'] = updated.adminIds;
     }
@@ -163,6 +170,32 @@ class FirestoreAdminTournamentService implements AdminTournamentRepository {
     if (a.length != b.length) return false;
     for (var i = 0; i < a.length; i++) {
       if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  bool _registrationFormsEqual(
+    RegistrationFormSchema a,
+    RegistrationFormSchema b,
+  ) {
+    if (a.version != b.version || a.fields.length != b.fields.length) {
+      return false;
+    }
+    for (var i = 0; i < a.fields.length; i++) {
+      final left = a.fields[i];
+      final right = b.fields[i];
+      if (left.id != right.id ||
+          left.label != right.label ||
+          left.description != right.description ||
+          left.type != right.type ||
+          left.required != right.required ||
+          left.order != right.order ||
+          left.enabled != right.enabled ||
+          left.createdAt != right.createdAt ||
+          left.updatedAt != right.updatedAt ||
+          !_stringListEquals(left.options, right.options)) {
+        return false;
+      }
     }
     return true;
   }
