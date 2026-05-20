@@ -20,9 +20,15 @@ import '../../../invitation/presentation/screens/invitation_landing_screen.dart'
 //  dependencias.
 //
 //  Esquema esperado:
-//    gromy://invite/<token>
-//    host  = invite
-//    path  = /<token>
+//    1. App Links / Universal Links:
+//       https://gromy-ps.firebaseapp.com/invite/<token>
+//       host = gromy-ps.firebaseapp.com
+//       path = /invite/<token>
+//
+//    2. Custom Scheme (Legacy / Fallback):
+//       gromy://invite/<token>
+//       host = invite
+//       path = /<token>
 // ─────────────────────────────────────────────────────────────────────────────
 
 class DeepLinkService {
@@ -86,8 +92,18 @@ class DeepLinkService {
       name: 'DeepLinkService',
     );
 
-    if (uri.scheme != 'gromy') return;
-    if (uri.host != 'invite') return;
+    bool isValid = false;
+    
+    // Check for Universal/App Link
+    if (uri.scheme == 'https' && uri.host == 'gromy-ps.firebaseapp.com' && uri.path.startsWith('/invite/')) {
+      isValid = true;
+    }
+    // Check for custom scheme (legacy / fallback)
+    else if (uri.scheme == 'gromy' && uri.host == 'invite') {
+      isValid = true;
+    }
+
+    if (!isValid) return;
 
     // Extraer token del path: /LChXhzswysCUbZ3SKyLc → LChXhzswysCUbZ3SKyLc
     final token = _extractToken(uri);
@@ -102,13 +118,23 @@ class DeepLinkService {
 
   /// Extrae el token del path de la URI.
   ///
-  /// gromy://invite/LChXhzswysCUbZ3SKyLc → 'LChXhzswysCUbZ3SKyLc'
-  /// gromy://invite/               → '' (inválido)
+  /// https://gromy-ps.firebaseapp.com/invite/ID → 'ID'
+  /// gromy://invite/ID → 'ID'
   String _extractToken(Uri uri) {
-    // uri.pathSegments filtra automáticamente los segmentos vacíos
     final segments = uri.pathSegments;
     if (segments.isEmpty) return '';
-    return segments.first.trim();
+    
+    if (uri.scheme == 'https') {
+      // Para https, segments = ['invite', 'ID']
+      if (segments.length >= 2 && segments.first == 'invite') {
+        return segments[1].trim();
+      }
+    } else if (uri.scheme == 'gromy') {
+      // Para gromy, segments = ['ID']
+      return segments.first.trim();
+    }
+    
+    return '';
   }
 
   void _navigateToInvitation(String token) {

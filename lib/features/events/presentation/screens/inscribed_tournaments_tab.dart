@@ -1,21 +1,20 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:rxdart/rxdart.dart';
 
-import '../../../home/presentation/widgets/tournament_card.dart';
-import '../../../inscription/screen/preinscription_screen.dart';
-import '../../../tournament/data/model/app_tournament.dart';
 import '../../../../database/participant/models/app_participant.dart';
 import '../../../../database/participant/services/firestore_participant_service.dart';
-import '../../../../database/team/services/firestore_team_service.dart';
 import '../../../../database/team/models/app_team.dart';
+import '../../../../database/team/services/firestore_team_service.dart';
+import '../../../home/presentation/widgets/tournament_card.dart';
+import '../../../inscription/data/models/join_request.dart';
+import '../../../inscription/screen/preinscription_screen.dart';
+import '../../../notifications/domain/entities/notification_type.dart';
+import '../../../tournament/data/model/app_tournament.dart';
+import '../../../tournament/data/services/firestore_tournament_service.dart';
 import '../controllers/events_controller.dart';
 import 'events_screen.dart';
-
-// ════════════════════════════════════════════════════════════════
-//  INSCRIBED TOURNAMENTS TAB
-//
-//  Muestra todos los torneos en los que el usuario está inscrito,
-//  permite navegar al detalle de cada uno y cancelar la inscripción.
-// ════════════════════════════════════════════════════════════════
 
 class InscribedTournamentsTab extends StatefulWidget {
   const InscribedTournamentsTab({super.key, required this.controller});
@@ -23,12 +22,17 @@ class InscribedTournamentsTab extends StatefulWidget {
   final EventsController controller;
 
   @override
-  State<InscribedTournamentsTab> createState() => _InscribedTournamentsTabState();
+  State<InscribedTournamentsTab> createState() =>
+      _InscribedTournamentsTabState();
 }
 
 class _InscribedTournamentsTabState extends State<InscribedTournamentsTab> {
-  // Servicio de participantes para buscar el AppParticipant de cada torneo.
   final _participantService = FirestoreParticipantService();
+  final _tournamentService = FirestoreTournamentService();
+  final _db = FirebaseFirestore.instanceFor(
+    app: Firebase.app(),
+    databaseId: 'gromy-db',
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -36,47 +40,42 @@ class _InscribedTournamentsTabState extends State<InscribedTournamentsTab> {
 
     if (uid == null) {
       return const EventsEmptyState(
-        title: 'Inicia sesión',
-        message: 'Necesitas iniciar sesión para ver tus inscripciones.',
+        title: 'Inicia sesion',
+        message: 'Necesitas iniciar sesion para ver tus inscripciones.',
         icon: Icons.lock_outline_rounded,
       );
     }
 
-    return StreamBuilder<List<AppTournament>>(
-      stream: widget.controller.watchEnrolledTournaments(),
+    return StreamBuilder<List<_EnrollmentEntry>>(
+      stream: _watchEntries(uid),
       builder: (context, snapshot) {
-        // ── Cargando ──
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const EventsLoadingState();
         }
 
-        // ── Error ──
         if (snapshot.hasError) {
           return EventsErrorState(message: '${snapshot.error}');
         }
 
-        final tournaments = snapshot.data ?? [];
-
-        // ── Vacío ──
-        if (tournaments.isEmpty) {
+        final entries = snapshot.data ?? [];
+        if (entries.isEmpty) {
           return const EventsEmptyState(
             title: 'Sin inscripciones',
             message:
-                'Aún no te has inscrito a ningún torneo.\nExplora la pantalla de inicio para encontrar eventos.',
+                'Aun no tienes torneos confirmados, pendientes o invitaciones activas.',
             icon: Icons.how_to_reg_outlined,
           );
         }
 
-        // ── Lista ──
         return ListView.builder(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
-          itemCount: tournaments.length,
+          itemCount: entries.length,
           itemBuilder: (context, index) {
-            final tournament = tournaments[index];
-            return TournamentCard(
-              tournament: tournament,
+            final entry = entries[index];
+            return _EnrollmentCard(
+              entry: entry,
               animationDelay: Duration(milliseconds: 70 * index),
-              onTap: () => _navigateToDetail(context, tournament, uid),
+              onTap: () => _navigateToDetail(context, entry, uid),
             );
           },
         );
@@ -84,45 +83,167 @@ class _InscribedTournamentsTabState extends State<InscribedTournamentsTab> {
     );
   }
 
-  /// Navega al detalle del torneo en modo "inscrito".
-  ///
-  /// Carga primero el [AppParticipant] del usuario para poder pasar su ID
-  /// al callback de cancelación.
+  Stream<List<_EnrollmentEntry>> _watchEntries(String uid) {
+    final participantsStream = _participantService.watchEnrolledParticipants(
+      uid,
+    );
+    final requestsStream = _db
+        .collectionGroup('joinRequests')
+        .where('requestedBy', isEqualTo: uid)
+        .where('status', isEqualTo: JoinRequestStatus.pending.name)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs.map((doc) {
+            final data = doc.data();
+            data['requestId'] = data['requestId'] ?? doc.id;
+            return JoinRequest.fromMap(data);
+          }).toList(),
+        );
+    final invitationsStream = _db
+        .collection('notifications')
+        .where('userId', isEqualTo: uid)
+        .where(
+          'type',
+          whereIn: [
+            NotificationType.tournamentInvitation,
+            NotificationType.invitation,
+          ],
+        )
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs
+              .map((doc) {
+                final data = doc.data();
+                final invitation = Map<String, dynamic>.from(
+                  data['data'] as Map? ?? {},
+                );
+                invitation['notificationId'] = doc.id;
+                return invitation;
+              })
+              .where((data) {
+                final status = data['status']?.toString() ?? 'pending';
+                return data['tournamentId'] != null &&
+                    (status == 'pending' || status == 'accepted');
+              })
+              .toList();
+        });
+
+    return Rx.combineLatest3(
+      participantsStream,
+      requestsStream,
+      invitationsStream,
+      (
+        List<AppParticipant> participants,
+        List<JoinRequest> requests,
+        List<Map<String, dynamic>> invitations,
+      ) async {
+        final byTournamentId = <String, _EnrollmentSeed>{};
+
+        for (final participant in participants) {
+          byTournamentId[participant.tournamentId] = _EnrollmentSeed(
+            tournamentId: participant.tournamentId,
+            participant: participant,
+            state: _entryStateFromParticipant(participant),
+          );
+        }
+
+        for (final request in requests) {
+          byTournamentId.putIfAbsent(
+            request.tournamentId,
+            () => _EnrollmentSeed(
+              tournamentId: request.tournamentId,
+              request: request,
+              state: _EnrollmentEntryState.pendingApproval,
+            ),
+          );
+        }
+
+        for (final invitation in invitations) {
+          final tournamentId = invitation['tournamentId']?.toString();
+          if (tournamentId == null || tournamentId.isEmpty) continue;
+          byTournamentId.putIfAbsent(
+            tournamentId,
+            () => _EnrollmentSeed(
+              tournamentId: tournamentId,
+              invitation: invitation,
+              state: _EnrollmentEntryState.invited,
+            ),
+          );
+        }
+
+        final entries = <_EnrollmentEntry>[];
+        for (final seed in byTournamentId.values) {
+          final tournament = await _tournamentService.getTournament(
+            seed.tournamentId,
+          );
+          if (tournament == null) continue;
+          entries.add(_EnrollmentEntry(tournament: tournament, seed: seed));
+        }
+        entries.sort(
+          (a, b) =>
+              b.tournament.scheduledAt.compareTo(a.tournament.scheduledAt),
+        );
+        return entries;
+      },
+    ).asyncMap((future) => future);
+  }
+
+  _EnrollmentEntryState _entryStateFromParticipant(AppParticipant participant) {
+    return switch (participant.status) {
+      ParticipantStatus.approved ||
+      ParticipantStatus.active => _EnrollmentEntryState.confirmed,
+      ParticipantStatus.pendingReview => _EnrollmentEntryState.pendingReview,
+      ParticipantStatus.pending => _EnrollmentEntryState.pendingConfirmation,
+      ParticipantStatus.cancelled ||
+      ParticipantStatus.rejected => _EnrollmentEntryState.pendingConfirmation,
+    };
+  }
+
   Future<void> _navigateToDetail(
     BuildContext context,
-    AppTournament tournament,
+    _EnrollmentEntry entry,
     String uid,
   ) async {
-    // Obtenemos el participante y equipo (lectura puntual).
-    AppParticipant? participant;
+    final tournament = entry.tournament;
+    AppParticipant? participant = entry.seed.participant;
     AppTeam? enrolledTeam;
-    bool canCancel = false;
+    bool canCancel = participant?.entityType == ParticipantEntityType.user;
 
     try {
-      final participants =
-          await _participantService.getParticipants(tournament.id);
-      
-      // Buscar si el usuario está inscrito individualmente
-      participant = participants.where((p) => p.entityId == uid && p.entityType == ParticipantEntityType.user).firstOrNull;
+      final participants = await _participantService.getParticipants(
+        tournament.id,
+      );
+
+      participant ??= participants
+          .where(
+            (p) =>
+                p.entityId == uid && p.entityType == ParticipantEntityType.user,
+          )
+          .firstOrNull;
 
       if (participant != null) {
-        canCancel = true;
+        canCancel = participant.entityType == ParticipantEntityType.user;
       } else {
-        // Buscar si algún equipo del usuario está inscrito
         final teamService = FirestoreTeamService();
         final myTeams = await teamService.watchTeamsByMember(uid).first;
         final myTeamIds = myTeams.map((t) => t.id).toSet();
-        
-        participant = participants.where((p) => myTeamIds.contains(p.entityId) && p.entityType == ParticipantEntityType.team).firstOrNull;
-        
+
+        participant = participants
+            .where(
+              (p) =>
+                  myTeamIds.contains(p.entityId) &&
+                  p.entityType == ParticipantEntityType.team,
+            )
+            .firstOrNull;
+
         if (participant != null) {
-          enrolledTeam = myTeams.firstWhere((t) => t.id == participant!.entityId);
+          enrolledTeam = myTeams.firstWhere(
+            (t) => t.id == participant!.entityId,
+          );
           canCancel = enrolledTeam.isAdmin(uid);
         }
       }
-    } catch (_) {
-      // Si falla, el botón quedará deshabilitado
-    }
+    } catch (_) {}
 
     if (!context.mounted) return;
 
@@ -131,11 +252,151 @@ class _InscribedTournamentsTabState extends State<InscribedTournamentsTab> {
       MaterialPageRoute(
         builder: (_) => PreinscriptionScreen(
           tournament: tournament,
-          initialIsEnrolled: true,
+          initialIsEnrolled: participant == null ? null : true,
           initialParticipant: participant,
           initialEnrolledTeam: enrolledTeam,
           initialCanCancelTeam: canCancel,
+          invitationNotificationId: entry.seed.invitation?['notificationId']
+              ?.toString(),
         ),
+      ),
+    );
+  }
+}
+
+enum _EnrollmentEntryState {
+  confirmed,
+  pendingApproval,
+  pendingConfirmation,
+  pendingReview,
+  invited,
+}
+
+class _EnrollmentSeed {
+  const _EnrollmentSeed({
+    required this.tournamentId,
+    required this.state,
+    this.participant,
+    this.request,
+    this.invitation,
+  });
+
+  final String tournamentId;
+  final _EnrollmentEntryState state;
+  final AppParticipant? participant;
+  final JoinRequest? request;
+  final Map<String, dynamic>? invitation;
+}
+
+class _EnrollmentEntry {
+  const _EnrollmentEntry({required this.tournament, required this.seed});
+
+  final AppTournament tournament;
+  final _EnrollmentSeed seed;
+}
+
+class _EnrollmentCard extends StatelessWidget {
+  const _EnrollmentCard({
+    required this.entry,
+    required this.animationDelay,
+    required this.onTap,
+  });
+
+  final _EnrollmentEntry entry;
+  final Duration animationDelay;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = _statusStyle(entry.seed.state);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 2, bottom: 6),
+          child: _StatusPill(style: style),
+        ),
+        TournamentCard(
+          tournament: entry.tournament,
+          animationDelay: animationDelay,
+          onTap: onTap,
+        ),
+        const SizedBox(height: 10),
+      ],
+    );
+  }
+
+  _StatusStyle _statusStyle(_EnrollmentEntryState state) {
+    return switch (state) {
+      _EnrollmentEntryState.confirmed => const _StatusStyle(
+        label: 'Confirmado',
+        icon: Icons.verified_rounded,
+        color: Color(0xFF22C55E),
+      ),
+      _EnrollmentEntryState.pendingApproval => const _StatusStyle(
+        label: 'Esperando confirmacion',
+        icon: Icons.pending_actions_rounded,
+        color: Color(0xFFF59E0B),
+      ),
+      _EnrollmentEntryState.pendingConfirmation => const _StatusStyle(
+        label: 'Esperando confirmacion',
+        icon: Icons.hourglass_top_rounded,
+        color: Color(0xFF38BDF8),
+      ),
+      _EnrollmentEntryState.pendingReview => const _StatusStyle(
+        label: 'En revision',
+        icon: Icons.manage_search_rounded,
+        color: Color(0xFFA855F7),
+      ),
+      _EnrollmentEntryState.invited => const _StatusStyle(
+        label: 'Invitado',
+        icon: Icons.mail_rounded,
+        color: Color(0xFF8B5CF6),
+      ),
+    };
+  }
+}
+
+class _StatusStyle {
+  const _StatusStyle({
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.style});
+
+  final _StatusStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(9),
+        color: style.color.withValues(alpha: 0.12),
+        border: Border.all(color: style.color.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(style.icon, size: 13, color: style.color),
+          const SizedBox(width: 5),
+          Text(
+            style.label,
+            style: TextStyle(
+              color: style.color,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }

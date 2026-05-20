@@ -13,9 +13,12 @@ import '../repositories/user_repository.dart';
 /// Responsabilidad única: persistir y recuperar datos de usuario.
 class FirestoreUserService implements UserRepository {
   FirestoreUserService({FirebaseFirestore? firestore})
-      : _db = firestore ??
-      FirebaseFirestore.instanceFor(
-          app: Firebase.app(), databaseId: 'gromy-db');
+    : _db =
+          firestore ??
+          FirebaseFirestore.instanceFor(
+            app: Firebase.app(),
+            databaseId: 'gromy-db',
+          );
 
   final FirebaseFirestore _db;
 
@@ -29,14 +32,18 @@ class FirestoreUserService implements UserRepository {
     try {
       print("[FIRESTORE] 1. Intentando guardar datos para el UID: ${user.uid}");
 
-      final datosMap = user.copyWith(nickname: _normalizeNickname(user.nickname)).toMap();
+      final datosMap = user
+          .copyWith(nickname: _normalizeNickname(user.nickname))
+          .toMap();
       print("[FIRESTORE] 2. Datos convertidos correctamente: $datosMap");
 
       // Intentamos guardarlos en la base de datos
-      await _users.doc(user.uid).set(datosMap).timeout(const Duration(seconds: 10));
+      await _users
+          .doc(user.uid)
+          .set(datosMap)
+          .timeout(const Duration(seconds: 10));
 
       print("[FIRESTORE] 3. ¡ÉXITO! Los datos se guardaron en Firestore.");
-
     } catch (e) {
       print("[FIRESTORE] ERROR CRÍTICO AL GUARDAR: $e");
       rethrow; // Lanzamos el error hacia arriba para que la pantalla de carga se apague
@@ -46,14 +53,19 @@ class FirestoreUserService implements UserRepository {
   @override
   Future<void> updateUser(AppUser user) async {
     try {
-      final datosMap = user.copyWith(nickname: _normalizeNickname(user.nickname)).toMap();
+      final datosMap = user
+          .copyWith(nickname: _normalizeNickname(user.nickname))
+          .toMap();
       // Removemos campos que no queremos pisar por error o que no deberían cambiar
       datosMap.remove('uid');
       datosMap.remove('email');
       datosMap.remove('provider');
       datosMap.remove('createdAt');
 
-      await _users.doc(user.uid).set(datosMap, SetOptions(merge: true)).timeout(const Duration(seconds: 10));
+      await _users
+          .doc(user.uid)
+          .set(datosMap, SetOptions(merge: true))
+          .timeout(const Duration(seconds: 10));
     } catch (e) {
       print("[FIRESTORE] ERROR AL ACTUALIZAR PERFIL: $e");
       rethrow;
@@ -64,7 +76,10 @@ class FirestoreUserService implements UserRepository {
 
   @override
   Future<AppUser?> getUser(String uid) async {
-    final doc = await _users.doc(uid).get().timeout(const Duration(seconds: 10));
+    final doc = await _users
+        .doc(uid)
+        .get()
+        .timeout(const Duration(seconds: 10));
     if (!doc.exists || doc.data() == null) return null;
     return AppUser.fromMap(doc.data()!);
   }
@@ -109,6 +124,24 @@ class FirestoreUserService implements UserRepository {
     return AppUser.fromMap(doc.data());
   }
 
+  Future<List<AppUser>> searchUsersByNicknamePrefix(
+    String nicknamePrefix, {
+    int limit = 8,
+  }) async {
+    final normalized = _normalizeNickname(nicknamePrefix);
+    if (normalized.length < 2) return const [];
+
+    final query = await _users
+        .orderBy('nickname')
+        .startAt([normalized])
+        .endAt(['$normalized\uf8ff'])
+        .limit(limit)
+        .get()
+        .timeout(const Duration(seconds: 10));
+
+    return query.docs.map((doc) => AppUser.fromMap(doc.data())).toList();
+  }
+
   /// Busca un usuario por email (útil para invitar/añadir admins).
   ///
   /// Nota: depende de que el campo `email` exista en `/users/{uid}`.
@@ -138,7 +171,10 @@ class FirestoreUserService implements UserRepository {
 
   @override
   Future<bool> userExists(String uid) async {
-    final doc = await _users.doc(uid).get().timeout(const Duration(seconds: 10));
+    final doc = await _users
+        .doc(uid)
+        .get()
+        .timeout(const Duration(seconds: 10));
     return doc.exists;
   }
 

@@ -29,6 +29,7 @@ abstract final class NotificationType {
   static const String joinRequestApproved = 'join_request_approved';
   static const String joinRequestRejected = 'join_request_rejected';
   static const String teamInvitation = 'team_invitation';
+  static const String tournamentInvitation = 'tournament_invitation';
   static const String tournamentUpdate = 'tournament_update';
   static const String tournamentCancelled = 'tournament_cancelled';
   static const String locationChanged = 'location_changed';
@@ -147,6 +148,12 @@ class NotificationTypeConfig {
         color: Color(0xFF8B5CF6),
         label: 'Invitación de equipo',
         priority: 2,
+      ),
+      NotificationType.tournamentInvitation => const NotificationTypeConfig(
+        icon: Icons.lock_open_rounded,
+        color: Color(0xFF8B5CF6),
+        label: 'InvitaciÃ³n privada',
+        priority: 3,
       ),
       NotificationType.tournamentUpdate => const NotificationTypeConfig(
         icon: Icons.update_rounded,

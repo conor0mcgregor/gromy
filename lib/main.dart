@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -50,6 +51,19 @@ void main() async {
     navigatorKey: PushNotificationService.navigatorKey,
   );
   await deepLinkService.initialize();
+
+  // 5. Escucha global de AuthState para resetear la navegación al cerrar sesión
+
+  FirebaseAuth.instance.userChanges().listen((user) {
+    if (user == null) {
+      // Si el usuario es nulo (logout o cuenta eliminada), volvemos a la raíz
+      // donde el AuthGateScreen reaccionará automáticamente y mostrará el LoginScreen.
+      final context = PushNotificationService.navigatorKey.currentContext;
+      if (context != null && Navigator.of(context).canPop()) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    }
+  });
 }
 
 class MyApp extends StatelessWidget {

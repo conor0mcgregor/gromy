@@ -17,10 +17,10 @@ import '../../domain/use_cases/revoke_invitation_use_case.dart';
 
 /// Esquema de invitación con custom scheme mobile.
 ///
-/// Formato: gromy://invite/{token}
+/// Formato: https://gromy-ps.firebaseapp.com/invite/{token}
 ///
-/// Para probar: adb shell am start -a android.intent.action.VIEW -d "gromy://invite/{token}"
-const String kInvitationBaseUrl = 'gromy://invite';
+/// Para probar: adb shell am start -a android.intent.action.VIEW -d "https://gromy-ps.firebaseapp.com/invite/{token}"
+const String kInvitationBaseUrl = 'https://gromy-ps.firebaseapp.com/invite';
 
 class GenerateInvitationController extends ChangeNotifier {
   GenerateInvitationController({

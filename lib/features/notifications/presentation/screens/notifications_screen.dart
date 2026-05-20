@@ -3,14 +3,18 @@ import 'package:flutter/material.dart';
 
 import '../controllers/notifications_controller.dart';
 import '../controllers/team_invitation_controller.dart';
+import '../controllers/tournament_invitation_controller.dart';
 import '../navigation/notification_navigation_handler.dart';
 import '../widgets/admin_invitation_card.dart';
 import '../widgets/notification_card.dart';
 import '../widgets/team_invitation_card.dart';
+import '../widgets/tournament_invitation_card.dart';
 import '../../domain/entities/app_notification.dart';
 import '../../domain/entities/notification_type.dart';
 import 'admin_invitation_details_screen.dart';
 import 'team_invitation_details_screen.dart';
+import '../../../inscription/screen/preinscription_screen.dart';
+import '../../../tournament/data/services/firestore_tournament_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  NotificationsScreen  ·  Pantalla principal de notificaciones
@@ -38,12 +42,14 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   late final NotificationsController _controller = widget.controller;
   late final TeamInvitationController _teamInvitationController;
+  late final TournamentInvitationController _tournamentInvitationController;
   String? _userId;
   @override
   void initState() {
     super.initState();
     _controller.addListener(_onStateChanged);
     _teamInvitationController = TeamInvitationController();
+    _tournamentInvitationController = TournamentInvitationController();
 
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 400),
@@ -76,6 +82,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   void dispose() {
     _controller.removeListener(_onStateChanged);
     _teamInvitationController.dispose();
+    _tournamentInvitationController.dispose();
     _fadeController.dispose();
     super.dispose();
   }
@@ -87,9 +94,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       child: Column(
         children: [
           _buildHeader(),
-          Expanded(
-            child: _buildContent(),
-          ),
+          Expanded(child: _buildContent()),
         ],
       ),
     );
@@ -132,9 +137,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               color: const Color(0xFF1A1A3E),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                  color: Colors.white.withValues(alpha: 0.08),
-                ),
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
               ),
               onSelected: (action) => _handleMenuAction(action),
               itemBuilder: (_) => [
@@ -229,9 +232,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: 5,
-      itemBuilder: (_, index) => _ShimmerNotificationCard(
-        delay: index * 100,
-      ),
+      itemBuilder: (_, index) => _ShimmerNotificationCard(delay: index * 100),
     );
   }
 
@@ -370,9 +371,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           if (notification.type == NotificationType.adminInvitation) {
             return AdminInvitationCard(
               notification: notification,
-              onTap: () => _handleNotificationTap(notification),
-              onDismiss: () =>
-                  _controller.removeNotification(notification.id),
+              onTap: () async => _handleNotificationTap(notification),
+              onDismiss: () => _controller.removeNotification(notification.id),
             );
           }
 
@@ -380,26 +380,57 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           if (notification.type == NotificationType.teamInvitation) {
             return TeamInvitationCard(
               notification: notification,
-              onDismiss: () =>
-                  _controller.removeNotification(notification.id),
-              onTap: () => _handleNotificationTap(notification),
+              onDismiss: () => _controller.removeNotification(notification.id),
+              onTap: () async => _handleNotificationTap(notification),
               onAccept: () async {
                 if (notification.isUnread) {
                   _controller.markNotificationAsRead(notification.id);
                 }
-                return _teamInvitationController
-                    .acceptInvitation(notification.id);
+                return _teamInvitationController.acceptInvitation(
+                  notification.id,
+                );
               },
               onReject: () async {
-                return _teamInvitationController
+                return _teamInvitationController.rejectInvitation(
+                  notification.id,
+                );
+              },
+            );
+          }
+
+          if (notification.type == NotificationType.tournamentInvitation ||
+              (notification.type == NotificationType.invitation &&
+                  notification.data['tournamentId'] != null)) {
+            return TournamentInvitationCard(
+              notification: notification,
+              onDismiss: () => _controller.removeNotification(notification.id),
+              onTap: () async => _handleNotificationTap(notification),
+              onAccept: () async {
+                final ok = await _tournamentInvitationController
+                    .acceptInvitation(notification.id);
+                if (ok) {
+                  if (notification.isUnread) {
+                    _controller.markNotificationAsRead(notification.id);
+                  }
+                  if (!context.mounted) return ok;
+                  await _handleNotificationTap(notification);
+                }
+                return ok;
+              },
+              onReject: () async {
+                final ok = await _tournamentInvitationController
                     .rejectInvitation(notification.id);
+                if (ok) {
+                  await _controller.removeNotification(notification.id);
+                }
+                return ok;
               },
             );
           }
 
           return NotificationCard(
             notification: notification,
-            onTap: () => _handleNotificationTap(notification),
+            onTap: () async => _handleNotificationTap(notification),
             onDismiss: () => _controller.removeNotification(notification.id),
             onMarkAsRead: notification.isUnread
                 ? () => _controller.markNotificationAsRead(notification.id)
@@ -412,7 +443,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
-  void _handleNotificationTap(AppNotification notification) {
+  Future<void> _handleNotificationTap(AppNotification notification) async {
     // Marcar como leída y clickeada
     if (notification.isUnread) {
       _controller.markNotificationAsRead(notification.id);
@@ -443,8 +474,64 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       return;
     }
 
+    // Navegación especializada para torneos privados y públicos
+    if (notification.type == NotificationType.tournamentInvitation ||
+        (notification.data['tournamentId'] != null &&
+            notification.data['tournamentId'].toString().isNotEmpty)) {
+      await _openTournamentPreinscription(notification);
+      return;
+    }
+
     // Intentar navegación contextual genérica
     NotificationNavigationHandler.instance.navigate(context, notification);
+  }
+
+  Future<void> _openTournamentPreinscription(
+    AppNotification notification,
+  ) async {
+    final tournamentId = notification.data['tournamentId']?.toString() ?? '';
+    if (tournamentId.isEmpty) return;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final tournament = await FirestoreTournamentService().getTournament(
+        tournamentId,
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pop(); // loading
+
+      if (tournament == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se ha encontrado el torneo.')),
+        );
+        return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PreinscriptionScreen(
+            tournament: tournament,
+            invitationNotificationId:
+                notification.type == NotificationType.tournamentInvitation
+                ? notification.id
+                : null,
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      Navigator.of(context).pop(); // loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo abrir el torneo.')),
+      );
+    }
   }
 
   void _handleMenuAction(_MenuAction action) {
@@ -465,9 +552,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         backgroundColor: const Color(0xFF1A1A3E),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: Colors.white.withValues(alpha: 0.08),
-          ),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
         ),
         title: Text(
           'Eliminar todas',
@@ -567,9 +652,7 @@ class _ShimmerNotificationCardState extends State<_ShimmerNotificationCard>
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             color: Colors.white.withValues(alpha: opacity),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.04),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,

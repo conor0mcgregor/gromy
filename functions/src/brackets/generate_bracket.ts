@@ -509,20 +509,26 @@ async function readApprovedParticipants(
   tournamentId: string,
   categoryId: string | null,
 ): Promise<ParticipantData[]> {
-  const participantsSnap = await db
-    .collection("tournaments")
-    .doc(tournamentId)
-    .collection("participants")
-    .where("status", "==", "approved")
-    .get();
+  const tournamentRefs = await getTournamentRefsForParticipants(db, tournamentId);
+  const participantDocs: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+  for (const tournamentRef of tournamentRefs) {
+    const participantsSnap = await tournamentRef
+      .collection("participants")
+      .where("status", "in", ["approved", "active"])
+      .get();
+    participantDocs.push(...participantsSnap.docs);
+  }
 
-  return participantsSnap.docs
+  const byId = new Map<string, ParticipantData>();
+  participantDocs
     .map((doc) => ({...doc.data(), id: doc.id} as ParticipantData))
     .filter((participant) =>
       categoryId === null ?
         !participant.categoryId :
         participant.categoryId === categoryId
-    );
+    )
+    .forEach((participant) => byId.set(participant.id, participant));
+  return [...byId.values()];
 }
 
 function assertNoDuplicateParticipants(
@@ -546,18 +552,41 @@ async function getTournamentOrFail(
   db: Firestore,
   tournamentId: string,
 ): Promise<FirebaseFirestore.DocumentData> {
-  const tournamentDoc = await db
-    .collection("tournaments")
-    .doc(tournamentId)
-    .get();
-  if (!tournamentDoc.exists) {
-    throw new HttpsError("not-found", "Torneo no encontrado.");
-  }
+  const tournamentDoc = await getTournamentRefOrFail(db, tournamentId).then(
+    (ref) => ref.get()
+  );
   const data = tournamentDoc.data();
   if (!data) {
     throw new HttpsError("not-found", "Torneo no encontrado.");
   }
   return data;
+}
+
+async function getTournamentRefOrFail(
+  db: Firestore,
+  tournamentId: string,
+): Promise<FirebaseFirestore.DocumentReference> {
+  const publicRef = db.collection("tournaments").doc(tournamentId);
+  const publicDoc = await publicRef.get();
+  if (publicDoc.exists) return publicRef;
+
+  const privateRef = db.collection("private_tournaments").doc(tournamentId);
+  const privateDoc = await privateRef.get();
+  if (privateDoc.exists) return privateRef;
+
+  throw new HttpsError("not-found", "Torneo no encontrado.");
+}
+
+async function getTournamentRefsForParticipants(
+  db: Firestore,
+  tournamentId: string,
+): Promise<FirebaseFirestore.DocumentReference[]> {
+  const privateRef = db.collection("private_tournaments").doc(tournamentId);
+  const privateDoc = await privateRef.get();
+  if (privateDoc.exists) {
+    return [privateRef, db.collection("tournaments").doc(tournamentId)];
+  }
+  return [await getTournamentRefOrFail(db, tournamentId)];
 }
 
 function assertTournamentAdmin(

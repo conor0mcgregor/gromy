@@ -32,6 +32,9 @@ export {
   acceptTeamInvitation,
   rejectTeamInvitation,
   cancelTeamInvitation,
+  createTournamentInvitation,
+  acceptTournamentInvitation,
+  rejectTournamentInvitation,
   // Triggers de notificaciones de torneos
   onTournamentCancelled,
   onTournamentDatesChanged,

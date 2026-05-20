@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../notifications/data/repository/admin_invitation_repository_impl.dart';
+import '../../../notifications/data/repository/tournament_invitation_repository_impl.dart';
 import '../../../notifications/domain/use_cases/admin_invitation_use_cases.dart';
 import '../../../participants/data/models/participant_display.dart';
 import '../../../participants/data/services/participant_display_service.dart';
@@ -106,6 +107,7 @@ class TournamentManagementController extends ChangeNotifier {
       text: tournament.contactPhone ?? '',
     );
     adminLookupCtrl = TextEditingController();
+    playerInviteLookupCtrl = TextEditingController();
 
     final links = tournament.contactLinks.isEmpty
         ? const ['']
@@ -156,6 +158,8 @@ class TournamentManagementController extends ChangeNotifier {
   bool _loadingParticipants = true;
   bool _loadingAdmins = true;
   bool _isAddingAdmin = false;
+  bool _isSearchingPlayerInvite = false;
+  bool _isSendingPlayerInvite = false;
   bool _isSearchingLocation = false;
   String? _errorMessage;
   String? _successMessage;
@@ -181,7 +185,9 @@ class TournamentManagementController extends ChangeNotifier {
   final Set<String> _cancelledInvitationIds = {};
   List<String> _editedCategories = [];
   List<GeocodingResult> _locationSuggestions = [];
+  List<AppUser> _playerInviteSuggestions = [];
   Timer? _locationDebounce;
+  Timer? _playerInviteDebounce;
   int _locationSearchRequestId = 0;
   int _reverseGeocodeRequestId = 0;
 
@@ -194,6 +200,7 @@ class TournamentManagementController extends ChangeNotifier {
   late final TextEditingController contactEmailCtrl;
   late final TextEditingController contactPhoneCtrl;
   late final TextEditingController adminLookupCtrl;
+  late final TextEditingController playerInviteLookupCtrl;
   late final List<TextEditingController> contactLinkCtrls;
 
   String get currentUid => _currentUid;
@@ -209,6 +216,8 @@ class TournamentManagementController extends ChangeNotifier {
   bool get loadingParticipants => _loadingParticipants;
   bool get loadingAdmins => _loadingAdmins;
   bool get isAddingAdmin => _isAddingAdmin;
+  bool get isSearchingPlayerInvite => _isSearchingPlayerInvite;
+  bool get isSendingPlayerInvite => _isSendingPlayerInvite;
   bool get isSearchingLocation => _isSearchingLocation;
   String? get errorMessage => _errorMessage;
   String? get successMessage => _successMessage;
@@ -231,6 +240,7 @@ class TournamentManagementController extends ChangeNotifier {
       _stagedInvitationsByUserId.keys.toList(growable: false);
   List<String> get editedCategories => _editedCategories;
   List<GeocodingResult> get locationSuggestions => _locationSuggestions;
+  List<AppUser> get playerInviteSuggestions => _playerInviteSuggestions;
 
   bool get isTeamTournament => (_edited.membersPerTeam ?? 0) > 1;
 
@@ -667,6 +677,72 @@ class TournamentManagementController extends ChangeNotifier {
     return _userService.getUserByNickname(query);
   }
 
+  void onPlayerInviteQueryChanged(String query) {
+    _playerInviteDebounce?.cancel();
+    final trimmed = query.trim();
+    if (trimmed.length < 2) {
+      _playerInviteSuggestions = [];
+      _isSearchingPlayerInvite = false;
+      notifyListeners();
+      return;
+    }
+
+    _playerInviteDebounce = Timer(const Duration(milliseconds: 300), () {
+      _searchPlayerInvite(trimmed);
+    });
+  }
+
+  Future<void> _searchPlayerInvite(String query) async {
+    _isSearchingPlayerInvite = true;
+    _adminError = null;
+    notifyListeners();
+
+    try {
+      final users = await _userService.searchUsersByNicknamePrefix(query);
+      _playerInviteSuggestions = users
+          .where((user) => user.uid != _currentUid)
+          .toList(growable: false);
+    } catch (e) {
+      _adminError = 'Error buscando jugadores: $e';
+      _playerInviteSuggestions = [];
+    }
+
+    _isSearchingPlayerInvite = false;
+    notifyListeners();
+  }
+
+  Future<bool> sendPlayerInvitation(AppUser user) async {
+    if (_edited.accessType != TournamentAccessType.privateInviteOnly) {
+      _adminError =
+          'Las invitaciones directas solo estan disponibles en torneos privados.';
+      notifyListeners();
+      return false;
+    }
+
+    if (_isSendingPlayerInvite) return false;
+    _isSendingPlayerInvite = true;
+    _adminError = null;
+    notifyListeners();
+
+    try {
+      final repository = CloudFunctionTournamentInvitationRepository();
+      await repository.sendInvitation(
+        tournamentId: _original.id,
+        invitedUserId: user.uid,
+      );
+      playerInviteLookupCtrl.clear();
+      _playerInviteSuggestions = [];
+      _isSendingPlayerInvite = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _adminError = e.toString().replaceFirst('Exception: ', '');
+      _isSendingPlayerInvite = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   void removeAdminLocally(String adminUid) {
     if (!isCreator) {
       _adminError = 'Solo el creador puede gestionar administradores';
@@ -1043,6 +1119,7 @@ class TournamentManagementController extends ChangeNotifier {
   @override
   void dispose() {
     _locationDebounce?.cancel();
+    _playerInviteDebounce?.cancel();
     nameCtrl.dispose();
     descriptionCtrl.dispose();
     allInfoCtrl.dispose();
@@ -1052,6 +1129,7 @@ class TournamentManagementController extends ChangeNotifier {
     contactEmailCtrl.dispose();
     contactPhoneCtrl.dispose();
     adminLookupCtrl.dispose();
+    playerInviteLookupCtrl.dispose();
     for (final controller in contactLinkCtrls) {
       controller.dispose();
     }

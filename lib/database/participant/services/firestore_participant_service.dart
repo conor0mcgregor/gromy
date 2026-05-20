@@ -39,6 +39,42 @@ class FirestoreParticipantService implements ParticipantRepository {
       .doc(tournamentId)
       .collection('participants');
 
+  CollectionReference<Map<String, dynamic>> _privateParticipantsRef(
+    String tournamentId,
+  ) => _db
+      .collection('private_tournaments')
+      .doc(tournamentId)
+      .collection('participants');
+
+  Future<CollectionReference<Map<String, dynamic>>> _participantsRefFor(
+    String tournamentId,
+  ) async {
+    final privateDoc = await _db
+        .collection('private_tournaments')
+        .doc(tournamentId)
+        .get()
+        .timeout(const Duration(seconds: 10));
+    if (privateDoc.exists) return _privateParticipantsRef(tournamentId);
+    return _participantsRef(tournamentId);
+  }
+
+  Future<List<CollectionReference<Map<String, dynamic>>>> _readRefsFor(
+    String tournamentId,
+  ) async {
+    final privateDoc = await _db
+        .collection('private_tournaments')
+        .doc(tournamentId)
+        .get()
+        .timeout(const Duration(seconds: 10));
+    if (privateDoc.exists) {
+      return [
+        _privateParticipantsRef(tournamentId),
+        _participantsRef(tournamentId),
+      ];
+    }
+    return [_participantsRef(tournamentId)];
+  }
+
   // ── ParticipantRepository impl ─────────────────────────────────────────────
 
   @override
@@ -62,7 +98,7 @@ class FirestoreParticipantService implements ParticipantRepository {
       );
     }
 
-    final colRef = _participantsRef(tournamentId);
+    final colRef = await _participantsRefFor(tournamentId);
     final docRef = colRef.doc(); // Firestore genera el ID
 
     final participant = AppParticipant(
@@ -84,32 +120,47 @@ class FirestoreParticipantService implements ParticipantRepository {
 
   @override
   Stream<List<AppParticipant>> watchParticipants(String tournamentId) {
-    return _participantsRef(
-      tournamentId,
-    ).orderBy('enrolledAt', descending: false).snapshots().map((snapshot) {
-      final list = <AppParticipant>[];
-      for (final doc in snapshot.docs) {
-        try {
-          list.add(AppParticipant.fromMap(doc.data()));
-        } catch (e) {
-          // ignore: avoid_print
-          print('Error mapeando participante: $e');
-        }
-      }
-      return list;
+    return Stream.fromFuture(_readRefsFor(tournamentId)).switchMap((refs) {
+      final streams = refs.map((ref) {
+        return ref.orderBy('enrolledAt', descending: false).snapshots().map((
+          snapshot,
+        ) {
+          final list = <AppParticipant>[];
+          for (final doc in snapshot.docs) {
+            try {
+              list.add(AppParticipant.fromMap(doc.data()));
+            } catch (e) {
+              // ignore: avoid_print
+              print('Error mapeando participante: $e');
+            }
+          }
+          return list;
+        });
+      });
+      return Rx.combineLatestList(streams).map(
+        (lists) => _dedupeParticipants(lists.expand((list) => list).toList()),
+      );
     });
   }
 
   @override
   Future<List<AppParticipant>> getParticipants(String tournamentId) async {
-    final snapshot = await _participantsRef(tournamentId)
-        .orderBy('enrolledAt', descending: false)
-        .get()
-        .timeout(const Duration(seconds: 10));
+    final refs = await _readRefsFor(tournamentId);
+    final snapshots = await Future.wait(
+      refs.map(
+        (ref) => ref
+            .orderBy('enrolledAt', descending: false)
+            .get()
+            .timeout(const Duration(seconds: 10)),
+      ),
+    );
 
-    return snapshot.docs.map((doc) {
-      return AppParticipant.fromMap(doc.data());
-    }).toList();
+    return _dedupeParticipants(
+      snapshots
+          .expand((snapshot) => snapshot.docs)
+          .map((doc) => AppParticipant.fromMap(doc.data()))
+          .toList(),
+    );
   }
 
   @override
@@ -117,12 +168,16 @@ class FirestoreParticipantService implements ParticipantRepository {
     required String tournamentId,
     required String participantId,
   }) async {
-    final doc = await _participantsRef(
-      tournamentId,
-    ).doc(participantId).get().timeout(const Duration(seconds: 10));
-    final data = doc.data();
-    if (!doc.exists || data == null) return null;
-    return AppParticipant.fromMap(data);
+    final refs = await _readRefsFor(tournamentId);
+    for (final ref in refs) {
+      final doc = await ref
+          .doc(participantId)
+          .get()
+          .timeout(const Duration(seconds: 10));
+      final data = doc.data();
+      if (doc.exists && data != null) return AppParticipant.fromMap(data);
+    }
+    return null;
   }
 
   @override
@@ -131,7 +186,11 @@ class FirestoreParticipantService implements ParticipantRepository {
     required String participantId,
     required ParticipantStatus status,
   }) async {
-    await _participantsRef(tournamentId)
+    final ref = await _writableParticipantRef(
+      tournamentId: tournamentId,
+      participantId: participantId,
+    );
+    await ref
         .doc(participantId)
         .update({'status': status.firestoreValue})
         .timeout(const Duration(seconds: 10));
@@ -143,9 +202,14 @@ class FirestoreParticipantService implements ParticipantRepository {
     required String participantId,
     required Map<String, dynamic> data,
   }) async {
-    await _participantsRef(
-      tournamentId,
-    ).doc(participantId).update(data).timeout(const Duration(seconds: 10));
+    final ref = await _writableParticipantRef(
+      tournamentId: tournamentId,
+      participantId: participantId,
+    );
+    await ref
+        .doc(participantId)
+        .update(data)
+        .timeout(const Duration(seconds: 10));
   }
 
   @override
@@ -153,9 +217,11 @@ class FirestoreParticipantService implements ParticipantRepository {
     required String tournamentId,
     required String participantId,
   }) async {
-    await _participantsRef(
-      tournamentId,
-    ).doc(participantId).delete().timeout(const Duration(seconds: 10));
+    final ref = await _writableParticipantRef(
+      tournamentId: tournamentId,
+      participantId: participantId,
+    );
+    await ref.doc(participantId).delete().timeout(const Duration(seconds: 10));
   }
 
   @override
@@ -163,12 +229,41 @@ class FirestoreParticipantService implements ParticipantRepository {
     required String tournamentId,
     required String entityId,
   }) async {
-    final snapshot = await _participantsRef(tournamentId)
-        .where('entityId', isEqualTo: entityId)
-        .limit(1)
-        .get()
-        .timeout(const Duration(seconds: 10));
-    return snapshot.docs.isNotEmpty;
+    final refs = await _readRefsFor(tournamentId);
+    for (final ref in refs) {
+      final snapshot = await ref
+          .where('entityId', isEqualTo: entityId)
+          .limit(1)
+          .get()
+          .timeout(const Duration(seconds: 10));
+      if (snapshot.docs.isNotEmpty) return true;
+    }
+    return false;
+  }
+
+  Future<CollectionReference<Map<String, dynamic>>> _writableParticipantRef({
+    required String tournamentId,
+    required String participantId,
+  }) async {
+    final refs = await _readRefsFor(tournamentId);
+    for (final ref in refs) {
+      final doc = await ref
+          .doc(participantId)
+          .get()
+          .timeout(const Duration(seconds: 10));
+      if (doc.exists) return ref;
+    }
+    return refs.first;
+  }
+
+  List<AppParticipant> _dedupeParticipants(List<AppParticipant> participants) {
+    final byId = <String, AppParticipant>{};
+    for (final participant in participants) {
+      byId[participant.id] = participant;
+    }
+    final list = byId.values.toList(growable: false);
+    list.sort((a, b) => a.enrolledAt.compareTo(b.enrolledAt));
+    return list;
   }
 
   @override

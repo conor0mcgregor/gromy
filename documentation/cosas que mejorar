@@ -5,11 +5,8 @@ al eliminar un categoria tienes que elejir en que categoria se pondran todos los
 eliminar la opcion de editar los miembros de un equipo en un torneo porque seria un desastre
 pedir confirmacion para cambiar ubicacion
 boton de gestion en un torneo desde la carta de torneo de home si eres admin o creador
-sistema de estado de torneo, para saber cuando esta completado, (cuando se publiquen todos los resultados de todas las categorias), status: 'registration' (inscripciones), 'in_progress' (jugándose, [iscripcion cerrada]), 'completed' (finalizado).
-cerrar iscripcion automaticamente cuando la fecha paso o si no hay fecha, una opcion para los admins que cierren secion
 
 que se refleje en la app la diferencia entre un torneo abierto y uno cerrado
-gestionar solicitudes de torneos cerrados desde gestion de torneo
 
 screen de match
 avisos de tu match
@@ -17,5 +14,3 @@ avisos de tu match
 ver perfil de ususarios en participantes, solicitudes, equipos, categorias, torneos
 
 en cada enfrentamiento añadir cuanto dura (como maximo) en el formulario de torneo, se puede modificar el de cada enfrentameinto en screen de enfrentarmientos o de matchs
-
-mejorar ver perfil de usuarios

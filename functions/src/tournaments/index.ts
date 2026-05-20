@@ -17,6 +17,12 @@ export {
 } from "./team_invitation";
 
 export {
+  createTournamentInvitation,
+  acceptTournamentInvitation,
+  rejectTournamentInvitation,
+} from "./tournament_invitation";
+
+export {
   onTournamentCancelled,
   onTournamentDatesChanged,
   onTournamentLocationChanged,

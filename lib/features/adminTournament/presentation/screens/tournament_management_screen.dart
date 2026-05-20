@@ -21,6 +21,7 @@ import '../../../participants/presentation/widgets/participants_section.dart';
 import '../../../participants/presentation/widgets/team_card.dart';
 import '../../../inscription/screen/tournament_join_requests_screen.dart';
 import '../../../tournament/data/model/app_tournament.dart';
+import '../../../user/data/models/app_user.dart';
 import '../../../tournament/presentation/screens/create_tournament/form/steps/step3_geolocation.dart';
 import '../controllers/tournament_management_controller.dart';
 import 'participants_management.dart';
@@ -86,7 +87,10 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
     super.dispose();
   }
 
-  Future<DateTime?> _pickDate({DateTime? initial, required String helpText}) async {
+  Future<DateTime?> _pickDate({
+    DateTime? initial,
+    required String helpText,
+  }) async {
     final date = await showDatePicker(
       context: context,
       initialDate: initial ?? DateTime.now(),
@@ -101,7 +105,9 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
             primary: Color(0xFF6C63FF),
             surface: Color(0xFF12122E),
           ),
-          dialogTheme: const DialogThemeData(backgroundColor: Color(0xFF101127)),
+          dialogTheme: const DialogThemeData(
+            backgroundColor: Color(0xFF101127),
+          ),
         ),
         child: child ?? const SizedBox.shrink(),
       ),
@@ -121,7 +127,9 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
             primary: Color(0xFF6C63FF),
             surface: Color(0xFF12122E),
           ),
-          dialogTheme: const DialogThemeData(backgroundColor: Color(0xFF101127)),
+          dialogTheme: const DialogThemeData(
+            backgroundColor: Color(0xFF101127),
+          ),
         ),
         child: child ?? const SizedBox.shrink(),
       ),
@@ -410,11 +418,13 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                             const SizedBox(height: 20),
                             _buildAdminsSection(),
                             const SizedBox(height: 20),
-                            if (_ctrl.isCreator &&
-                                _invitationCtrl != null)
+                            if (_invitationCtrl != null)
+                              _buildPlayerInvitationSection(),
+                            if (_invitationCtrl != null)
+                              const SizedBox(height: 20),
+                            if (_ctrl.isCreator && _invitationCtrl != null)
                               _buildInvitationLinkSection(),
-                            if (_ctrl.isCreator &&
-                                _invitationCtrl != null)
+                            if (_ctrl.isCreator && _invitationCtrl != null)
                               const SizedBox(height: 20),
                             if (_ctrl.isCreator) _buildDangerZone(),
                           ],
@@ -664,7 +674,8 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                         ? 'Abiertas (Público puede inscribirse)'
                         : 'Cerradas (No se permiten más inscripciones)',
                     style: TextStyle(
-                      color: _ctrl.edited.status == TournamentStatus.registration
+                      color:
+                          _ctrl.edited.status == TournamentStatus.registration
                           ? const Color(0xFF22C55E)
                           : const Color(0xFFFF4D6A),
                       fontSize: 12,
@@ -1054,6 +1065,55 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
     );
   }
 
+  Widget _buildPlayerInvitationSection() {
+    return _buildSection(
+      icon: Icons.person_add_alt_1_rounded,
+      title: 'Invitar jugadores',
+      color: const Color(0xFF8B5CF6),
+      children: [
+        GlassTextField(
+          controller: _ctrl.playerInviteLookupCtrl,
+          hint: '@nickname',
+          icon: Icons.search_rounded,
+          enabled: !_ctrl.isSendingPlayerInvite,
+          onChanged: _ctrl.onPlayerInviteQueryChanged,
+        ),
+        if (_ctrl.isSearchingPlayerInvite) ...[
+          const SizedBox(height: 10),
+          const _SectionLoading(label: 'Buscando jugadores...'),
+        ],
+        if (!_ctrl.isSearchingPlayerInvite &&
+            _ctrl.playerInviteLookupCtrl.text.trim().length >= 2 &&
+            _ctrl.playerInviteSuggestions.isEmpty) ...[
+          const SizedBox(height: 10),
+          const _MutedPanel(
+            icon: Icons.search_off_rounded,
+            text: 'No hay jugadores con ese nickname.',
+          ),
+        ],
+        if (_ctrl.playerInviteSuggestions.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          ..._ctrl.playerInviteSuggestions.map(
+            (user) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _PlayerInviteTile(
+                user: user,
+                isSending: _ctrl.isSendingPlayerInvite,
+                onInvite: () async {
+                  final ok = await _ctrl.sendPlayerInvitation(user);
+                  if (ok) {
+                    _showSnack('Invitacion enviada a @${user.nickname}');
+                  } else if (_ctrl.adminError != null) {
+                    _showSnack(_ctrl.adminError!, isError: true);
+                  }
+                },
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
 
   // ── Sección: Enlace de Invitación (solo torneos privados + creador) ─────
 
@@ -1193,7 +1253,9 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
         ] else ...[
           // Botón generar
           GradientButton(
-            label: inv.isGenerating ? 'Generando enlace...' : 'Generar enlace de invitación',
+            label: inv.isGenerating
+                ? 'Generando enlace...'
+                : 'Generar enlace de invitación',
             icon: Icons.add_link_rounded,
             isLoading: inv.isGenerating,
             onPressed: inv.isGenerating
@@ -1209,10 +1271,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           const SizedBox(height: 8),
           Text(
             inv.errorMessage!,
-            style: const TextStyle(
-              color: Color(0xFFFF4D6A),
-              fontSize: 12,
-            ),
+            style: const TextStyle(color: Color(0xFFFF4D6A), fontSize: 12),
           ),
         ],
       ],
@@ -1230,9 +1289,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
     }
   }
 
-  Future<void> _handleRevokeInvitation(
-    GenerateInvitationController inv,
-  ) async {
+  Future<void> _handleRevokeInvitation(GenerateInvitationController inv) async {
     final confirmed = await _confirm(
       title: 'Revocar enlace',
       message:
@@ -1245,7 +1302,9 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
     final ok = await inv.revokeLink();
     if (mounted) {
       _showSnack(
-        ok ? 'Enlace revocado correctamente' : (inv.errorMessage ?? 'Error al revocar'),
+        ok
+            ? 'Enlace revocado correctamente'
+            : (inv.errorMessage ?? 'Error al revocar'),
         isError: !ok,
       );
     }
@@ -1613,6 +1672,79 @@ class _PendingInvitationTile extends StatelessWidget {
               color: const Color(0xFF64748B),
               onTap: onCancel,
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlayerInviteTile extends StatelessWidget {
+  const _PlayerInviteTile({
+    required this.user,
+    required this.isSending,
+    required this.onInvite,
+  });
+
+  final AppUser user;
+  final bool isSending;
+  final VoidCallback onInvite;
+
+  @override
+  Widget build(BuildContext context) {
+    final fullName = '${user.name} ${user.lastName}'.trim();
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.white.withValues(alpha: 0.05),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: const Color(0xFF8B5CF6).withValues(alpha: 0.18),
+            child: Text(
+              user.nickname.isEmpty ? '?' : user.nickname[0].toUpperCase(),
+              style: const TextStyle(
+                color: Color(0xFF8B5CF6),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '@${user.nickname}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (fullName.isNotEmpty)
+                  Text(
+                    fullName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.45),
+                      fontSize: 11,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          _GlassIconButton(
+            icon: isSending ? Icons.hourglass_top_rounded : Icons.send_rounded,
+            color: const Color(0xFF8B5CF6),
+            onTap: isSending ? null : onInvite,
+          ),
         ],
       ),
     );
