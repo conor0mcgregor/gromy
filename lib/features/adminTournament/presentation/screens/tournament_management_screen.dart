@@ -306,14 +306,18 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
   }
 
   void _openLocationPicker() {
-    showModalBottomSheet<void>(
+    final snapshotLocation = _ctrl.locationCtrl.text.trim();
+    final snapshotLat = _ctrl.edited.latitude;
+    final snapshotLng = _ctrl.edited.longitude;
+
+    showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: const Color(0xFF0A0A1A),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) {
+      builder: (sheetContext) {
         return AnimatedBuilder(
           animation: _ctrl,
           builder: (context, _) {
@@ -343,7 +347,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                           ),
                           _GlassIconButton(
                             icon: Icons.close_rounded,
-                            onTap: () => Navigator.pop(context),
+                            onTap: () => Navigator.pop(sheetContext, false),
                           ),
                         ],
                       ),
@@ -360,6 +364,20 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                         onMapTap: _ctrl.onMapTap,
                         resolvedAddress: _ctrl.locationCtrl.text,
                       ),
+                      const SizedBox(height: 16),
+                      GradientButton(
+                        label: 'Confirmar ubicación',
+                        icon: Icons.check_rounded,
+                        onPressed: () => _confirmLocationFromPicker(
+                          sheetContext: sheetContext,
+                          snapshotLocation: snapshotLocation,
+                          snapshotLat: snapshotLat,
+                          snapshotLng: snapshotLng,
+                        ),
+                        variant: GradientButtonVariant.simple,
+                        size: GradientButtonSize.small,
+                        textColor: Colors.black,
+                      ),
                     ],
                   ),
                 ),
@@ -368,6 +386,99 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           },
         );
       },
+    ).then((confirmed) {
+      if (confirmed != true) {
+        _ctrl.revertLocation(
+          location: snapshotLocation,
+          latitude: snapshotLat,
+          longitude: snapshotLng,
+        );
+      }
+    });
+  }
+
+  Future<void> _confirmLocationFromPicker({
+    required BuildContext sheetContext,
+    required String snapshotLocation,
+    required double? snapshotLat,
+    required double? snapshotLng,
+  }) async {
+    final newLocation = _ctrl.locationCtrl.text.trim();
+    final newLat = _ctrl.edited.latitude;
+    final newLng = _ctrl.edited.longitude;
+
+    final locationUnchanged =
+        newLocation == snapshotLocation &&
+        newLat == snapshotLat &&
+        newLng == snapshotLng;
+
+    if (locationUnchanged) {
+      Navigator.pop(sheetContext, true);
+      return;
+    }
+
+    final currentLabel = snapshotLocation.isEmpty
+        ? 'Sin dirección definida'
+        : snapshotLocation;
+    final newLabel = newLocation.isEmpty
+        ? 'Sin dirección definida'
+        : newLocation;
+
+    final confirmed = await _confirm(
+      title: 'Cambiar ubicación',
+      message:
+          '¿Estás seguro de que deseas cambiar la ubicación del torneo?\n\n'
+          'Ubicación actual:\n$currentLabel\n\n'
+          'Nueva ubicación:\n$newLabel',
+      confirmLabel: 'Confirmar cambio',
+    );
+
+    if (!confirmed || !mounted) return;
+    Navigator.pop(sheetContext, true);
+  }
+
+  Future<void> _handleDeleteCategory(String category) async {
+    final alternatives = _ctrl.categoriesExcept(category);
+    final affectedCount = _ctrl.participantCountInCategory(category);
+
+    if (alternatives.isEmpty) {
+      if (affectedCount > 0) {
+        _showSnack(
+          'No puedes eliminar la única categoría con participantes inscritos.',
+          isError: true,
+        );
+        return;
+      }
+      _ctrl.removeCategory(category);
+      return;
+    }
+
+    final targetCategory = await showDialog<String>(
+      context: context,
+      builder: (ctx) => _DeleteCategoryDialog(
+        categoryToDelete: category,
+        affectedCount: affectedCount,
+        destinationCategories: alternatives,
+      ),
+    );
+
+    if (targetCategory == null || !mounted) return;
+
+    if (affectedCount == 0) {
+      _ctrl.removeCategory(category);
+      _showSnack('Categoría eliminada');
+      return;
+    }
+
+    final ok = await _ctrl.migrateAndRemoveCategory(
+      sourceCategory: category,
+      targetCategory: targetCategory,
+    );
+    _showSnack(
+      ok
+          ? 'Categoría eliminada. $affectedCount participante(s) movidos a $targetCategory.'
+          : (_ctrl.errorMessage ?? 'No se pudo eliminar la categoría'),
+      isError: !ok,
     );
   }
 
@@ -708,7 +819,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
   Widget _buildLogisticsSection() {
     return _buildSection(
       icon: Icons.tune_rounded,
-      title: 'Logística',
+      title: 'Limites participantes',
       color: const Color(0xFFFFB347),
       children: [
         GlassTextField(
@@ -718,15 +829,6 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           errorText: _ctrl.maxParticipantsError,
-        ),
-        const SizedBox(height: 12),
-        GlassTextField(
-          controller: _ctrl.membersPerTeamCtrl,
-          hint: 'Miembros por equipo (0 = individual)',
-          icon: Icons.group_rounded,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          errorText: _ctrl.membersPerTeamError,
         ),
       ],
     );
@@ -769,8 +871,9 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           label: 'Cambiar ubicación',
           icon: Icons.map_rounded,
           onPressed: _openLocationPicker,
-          variant: GradientButtonVariant.simple,
+          variant: GradientButtonVariant.paradise,
           size: GradientButtonSize.small,
+          animationType: AnimationType.shimmer,
           textColor: Colors.black,
         ),
       ],
@@ -877,7 +980,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                 .map(
                   (category) => _CategoryChip(
                     label: category,
-                    onDelete: () => _ctrl.removeCategory(category),
+                    onDelete: () => _handleDeleteCategory(category),
                   ),
                 )
                 .toList(),
@@ -915,7 +1018,9 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
               ),
             );
           },
-          variant: GradientButtonVariant.select,
+          variant: GradientButtonVariant.paradise,
+          animationType: AnimationType.shimmer,
+          textColor: Colors.black,
           size: GradientButtonSize.large,
         ),
         const SizedBox(height: 16),
@@ -1425,7 +1530,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
             icon: Icons.save_rounded,
             isLoading: _ctrl.isSaving,
             onPressed: _ctrl.isSaving ? null : _handleSave,
-            variant: GradientButtonVariant.violet,
+            variant: GradientButtonVariant.preciousEmerald,
             size: GradientButtonSize.large,
           ),
         ),
@@ -2230,6 +2335,144 @@ class _BlockingLoader extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _DeleteCategoryDialog extends StatefulWidget {
+  const _DeleteCategoryDialog({
+    required this.categoryToDelete,
+    required this.affectedCount,
+    required this.destinationCategories,
+  });
+
+  final String categoryToDelete;
+  final int affectedCount;
+  final List<String> destinationCategories;
+
+  @override
+  State<_DeleteCategoryDialog> createState() => _DeleteCategoryDialogState();
+}
+
+class _DeleteCategoryDialogState extends State<_DeleteCategoryDialog> {
+  late String _selectedDestination = widget.destinationCategories.first;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasParticipants = widget.affectedCount > 0;
+
+    return AlertDialog(
+      backgroundColor: const Color(0xFF101127),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      title: const Row(
+        children: [
+          Icon(Icons.label_off_rounded, color: Color(0xFFFF6B9D)),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Eliminar categoría',
+              style: TextStyle(color: Colors.white, fontSize: 18),
+            ),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            hasParticipants
+                ? 'Vas a eliminar "${widget.categoryToDelete}". '
+                    'Selecciona a qué categoría mover los participantes '
+                    'antes de continuar.'
+                : '¿Eliminar la categoría "${widget.categoryToDelete}"?',
+            style: const TextStyle(color: Colors.white70, height: 1.4),
+          ),
+          if (hasParticipants) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: const Color(0xFFFF6B9D).withValues(alpha: 0.12),
+                border: Border.all(
+                  color: const Color(0xFFFF6B9D).withValues(alpha: 0.28),
+                ),
+              ),
+              child: Text(
+                '${widget.affectedCount} participante(s) serán reasignados',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Categoría destino',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.55),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: _selectedDestination,
+              dropdownColor: const Color(0xFF1A1A2E),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.white.withValues(alpha: 0.06),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: Colors.white.withValues(alpha: 0.12),
+                  ),
+                ),
+              ),
+              style: const TextStyle(color: Colors.white),
+              items: widget.destinationCategories
+                  .map(
+                    (category) => DropdownMenuItem<String>(
+                      value: category,
+                      child: Text(category),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() => _selectedDestination = value);
+              },
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text(
+            'Cancelar',
+            style: TextStyle(color: Colors.white54),
+          ),
+        ),
+        TextButton(
+          onPressed: hasParticipants
+              ? () => Navigator.pop(context, _selectedDestination)
+              : () => Navigator.pop(context, widget.destinationCategories.first),
+          style: TextButton.styleFrom(
+            foregroundColor: const Color(0xFFFF6B9D),
+          ),
+          child: const Text(
+            'Eliminar categoría',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
     );
   }
 }

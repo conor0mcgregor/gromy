@@ -13,3 +13,4 @@ export {
   updateMatchSchedule,
   swapMatchParticipants,
 } from "./match_admin";
+export {purgeParticipantFromBrackets} from "./purge_participant_from_brackets";

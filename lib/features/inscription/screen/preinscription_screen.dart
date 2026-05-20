@@ -1167,7 +1167,7 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
                       ),
                 variant: isFull || !acceptsRegistrations
                     ? GradientButtonVariant.sunset
-                    : GradientButtonVariant.select,
+                    : GradientButtonVariant.aurora,
                 size: GradientButtonSize.large,
               ),
       ),

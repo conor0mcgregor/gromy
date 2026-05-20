@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/getColors/getter_colors.dart';
 import '../../../../core/widgets/imagen_frame.dart';
 import '../../../tournament/data/model/app_tournament.dart';
+import '../../../tournament/data/model/enums_tournament.dart';
 
 // ════════════════════════════════════════════════════════════════
 //  TOURNAMENT CARD
@@ -120,6 +121,9 @@ class _TournamentCardState extends State<TournamentCard>
   }
 
   Color get _sportAccent => sportColor(widget.tournament.sport);
+
+  _AccessBadgeStyle get _accessStyle =>
+      _accessBadgeStyle(widget.tournament.accessType);
 
   // ──────────────────────────────────────────────────────────────
   //  BUILD
@@ -238,6 +242,8 @@ class _TournamentCardState extends State<TournamentCard>
                                   ],
                                 ),
                               ),
+                              const SizedBox(height: 10),
+                              _AccessTypeBadge(style: _accessStyle),
                               const SizedBox(height: 16),
 
                               if (widget.isMyTournament == true) Container(
@@ -371,6 +377,102 @@ class _TournamentCardState extends State<TournamentCard>
 // ════════════════════════════════════════════════════════════════
 //  SUB-WIDGETS DE LA CARD
 // ════════════════════════════════════════════════════════════════
+
+class _AccessBadgeStyle {
+  const _AccessBadgeStyle({
+    required this.label,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+  });
+
+  final String label;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+}
+
+_AccessBadgeStyle _accessBadgeStyle(TournamentAccessType accessType) {
+  return switch (accessType) {
+    TournamentAccessType.publicOpen => const _AccessBadgeStyle(
+      label: 'Abierto',
+      subtitle: 'Inscripción libre',
+      icon: Icons.public_rounded,
+      color: Color(0xFF22C55E),
+    ),
+    TournamentAccessType.publicClosed => const _AccessBadgeStyle(
+      label: 'Cerrado',
+      subtitle: 'Requiere aprobación',
+      icon: Icons.lock_clock_rounded,
+      color: Color(0xFFFFB020),
+    ),
+    TournamentAccessType.privateInviteOnly => const _AccessBadgeStyle(
+      label: 'Privado',
+      subtitle: 'Solo por invitación',
+      icon: Icons.lock_rounded,
+      color: Color(0xFFB794F6),
+    ),
+  };
+}
+
+/// Badge de acceso del torneo (abierto / cerrado / privado).
+class _AccessTypeBadge extends StatelessWidget {
+  const _AccessTypeBadge({required this.style});
+
+  final _AccessBadgeStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 280),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: style.color.withValues(alpha: 0.12),
+          border: Border.all(
+            color: style.color.withValues(alpha: 0.35),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(style.icon, size: 15, color: style.color),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    style.label,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: style.color,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                  Text(
+                    style.subtitle,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.55),
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 /// Badge del deporte con shimmer animado
 class _AnimatedSportBadge extends StatelessWidget {

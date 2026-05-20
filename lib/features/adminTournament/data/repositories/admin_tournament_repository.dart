@@ -35,6 +35,14 @@ abstract interface class AdminTournamentRepository {
     required String categoryId,
   });
 
+  /// Mueve todos los participantes de [sourceCategory] a [targetCategory],
+  /// actualiza brackets de la categoría origen y devuelve cuántos se movieron.
+  Future<int> migrateCategoryParticipants({
+    required String tournamentId,
+    required String sourceCategory,
+    required String targetCategory,
+  });
+
   // ── Administradores ───────────────────────────────────────────────────────
 
   /// Añade un administrador al torneo por su UID.

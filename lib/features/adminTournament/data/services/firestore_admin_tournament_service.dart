@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import '../../../../core/models/registration_form.dart';
+import '../../../brackets/data/services/cloud_function_bracket_service.dart';
 import '../../../tournament/data/model/app_tournament.dart';
 import '../repositories/admin_tournament_repository.dart';
 
@@ -15,15 +16,20 @@ import '../repositories/admin_tournament_repository.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 class FirestoreAdminTournamentService implements AdminTournamentRepository {
-  FirestoreAdminTournamentService({FirebaseFirestore? firestore})
-    : _db =
-          firestore ??
-          FirebaseFirestore.instanceFor(
-            app: Firebase.app(),
-            databaseId: 'gromy-db',
-          );
+  FirestoreAdminTournamentService({
+    FirebaseFirestore? firestore,
+    CloudFunctionBracketService? bracketCloudService,
+  }) : _db =
+           firestore ??
+           FirebaseFirestore.instanceFor(
+             app: Firebase.app(),
+             databaseId: 'gromy-db',
+           ),
+       _bracketCloudService =
+           bracketCloudService ?? CloudFunctionBracketService();
 
   final FirebaseFirestore _db;
+  final CloudFunctionBracketService _bracketCloudService;
 
   CollectionReference<Map<String, dynamic>> get _tournaments =>
       _db.collection('tournaments');
@@ -215,6 +221,7 @@ class FirestoreAdminTournamentService implements AdminTournamentRepository {
     required String participantId,
   }) async {
     final tournamentRef = await _tournamentRefFor(tournamentId);
+    String? entityId;
 
     await _db.runTransaction((transaction) async {
       // 1. Verificar existencia del participante
@@ -241,6 +248,11 @@ class FirestoreAdminTournamentService implements AdminTournamentRepository {
         throw Exception('El participante ya no está inscrito.');
       }
 
+      entityId = participantDoc.data()?['entityId'] as String?;
+      if (entityId == null || entityId!.isEmpty) {
+        throw Exception('El participante no tiene entityId válido.');
+      }
+
       // 2. Obtener torneo para actualizar contador
       final tournamentDoc = await transaction.get(tournamentRef);
       if (!tournamentDoc.exists) {
@@ -260,6 +272,91 @@ class FirestoreAdminTournamentService implements AdminTournamentRepository {
         });
       }
     });
+
+    await _bracketCloudService.purgeParticipantFromBrackets(
+      tournamentId: tournamentId,
+      entityId: entityId!,
+    );
+  }
+
+  @override
+  Future<int> migrateCategoryParticipants({
+    required String tournamentId,
+    required String sourceCategory,
+    required String targetCategory,
+  }) async {
+    if (sourceCategory.trim().isEmpty || targetCategory.trim().isEmpty) {
+      throw ArgumentError('Las categorías no pueden estar vacías.');
+    }
+    if (sourceCategory == targetCategory) {
+      throw ArgumentError(
+        'La categoría destino debe ser distinta a la que se elimina.',
+      );
+    }
+
+    final tournamentRef = await _tournamentRefFor(tournamentId);
+    final refs = await _participantRefsFor(tournamentRef, tournamentId);
+    final entityIds = <String>{};
+    final docRefs = <DocumentReference<Map<String, dynamic>>>[];
+
+    for (final ref in refs) {
+      final snap = await ref
+          .collection('participants')
+          .where('categoryId', isEqualTo: sourceCategory)
+          .get();
+      for (final doc in snap.docs) {
+        final entityId = doc.data()['entityId'] as String?;
+        if (entityId == null || entityId.isEmpty) continue;
+        entityIds.add(entityId);
+        docRefs.add(doc.reference);
+      }
+    }
+
+    if (docRefs.isEmpty) return 0;
+
+    for (final entityId in entityIds) {
+      await _bracketCloudService.purgeParticipantFromBrackets(
+        tournamentId: tournamentId,
+        entityId: entityId,
+        categoryId: sourceCategory,
+      );
+    }
+
+    const batchLimit = 400;
+    var batch = _db.batch();
+    var ops = 0;
+
+    for (final docRef in docRefs) {
+      batch.update(docRef, {
+        'categoryId': targetCategory,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      ops++;
+      if (ops >= batchLimit) {
+        await batch.commit();
+        batch = _db.batch();
+        ops = 0;
+      }
+    }
+
+    if (ops > 0) {
+      await batch.commit();
+    }
+
+    return docRefs.length;
+  }
+
+  Future<List<DocumentReference<Map<String, dynamic>>>> _participantRefsFor(
+    DocumentReference<Map<String, dynamic>> tournamentRef,
+    String tournamentId,
+  ) async {
+    if (tournamentRef.parent.id == 'private_tournaments') {
+      return [
+        tournamentRef,
+        _tournaments.doc(tournamentId),
+      ];
+    }
+    return [tournamentRef];
   }
 
   @override

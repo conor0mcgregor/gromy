@@ -21,6 +21,7 @@ import '../../../user/data/services/firestore_user_service.dart';
 import '../../data/repositories/admin_tournament_repository.dart';
 import '../../data/services/firestore_admin_tournament_service.dart';
 import '../../domain/use_cases/delete_tournament_use_case.dart';
+import '../../domain/use_cases/migrate_category_participants_use_case.dart';
 import '../../domain/use_cases/remove_participant_use_case.dart';
 import '../../domain/use_cases/update_tournament_use_case.dart';
 
@@ -419,6 +420,93 @@ class TournamentManagementController extends ChangeNotifier {
   void removeCategory(String category) {
     _editedCategories.remove(category);
     notifyListeners();
+  }
+
+  int participantCountInCategory(String category) {
+    return _participants.where((p) => p.categoryId == category).length;
+  }
+
+  List<String> categoriesExcept(String category) {
+    return _editedCategories.where((c) => c != category).toList(growable: false);
+  }
+
+  void revertLocation({
+    required String location,
+    double? latitude,
+    double? longitude,
+  }) {
+    locationCtrl.text = location;
+    _edited = _copyEdited(
+      location: location,
+      latitude: latitude,
+      longitude: longitude,
+      setCoordinates: true,
+    );
+    _locationSuggestions = [];
+    _locationError = null;
+    notifyListeners();
+  }
+
+  Future<bool> migrateAndRemoveCategory({
+    required String sourceCategory,
+    required String targetCategory,
+  }) async {
+    _errorMessage = null;
+    _isSaving = true;
+    notifyListeners();
+
+    try {
+      final count = participantCountInCategory(sourceCategory);
+      if (count > 0) {
+        final useCase = MigrateCategoryParticipantsUseCase(_repository);
+        await useCase.execute(
+          tournamentId: _original.id,
+          sourceCategory: sourceCategory,
+          targetCategory: targetCategory,
+          allowedCategories: _editedCategories,
+        );
+
+        _participants = _participants
+            .map(
+              (participant) => participant.categoryId == sourceCategory
+                  ? _copyParticipantCategory(participant, targetCategory)
+                  : participant,
+            )
+            .toList(growable: false);
+      }
+
+      removeCategory(sourceCategory);
+      _isSaving = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = 'Error al eliminar categoría: $e';
+      _isSaving = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  ParticipantDisplay _copyParticipantCategory(
+    ParticipantDisplay participant,
+    String categoryId,
+  ) {
+    return switch (participant) {
+      UserParticipantDisplay(:final user) => UserParticipantDisplay(
+        participantId: participant.participantId,
+        entityId: participant.entityId,
+        entityType: participant.entityType,
+        categoryId: categoryId,
+        user: user,
+      ),
+      TeamParticipantDisplay(:final team) => TeamParticipantDisplay(
+        participantId: participant.participantId,
+        entityId: participant.entityId,
+        entityType: participant.entityType,
+        categoryId: categoryId,
+        team: team,
+      ),
+    };
   }
 
   void upsertRegistrationField(RegistrationField field) {

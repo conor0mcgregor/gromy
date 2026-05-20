@@ -106,6 +106,23 @@ class CloudFunctionBracketService {
     });
   }
 
+  /// Elimina un participante de todos los brackets del torneo (o de una categoría).
+  Future<void> purgeParticipantFromBrackets({
+    required String tournamentId,
+    required String entityId,
+    String? categoryId,
+  }) async {
+    final callable = _functions.httpsCallable('purgeParticipantFromBrackets');
+    final payload = <String, dynamic>{
+      'tournamentId': tournamentId,
+      'entityId': entityId,
+    };
+    if (categoryId != null) {
+      payload['categoryId'] = categoryId;
+    }
+    await callable.call<Map<String, dynamic>>(payload);
+  }
+
   /// Intercambia participantes entre dos slots en modo draft.
   Future<void> swapMatchParticipants({
     required String bracketId,

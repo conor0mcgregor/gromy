@@ -50,6 +50,7 @@ export {
   recordMatchResult,
   updateMatchSchedule,
   swapMatchParticipants,
+  purgeParticipantFromBrackets,
 } from "./brackets";
 
 // ── Módulo de usuarios ──────────────────────────────────────────────────────
