@@ -5,6 +5,7 @@ import '../../../../core/widgets/participant_card.dart';
 import '../../../../core/widgets/bar_small_botton.dart';
 import '../../data/models/participant_display.dart';
 import '../../data/services/participant_display_service.dart';
+import '../../../profile/presentation/screens/other_user_profile_screen.dart';
 import '../widgets/team_card.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -388,10 +389,18 @@ class _ParticipantItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return switch (participant) {
       UserParticipantDisplay(:final user) => ParticipantCard(
-          nickname: user.nickname,
-          displayName: '${user.name} ${user.lastName}'.trim(),
-          photoUrl: user.photoUrl,
-        ),
+        nickname: user.nickname,
+        displayName: '${user.name} ${user.lastName}'.trim(),
+        photoUrl: user.photoUrl,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => OtherUserProfileScreen(targetUid: user.uid),
+            ),
+          );
+        },
+      ),
       TeamParticipantDisplay(:final team) => TeamCard(team: team),
     };
   }

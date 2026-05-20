@@ -17,6 +17,7 @@ import '../../../notifications/domain/entities/pending_team_invitation.dart';
 import '../../../notifications/domain/use_cases/team_invitation_use_cases.dart';
 import '../../../user/data/models/app_user.dart';
 import '../../../user/data/services/firestore_user_service.dart';
+import '../../../profile/presentation/screens/other_user_profile_screen.dart';
 import '../widgets/team_member_tile.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ class _TeamManageScreenState extends State<TeamManageScreen>
 
   late final AnimationController _fadeController;
   late final Animation<double> _fadeAnimation;
+
 
   @override
   void initState() {
@@ -348,10 +350,10 @@ class _TeamManageScreenState extends State<TeamManageScreen>
   // ── Dialogs ────────────────────────────────────────────────────────────────
 
   Future<bool> _showConfirmDialog(
-    String title,
-    String content, {
-    bool isDangerous = false,
-  }) async {
+      String title,
+      String content, {
+        bool isDangerous = false,
+      }) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -563,8 +565,8 @@ class _TeamManageScreenState extends State<TeamManageScreen>
                       gradient: hasPhoto
                           ? null
                           : const LinearGradient(
-                              colors: [Color(0xFF6C63FF), Color(0xFF00D4FF)],
-                            ),
+                        colors: [Color(0xFF6C63FF), Color(0xFF00D4FF)],
+                      ),
                       border: Border.all(
                         color: Colors.white.withValues(alpha: 0.2),
                         width: 2.5,
@@ -580,29 +582,29 @@ class _TeamManageScreenState extends State<TeamManageScreen>
                     child: ClipOval(
                       child: hasPhoto
                           ? Image.network(
-                              _team.photoUrl!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) => Center(
-                                child: Text(
-                                  initial,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 36,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                            )
-                          : Center(
-                              child: Text(
-                                initial,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 36,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
+                        _team.photoUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Center(
+                          child: Text(
+                            initial,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 36,
+                              fontWeight: FontWeight.w800,
                             ),
+                          ),
+                        ),
+                      )
+                          : Center(
+                        child: Text(
+                          initial,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 36,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                   // Overlay de cámara
@@ -624,17 +626,17 @@ class _TeamManageScreenState extends State<TeamManageScreen>
                       ),
                       child: _isUploadingPhoto
                           ? const Padding(
-                              padding: EdgeInsets.all(6),
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
+                        padding: EdgeInsets.all(6),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
                           : const Icon(
-                              Icons.camera_alt_rounded,
-                              color: Colors.white,
-                              size: 14,
-                            ),
+                        Icons.camera_alt_rounded,
+                        color: Colors.white,
+                        size: 14,
+                      ),
                     ),
                   ),
                 ],
@@ -693,7 +695,7 @@ class _TeamManageScreenState extends State<TeamManageScreen>
   Widget _buildAddMemberSection() {
     return _buildSectionCard(
       icon: Icons.person_add_rounded,
-      title: 'Invitar usuarios',
+      title: 'Añadir miembros',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -713,15 +715,15 @@ class _TeamManageScreenState extends State<TeamManageScreen>
                 height: 52,
                 child: _isSearching
                     ? Center(
-                        child: SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: Colors.white.withValues(alpha: 0.6),
-                          ),
-                        ),
-                      )
+                  child: SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white.withValues(alpha: 0.6),
+                    ),
+                  ),
+                )
                     : ElevatedButton(
                         onPressed: _addMember,
                         style: ElevatedButton.styleFrom(
@@ -1003,6 +1005,14 @@ class _TeamManageScreenState extends State<TeamManageScreen>
                 photoUrl: user?.photoUrl,
                 isAdmin: isAdmin,
                 showAdminBadge: false,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => OtherUserProfileScreen(targetUid: uid),
+                    ),
+                  );
+                },
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
