@@ -18,6 +18,7 @@ import '../domain/models/enrollment_status.dart';
 import '../presentation/controllers/preinscription_controller.dart';
 import '../../events/presentation/controllers/favorites_controller.dart';
 import '../../profile/presentation/screens/other_user_profile_screen.dart';
+import '../../../app/app_shell.dart';
 import 'inscription_screen.dart';
 
 // ════════════════════════════════════════════════════════════════
@@ -400,6 +401,16 @@ class _OrganizerChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
+        if (FirebaseAuth.instance.currentUser?.uid == organizerUid) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const AppShell(initialIndex: 4),
+            ),
+                (route) => false,
+          );
+          return;
+        }
         Navigator.push(
           context,
           MaterialPageRoute(

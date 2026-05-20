@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/widgets/participant_card.dart';
@@ -6,6 +7,7 @@ import '../../../../core/widgets/bar_small_botton.dart';
 import '../../data/models/participant_display.dart';
 import '../../data/services/participant_display_service.dart';
 import '../../../profile/presentation/screens/other_user_profile_screen.dart';
+import '../../../../app/app_shell.dart';
 import '../widgets/team_card.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -393,6 +395,16 @@ class _ParticipantItem extends StatelessWidget {
         displayName: '${user.name} ${user.lastName}'.trim(),
         photoUrl: user.photoUrl,
         onTap: () {
+          if (FirebaseAuth.instance.currentUser?.uid == user.uid) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const AppShell(initialIndex: 4),
+              ),
+                  (route) => false,
+            );
+            return;
+          }
           Navigator.push(
             context,
             MaterialPageRoute(
