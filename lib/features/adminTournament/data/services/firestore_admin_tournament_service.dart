@@ -124,6 +124,12 @@ class FirestoreAdminTournamentService implements AdminTournamentRepository {
       original.organizerEmail,
       updated.organizerEmail,
     );
+    _putIfChanged(
+      data,
+      'status',
+      original.status.name,
+      updated.status.name,
+    );
     if (!_stringListEquals(original.contactLinks, updated.contactLinks)) {
       data['contactLinks'] = updated.contactLinks;
     }

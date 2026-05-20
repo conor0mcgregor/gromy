@@ -244,6 +244,13 @@ class AppTournament {
     return null;
   }
 
-  bool get acceptsRegistrations => status.acceptsRegistrations;
+  bool get acceptsRegistrations {
+    if (status != TournamentStatus.registration) return false;
+    if (registrationDeadline != null &&
+        DateTime.now().isAfter(registrationDeadline!)) {
+      return false;
+    }
+    return true;
+  }
   bool get isPubliclyVisible => status.isPubliclyVisible;
 }

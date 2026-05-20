@@ -9,10 +9,12 @@ export type TournamentHistoryEntry = {
   tournamentName: string;
   scheduledAt: string | null;
   tournamentType: string;
+  tournamentStatus: string;
   participantStatus: string;
   resultStatus: "won" | "participated" | "eliminated" | "pending";
   placementLabel: string;
   sport: string | null;
+  coverImageUrl: string | null;
 };
 
 export type UserProfileStats = {
@@ -30,32 +32,51 @@ type ParticipantRow = {
   enrolledAt: Timestamp | null;
 };
 
+interface TournamentResult {
+  resultStatus: TournamentHistoryEntry["resultStatus"];
+  matchesPlayed: number;
+  matchesWon: number;
+  matchesLost: number;
+  matchesDraw: number;
+}
+
 export async function buildUserProfileExtras(
   db: Firestore,
-  targetUid: string
-): Promise<{stats: UserProfileStats; history: TournamentHistoryEntry[]}> {
+  targetUid: string,
+): Promise<{
+  stats: UserProfileStats;
+  sportsStats: Record<string, any>;
+  history: TournamentHistoryEntry[];
+}> {
   const entityIds = await resolveEntityIds(db, targetUid);
   const participants = await fetchParticipants(db, entityIds);
-  const tournamentIds = [
-    ...new Set(participants.map((p) => p.tournamentId)),
-  ];
+  const tournamentIds = [...new Set(participants.map((p) => p.tournamentId))];
 
   let wins = 0;
   let losses = 0;
   let tournamentsWon = 0;
 
   const history: TournamentHistoryEntry[] = [];
+  const sportsStats: Record<string, any> = {};
 
   for (const tournamentId of tournamentIds) {
     const tournament = await loadTournament(db, tournamentId);
     if (!tournament) continue;
 
-    const participant = participants.find((p) => p.tournamentId === tournamentId);
-    const resultStatus = await resolveResultStatus(
+    const participant = participants.find(
+      (p) => p.tournamentId === tournamentId,
+    );
+    const {
+      resultStatus,
+      matchesPlayed,
+      matchesWon,
+      matchesLost,
+      matchesDraw,
+    } = await resolveResultStatus(
       db,
       tournamentId,
       entityIds,
-      tournament.scheduledAt
+      tournament.scheduledAt,
     );
 
     if (resultStatus === "won") {
@@ -65,16 +86,62 @@ export async function buildUserProfileExtras(
       losses++;
     }
 
+    const sport = tournament.sport || "football";
+    if (!sportsStats[sport]) {
+      sportsStats[sport] = {
+        totalPlayed: 0,
+        tournamentsWon: 0,
+        matchesPlayed: 0,
+        matchesWon: 0,
+        matchesLost: 0,
+        matchesDraw: 0,
+        winRate: 0,
+      };
+    }
+
+    sportsStats[sport].totalPlayed++;
+    if (resultStatus === "won") {
+      sportsStats[sport].tournamentsWon++;
+    }
+    sportsStats[sport].matchesPlayed += matchesPlayed;
+    sportsStats[sport].matchesWon += matchesWon;
+    sportsStats[sport].matchesLost += matchesLost;
+    sportsStats[sport].matchesDraw += matchesDraw;
+
     history.push({
       tournamentId,
       tournamentName: tournament.name,
       scheduledAt: tournament.scheduledAt?.toDate().toISOString() ?? null,
       tournamentType: tournament.accessType,
+      tournamentStatus: tournament.status,
       participantStatus: participant?.status ?? "unknown",
       resultStatus,
       placementLabel: placementLabel(resultStatus),
       sport: tournament.sport,
+      coverImageUrl: tournament.portadaUrl,
     });
+  }
+
+  // Calculate winRate for each sport
+  for (const sport of Object.keys(sportsStats)) {
+    const s = sportsStats[sport];
+    const totalMatches = s.matchesWon + s.matchesLost + s.matchesDraw;
+    s.winRate =
+      totalMatches > 0 ? Math.round((s.matchesWon / totalMatches) * 100) : 0;
+  }
+
+  // Persist sportsStats under /users/{targetUid}/sports_stats/{sport}
+  for (const sport of Object.keys(sportsStats)) {
+    try {
+      await db
+        .collection("users")
+        .doc(targetUid)
+        .collection("sports_stats")
+        .doc(sport)
+        .set(sportsStats[sport]);
+    } catch (fsError) {
+      console.warn(`Failed to save sports_stats for ${sport}:`, fsError);
+    }
   }
 
   history.sort((a, b) => {
@@ -95,13 +162,14 @@ export async function buildUserProfileExtras(
       winRate,
       tournamentsWon,
     },
+    sportsStats,
     history,
   };
 }
 
 async function resolveEntityIds(
   db: Firestore,
-  targetUid: string
+  targetUid: string,
 ): Promise<Set<string>> {
   const ids = new Set<string>([targetUid]);
   try {
@@ -120,7 +188,7 @@ async function resolveEntityIds(
 
 async function fetchParticipants(
   db: Firestore,
-  entityIds: Set<string>
+  entityIds: Set<string>,
 ): Promise<ParticipantRow[]> {
   const rows: ParticipantRow[] = [];
   const ids = [...entityIds];
@@ -155,12 +223,14 @@ async function fetchParticipants(
 
 async function loadTournament(
   db: Firestore,
-  tournamentId: string
+  tournamentId: string,
 ): Promise<{
   name: string;
   scheduledAt: Timestamp | null;
   accessType: string;
+  status: string;
   sport: string | null;
+  portadaUrl: string | null;
 } | null> {
   for (const collection of ["tournaments", "private_tournaments"]) {
     const doc = await db.collection(collection).doc(tournamentId).get();
@@ -170,7 +240,9 @@ async function loadTournament(
       name: String(data.name ?? "Torneo"),
       scheduledAt: (data.scheduledAt as Timestamp | undefined) ?? null,
       accessType: String(data.accessType ?? collection),
+      status: String(data.status ?? ""),
       sport: (data.sport as string | undefined) ?? null,
+      portadaUrl: (data.portadaUrl as string | undefined) ?? null,
     };
   }
   return null;
@@ -180,11 +252,16 @@ async function resolveResultStatus(
   db: Firestore,
   tournamentId: string,
   entityIds: Set<string>,
-  scheduledAt: Timestamp | null
-): Promise<TournamentHistoryEntry["resultStatus"]> {
+  scheduledAt: Timestamp | null,
+): Promise<TournamentResult> {
   const now = Date.now();
   const scheduledMs = scheduledAt?.toMillis() ?? 0;
   const isPast = scheduledMs > 0 && scheduledMs < now - 24 * 60 * 60 * 1000;
+
+  let matchesPlayed = 0;
+  let matchesWon = 0;
+  let matchesLost = 0;
+  let matchesDraw = 0;
 
   try {
     const brackets = await db
@@ -193,7 +270,13 @@ async function resolveResultStatus(
       .get();
 
     if (brackets.empty) {
-      return isPast ? "participated" : "pending";
+      return {
+        resultStatus: isPast ? "participated" : "pending",
+        matchesPlayed,
+        matchesWon,
+        matchesLost,
+        matchesDraw,
+      };
     }
 
     let wonTournament = false;
@@ -218,6 +301,24 @@ async function resolveResultStatus(
 
       for (const matchDoc of matches.docs) {
         const data = matchDoc.data();
+        const p1Id = data.participant1Id as string | undefined;
+        const p2Id = data.participant2Id as string | undefined;
+        const isParticipant =
+          (p1Id && entityIds.has(p1Id)) || (p2Id && entityIds.has(p2Id));
+
+        if (isParticipant && data.status === "completed") {
+          matchesPlayed++;
+          const winnerId = data.winnerId as string | undefined;
+          const loserId = data.loserId as string | undefined;
+          if (winnerId && entityIds.has(winnerId)) {
+            matchesWon++;
+          } else if (loserId && entityIds.has(loserId)) {
+            matchesLost++;
+          } else {
+            matchesDraw++;
+          }
+        }
+
         const winnerId = data.winnerId as string | undefined;
         const loserId = data.loserId as string | undefined;
         if (winnerId && entityIds.has(winnerId)) {
@@ -230,17 +331,34 @@ async function resolveResultStatus(
       }
     }
 
-    if (wonTournament) return "won";
-    if (lostMatch) return "eliminated";
-    return isPast ? "participated" : "pending";
+    const resultStatus = wonTournament
+      ? "won"
+      : lostMatch
+        ? "eliminated"
+        : isPast
+          ? "participated"
+          : "pending";
+    return {
+      resultStatus,
+      matchesPlayed,
+      matchesWon,
+      matchesLost,
+      matchesDraw,
+    };
   } catch (error) {
     console.warn("resolveResultStatus skipped:", error);
-    return isPast ? "participated" : "pending";
+    return {
+      resultStatus: isPast ? "participated" : "pending",
+      matchesPlayed,
+      matchesWon,
+      matchesLost,
+      matchesDraw,
+    };
   }
 }
 
 function placementLabel(
-  status: TournamentHistoryEntry["resultStatus"]
+  status: TournamentHistoryEntry["resultStatus"],
 ): string {
   switch (status) {
   case "won":

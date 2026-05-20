@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TU_TEAM_ID.com.example.gromy",
+        "paths": ["/invite/*"]
+      }
+    ]
+  }
+}

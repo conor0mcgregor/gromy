@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.example.gromy",
+    "sha256_cert_fingerprints": [
+      "0B:1E:FA:88:1E:88:A0:50:23:81:6C:DF:44:F5:17:23:0A:6D:95:BA:C3:51:E4:2C:DA:89:51:0F:DC:D3:D3:56"
+    ]
+  }
+}]

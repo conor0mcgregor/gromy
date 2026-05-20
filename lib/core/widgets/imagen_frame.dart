@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 
 class ImageFrame extends StatelessWidget {
-  const ImageFrame({
-    required this.coverUrl,
-    required this.accent,
-  });
+  const ImageFrame({super.key, required this.coverUrl, required this.accent});
 
   final String? coverUrl;
   final Color accent;
@@ -37,8 +34,9 @@ class ImageFrame extends StatelessWidget {
     );
   }
 }
+
 class CoverImage extends StatelessWidget {
-  const CoverImage({required this.url, required this.accent});
+  const CoverImage({super.key, required this.url, required this.accent});
 
   final String? url;
   final Color accent;
@@ -48,8 +46,7 @@ class CoverImage extends StatelessWidget {
     final uri = url?.trim();
     final hasUrl = uri != null && uri.isNotEmpty;
 
-    // Widget base para el estado de carga o espera
-    Widget loadingPlaceholder() {
+    Widget placeholder({bool loading = false}) {
       return Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -62,20 +59,25 @@ class CoverImage extends StatelessWidget {
           ),
         ),
         child: Center(
-          child: SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(accent),
-              strokeWidth: 2.5,
-            ),
-          ),
+          child: loading
+              ? SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(accent),
+                    strokeWidth: 2.5,
+                  ),
+                )
+              : Icon(
+                  Icons.image_rounded,
+                  color: accent.withValues(alpha: 0.5),
+                  size: 42,
+                ),
         ),
       );
     }
 
-    // Si no hay URL, ahora mostramos el cargando en lugar del logo
-    if (!hasUrl) return loadingPlaceholder();
+    if (!hasUrl) return placeholder();
 
     return Image.network(
       uri,
@@ -83,9 +85,9 @@ class CoverImage extends StatelessWidget {
       filterQuality: FilterQuality.low,
       loadingBuilder: (context, child, progress) {
         if (progress == null) return child;
-        return loadingPlaceholder();
+        return placeholder(loading: true);
       },
-      errorBuilder: (context, error, stackTrace) => loadingPlaceholder(),
+      errorBuilder: (context, error, stackTrace) => placeholder(),
     );
   }
 }

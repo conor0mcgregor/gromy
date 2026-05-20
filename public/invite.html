@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invitación a Torneo Gromy</title>
+    
+    <!-- Open Graph Tags (WhatsApp, Telegram, Facebook, etc.) -->
+    <meta property="og:title" content="¡Te han invitado a un torneo en Gromy!" />
+    <meta property="og:description" content="Únete a este torneo privado. Gromy es tu app para gestionar competiciones." />
+    <!-- Reemplaza la URL de abajo con un enlace a tu logo real cuando lo tengas público -->
+    <meta property="og:image" content="https://gromy-ps.firebaseapp.com/logo.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://gromy-ps.firebaseapp.com/" />
+    
+    <!-- Twitter Card Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Invitación a Torneo Gromy">
+    <meta name="twitter:description" content="Únete a este torneo privado. Gromy es tu app para gestionar competiciones.">
+    <meta name="twitter:image" content="https://gromy-ps.firebaseapp.com/logo.png">
+
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            max-width: 400px;
+            width: 100%;
+        }
+        h1 {
+            color: #2c3e50;
+            font-size: 24px;
+            margin-bottom: 16px;
+        }
+        p {
+            font-size: 16px;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+        .btn {
+            display: inline-block;
+            background-color: #3498db;
+            color: white;
+            text-decoration: none;
+            padding: 14px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: background-color 0.3s;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 12px;
+        }
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        .btn-secondary {
+            background-color: #ecf0f1;
+            color: #2c3e50;
+        }
+        .btn-secondary:hover {
+            background-color: #bdc3c7;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="loader" id="loader"></div>
+        <h1 id="title">Abriendo Gromy...</h1>
+        <p id="message">Si la aplicación no se abre automáticamente, por favor descárgala de tu tienda de aplicaciones.</p>
+        
+        <a href="https://play.google.com/store/apps/details?id=com.example.gromy" class="btn" id="android-btn">Descargar para Android</a>
+        <a href="https://apps.apple.com/app/idYOUR_APPLE_APP_ID" class="btn btn-secondary" id="ios-btn">Descargar para iOS</a>
+    </div>
+
+    <script>
+        // Obtener el ID del torneo de la URL
+        const pathParts = window.location.pathname.split('/');
+        // URL esperada: /invite/{id}
+        let tournamentId = '';
+        if (pathParts.length >= 3 && pathParts[1] === 'invite') {
+            tournamentId = pathParts[2];
+        }
+
+        const appDomain = "gromy-ps.firebaseapp.com";
+        const appPackage = "com.example.gromy";
+        
+        // URL universal y deep link fallback
+        const universalUrl = "https://" + appDomain + "/invite/" + tournamentId;
+        const customSchemeUrl = "gromy://invite/" + tournamentId;
+
+        // Intent para Android Chrome
+        const androidIntent = "intent://" + appDomain + "/invite/" + tournamentId + "#Intent;package=" + appPackage + ";scheme=https;end;";
+
+        window.onload = function() {
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+            // Intentar abrir la app automáticamente
+            setTimeout(function() {
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('title').innerText = 'No tienes la app instalada';
+                document.getElementById('message').innerText = 'Para aceptar esta invitación, primero debes descargar Gromy en tu dispositivo.';
+            }, 2500);
+
+            if (isAndroid) {
+                document.getElementById('ios-btn').style.display = 'none';
+                window.location.href = androidIntent;
+            } else if (isIOS) {
+                document.getElementById('android-btn').style.display = 'none';
+                window.location.href = universalUrl; 
+                setTimeout(function() {
+                    window.location.href = customSchemeUrl;
+                }, 500);
+            } else {
+                // Desktop
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('title').innerText = 'Abre este enlace en tu móvil';
+                document.getElementById('message').innerText = 'Para unirte al torneo, abre esta página desde tu dispositivo móvil con Gromy instalado.';
+            }
+        };
+    </script>
+</body>
+</html>

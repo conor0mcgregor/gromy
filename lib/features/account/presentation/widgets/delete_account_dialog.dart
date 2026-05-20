@@ -139,7 +139,7 @@ class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
                   ),
                 ] else ...[
                   const Text(
-                    'Se eliminaran tu cuenta de Firebase, tus datos en Firestore y referencias asociadas. Esta accion no se puede deshacer.',
+                    'Se eliminaran tu cuenta y todos tus datos de la plataforma. Esta accion no se puede deshacer.',
                     style: TextStyle(color: Colors.white70, height: 1.4),
                   ),
                   const SizedBox(height: 16),
@@ -185,7 +185,7 @@ class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
                     ),
                   ] else
                     const Text(
-                      'Al confirmar, verificaremos tu identidad con tu proveedor de inicio de sesion.',
+                      'Al confirmar, se desvinculara totalmente la cuneta con la plataforma.',
                       style: TextStyle(color: Colors.white54, fontSize: 13),
                     ),
                 ],

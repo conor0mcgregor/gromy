@@ -10,6 +10,7 @@ import '../../../notifications/domain/use_cases/admin_invitation_use_cases.dart'
 import '../../../participants/data/models/participant_display.dart';
 import '../../../participants/data/services/participant_display_service.dart';
 import '../../../tournament/data/model/app_tournament.dart';
+import '../../../tournament/data/model/enums_tournament.dart';
 import '../../../tournament/data/services/firebase_tournament_storage_service.dart';
 import '../../../tournament/data/services/geocoding_service.dart';
 import '../../../tournament/data/services/tournament_storage_service.dart';
@@ -937,6 +938,14 @@ class TournamentManagementController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void toggleRegistrationStatus() {
+    final nextStatus = _edited.status == TournamentStatus.registration
+        ? TournamentStatus.in_progress
+        : TournamentStatus.registration;
+    _edited = _copyEdited(status: nextStatus);
+    notifyListeners();
+  }
+
   AppTournament _copyEdited({
     String? name,
     String? description,
@@ -961,6 +970,7 @@ class TournamentManagementController extends ChangeNotifier {
     List<String>? adminIds,
     String? portadaUrl,
     int? participantCount,
+    TournamentStatus? status,
   }) {
     return AppTournament(
       id: _edited.id,
@@ -972,6 +982,7 @@ class TournamentManagementController extends ChangeNotifier {
       location: location ?? _edited.location,
       sport: _edited.sport,
       accessType: _edited.accessType,
+      status: status ?? _edited.status,
       organizerUid: _edited.organizerUid,
       adminIds: adminIds ?? _edited.adminIds,
       createdAt: _edited.createdAt,
@@ -1015,6 +1026,7 @@ class TournamentManagementController extends ChangeNotifier {
         a.participantCount != b.participantCount ||
         a.organizerDisplayName != b.organizerDisplayName ||
         a.organizerEmail != b.organizerEmail ||
+        a.status != b.status ||
         !_listEquals(a.contactLinks, b.contactLinks) ||
         !_listEquals(a.categories, b.categories) ||
         !_listEquals(a.adminIds, b.adminIds);

@@ -1,8 +1,11 @@
 import 'dart:ui';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../app/app_shell.dart';
 import '../../../../core/widgets/participant_card.dart';
 import '../../../../database/team/models/app_team.dart';
+import '../../../../features/profile/presentation/screens/other_user_profile_screen.dart';
 import '../../../../features/user/data/models/app_user.dart';
 import '../../../../features/user/data/services/firestore_user_service.dart';
 
@@ -344,6 +347,25 @@ class _TeamCardState extends State<TeamCard>
                       trailing: isAdmin
                           ? _AdminBadge()
                           : null,
+                      onTap: () {
+                        if (user == null) return;
+                        if (FirebaseAuth.instance.currentUser?.uid == user.uid) {
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AppShell(initialIndex: 4),
+                            ),
+                            (route) => false,
+                          );
+                          return;
+                        }
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => OtherUserProfileScreen(targetUid: user.uid),
+                          ),
+                        );
+                      },
                     ),
                   );
                 }),

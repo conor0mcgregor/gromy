@@ -1,8 +1,13 @@
 import 'dart:ui';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../app/app_shell.dart';
+import '../../../../database/team/services/firestore_team_service.dart';
+import '../../../profile/presentation/screens/other_user_profile_screen.dart';
+import '../../../team/presentation/screens/team_detail_screen.dart';
 import '../../data/models/app_match.dart';
 import '../../data/models/bracket_enums.dart';
 
@@ -54,6 +59,7 @@ class MatchCard extends StatelessWidget {
                 _buildHeader(),
                 // Participante 1
                 _buildParticipantRow(
+                  context: context,
                   name: match.participant1Name,
                   photoUrl: match.participant1PhotoUrl,
                   participantId: match.participant1Id,
@@ -72,6 +78,7 @@ class MatchCard extends StatelessWidget {
                 ),
                 // Participante 2
                 _buildParticipantRow(
+                  context: context,
                   name: match.participant2Name,
                   photoUrl: match.participant2PhotoUrl,
                   participantId: match.participant2Id,
@@ -165,6 +172,7 @@ class MatchCard extends StatelessWidget {
   }
 
   Widget _buildParticipantRow({
+    required BuildContext context,
     required String? name,
     required String? photoUrl,
     required String? participantId,
@@ -178,78 +186,143 @@ class MatchCard extends StatelessWidget {
         ? (match.isBye ? 'BYE' : 'Por definir')
         : (name ?? 'Participante');
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: isWinner
-            ? _winnerColor.withValues(alpha: 0.06)
-            : Colors.transparent,
-      ),
-      child: Row(
-        children: [
-          // Foto / Avatar
-          _buildAvatar(photoUrl, isEmpty, isWinner),
-          const SizedBox(width: 8),
-          // Nombre
-          Expanded(
-            child: Text(
-              displayName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: isEmpty
-                    ? Colors.white.withValues(alpha: 0.25)
-                    : isWinner
-                    ? _winnerColor
-                    : Colors.white.withValues(alpha: 0.85),
-                fontSize: 12.5,
-                fontWeight: isWinner ? FontWeight.w700 : FontWeight.w500,
+    return GestureDetector(
+      onTap: isEmpty
+          ? null
+          : () => _handleParticipantTap(
+                context,
+                participantId,
+                participantType ?? MatchParticipantType.user,
               ),
-            ),
-          ),
-          // Score
-          if (participantType == MatchParticipantType.team) ...[
-            const SizedBox(width: 4),
-            Icon(
-              Icons.groups_rounded,
-              size: 13,
-              color: Colors.white.withValues(alpha: 0.35),
-            ),
-          ],
-          if (score != null) ...[
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(6),
-                color: isWinner
-                    ? _winnerColor.withValues(alpha: 0.15)
-                    : Colors.white.withValues(alpha: 0.06),
-              ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: isWinner
+              ? _winnerColor.withValues(alpha: 0.06)
+              : Colors.transparent,
+        ),
+        child: Row(
+          children: [
+            // Foto / Avatar
+            _buildAvatar(photoUrl, isEmpty, isWinner),
+            const SizedBox(width: 8),
+            // Nombre
+            Expanded(
               child: Text(
-                '$score',
+                displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: isWinner
+                  color: isEmpty
+                      ? Colors.white.withValues(alpha: 0.25)
+                      : isWinner
                       ? _winnerColor
-                      : Colors.white.withValues(alpha: 0.7),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
+                      : Colors.white.withValues(alpha: 0.85),
+                  fontSize: 12.5,
+                  fontWeight: isWinner ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),
             ),
+            // Score
+            if (participantType == MatchParticipantType.team) ...[
+              const SizedBox(width: 4),
+              Icon(
+                Icons.groups_rounded,
+                size: 13,
+                color: Colors.white.withValues(alpha: 0.35),
+              ),
+            ],
+            if (score != null) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  color: isWinner
+                      ? _winnerColor.withValues(alpha: 0.15)
+                      : Colors.white.withValues(alpha: 0.06),
+                ),
+                child: Text(
+                  '$score',
+                  style: TextStyle(
+                    color: isWinner
+                        ? _winnerColor
+                        : Colors.white.withValues(alpha: 0.7),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+            // Indicador de ganador
+            if (isWinner) ...[
+              const SizedBox(width: 4),
+              Icon(
+                Icons.emoji_events_rounded,
+                size: 13,
+                color: _winnerColor.withValues(alpha: 0.8),
+              ),
+            ],
           ],
-          // Indicador de ganador
-          if (isWinner) ...[
-            const SizedBox(width: 4),
-            Icon(
-              Icons.emoji_events_rounded,
-              size: 13,
-              color: _winnerColor.withValues(alpha: 0.8),
-            ),
-          ],
-        ],
+        ),
       ),
     );
+  }
+
+  Future<void> _handleParticipantTap(
+    BuildContext context,
+    String participantId,
+    MatchParticipantType type,
+  ) async {
+    if (type == MatchParticipantType.user) {
+      if (FirebaseAuth.instance.currentUser?.uid == participantId) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const AppShell(initialIndex: 4),
+          ),
+          (route) => false,
+        );
+        return;
+      }
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OtherUserProfileScreen(targetUid: participantId),
+        ),
+      );
+    } else if (type == MatchParticipantType.team) {
+      // Mostrar indicador de carga simple
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => const Center(
+          child: CircularProgressIndicator(color: Color(0xFF6C63FF)),
+        ),
+      );
+      try {
+        final team = await FirestoreTeamService().getTeam(participantId);
+        if (context.mounted) Navigator.pop(context); // Quitar indicador
+        if (team != null && context.mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => TeamDetailScreen(team: team),
+            ),
+          );
+        }
+      } catch (_) {
+        if (context.mounted) {
+          Navigator.pop(context); // Quitar indicador
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No se pudo cargar el detalle del equipo.'),
+              backgroundColor: Color(0xFFFF4D6A),
+            ),
+          );
+        }
+      }
+    }
   }
 
   Widget _buildAvatar(String? photoUrl, bool isEmpty, bool isWinner) {

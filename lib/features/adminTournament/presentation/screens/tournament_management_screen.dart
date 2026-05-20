@@ -636,6 +636,51 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           },
           onClear: () => _ctrl.updateBracketPublishDate(null),
         ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            color: Colors.white.withValues(alpha: 0.05),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Estado de Inscripciones',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _ctrl.edited.status == TournamentStatus.registration
+                        ? 'Abiertas (Público puede inscribirse)'
+                        : 'Cerradas (No se permiten más inscripciones)',
+                    style: TextStyle(
+                      color: _ctrl.edited.status == TournamentStatus.registration
+                          ? const Color(0xFF22C55E)
+                          : const Color(0xFFFF4D6A),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              Switch(
+                value: _ctrl.edited.status == TournamentStatus.registration,
+                activeColor: const Color(0xFF6C63FF),
+                onChanged: (_) => _ctrl.toggleRegistrationStatus(),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }

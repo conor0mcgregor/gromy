@@ -58,6 +58,9 @@ enum TournamentAccessType {
 }
 
 enum TournamentStatus {
+  registration('Inscripciones abiertas'),
+  in_progress('En curso / Inscripciones cerradas'),
+  completed('Finalizado'),
   draft('Borrador'),
   published('Publicado'),
   closed('Cerrado'),
@@ -69,12 +72,22 @@ enum TournamentStatus {
   final String label;
 
   static TournamentStatus fromValue(String value) {
-    return TournamentStatus.values.firstWhere(
-      (status) => status.name == value,
-      orElse: () => TournamentStatus.published,
-    );
+    final val = value.toLowerCase().trim();
+    if (val == 'registration' || val == 'published' || val == 'draft') {
+      return TournamentStatus.registration;
+    }
+    if (val == 'in_progress' || val == 'closed' || val == 'cancelled') {
+      return TournamentStatus.in_progress;
+    }
+    if (val == 'completed' || val == 'finished') {
+      return TournamentStatus.completed;
+    }
+    return TournamentStatus.registration;
   }
 
-  bool get acceptsRegistrations => this == TournamentStatus.published;
-  bool get isPubliclyVisible => this == TournamentStatus.published;
+  bool get acceptsRegistrations => this == TournamentStatus.registration;
+  bool get isPubliclyVisible =>
+      this == TournamentStatus.registration ||
+      this == TournamentStatus.in_progress ||
+      this == TournamentStatus.completed;
 }

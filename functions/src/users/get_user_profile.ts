@@ -42,10 +42,12 @@ export const getUserProfile = onCall(async (request) => {
       winRate: 0,
       tournamentsWon: 0,
     };
+    let sportsStats = {};
     let tournamentHistory: unknown[] = [];
     try {
       const extras = await buildUserProfileExtras(db, targetUid);
       stats = extras.stats;
+      sportsStats = extras.sportsStats;
       tournamentHistory = extras.history;
     } catch (extrasError) {
       console.warn("getUserProfile extras skipped:", extrasError);
@@ -60,6 +62,7 @@ export const getUserProfile = onCall(async (request) => {
       biography: userData.biography,
       memberSince: createdAt?.toDate().toISOString() ?? null,
       stats,
+      sportsStats,
       tournamentHistory,
     };
   } catch (error) {
