@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../domain/entities/app_notification.dart';
 import '../models/notification_model.dart';
@@ -55,7 +56,7 @@ class FirestoreNotificationDatasource implements NotificationDatasource {
           list.add(NotificationModel.fromMap(data));
         } catch (e) {
           // Ignorar documentos con formato incorrecto para no romper el stream.
-          print('Error mapeando notificación: $e');
+          debugPrint('Error mapeando notificacion: $e');
         }
       }
       return list;
@@ -111,6 +112,19 @@ class FirestoreNotificationDatasource implements NotificationDatasource {
   @override
   Future<void> markAsClicked({required String notificationId}) async {
     await _notifications.doc(notificationId).update({'clicked': true});
+  }
+
+  @override
+  Future<void> updateNotificationData({
+    required String notificationId,
+    required Map<String, dynamic> data,
+  }) async {
+    final update = <String, dynamic>{};
+    for (final entry in data.entries) {
+      update['data.${entry.key}'] = entry.value;
+    }
+    if (update.isEmpty) return;
+    await _notifications.doc(notificationId).update(update);
   }
 
   @override

@@ -86,7 +86,7 @@ export class NotificationDispatcher {
 
     // 2. Enviar push notification si se requiere
     if (options.sendPush) {
-      await this.sendPushToUser(payload, options);
+      await this.sendPushToUser(docRef.id, payload, options);
     }
 
     return docRef.id;
@@ -119,6 +119,7 @@ export class NotificationDispatcher {
    * @return {Promise<void>}
    */
   private async sendPushToUser(
+    notificationId: string,
     payload: NotificationPayload,
     options: PushOptions,
   ): Promise<void> {
@@ -143,6 +144,8 @@ export class NotificationDispatcher {
           body: payload.body,
         },
         data: {
+          notificationId,
+          id: notificationId,
           type: payload.type,
           actionRoute: payload.actionRoute || "",
           ...(payload.data ?

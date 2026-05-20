@@ -18,20 +18,26 @@ import '../../domain/use_cases/admin_invitation_use_cases.dart';
 enum InvitationAction { accepting, rejecting, idle }
 
 class AdminInvitationController extends ChangeNotifier {
-  AdminInvitationController({
-    AdminInvitationRepository? repository,
-  }) {
-    final repo = repository ?? CloudFunctionAdminInvitationRepository();
-    _accept = AcceptAdminInvitationUseCase(repo);
-    _reject = RejectAdminInvitationUseCase(repo);
-    _cancel = CancelAdminInvitationUseCase(repo);
-    _send = SendAdminInvitationUseCase(repo);
-  }
+  AdminInvitationController({AdminInvitationRepository? repository})
+    : _repository = repository;
+
+  AdminInvitationRepository? _repository;
+  bool _useCasesReady = false;
 
   late final AcceptAdminInvitationUseCase _accept;
   late final RejectAdminInvitationUseCase _reject;
   late final CancelAdminInvitationUseCase _cancel;
   late final SendAdminInvitationUseCase _send;
+
+  void _ensureUseCases() {
+    if (_useCasesReady) return;
+    final repo = _repository ??= CloudFunctionAdminInvitationRepository();
+    _accept = AcceptAdminInvitationUseCase(repo);
+    _reject = RejectAdminInvitationUseCase(repo);
+    _cancel = CancelAdminInvitationUseCase(repo);
+    _send = SendAdminInvitationUseCase(repo);
+    _useCasesReady = true;
+  }
 
   // ── Estado reactivo ────────────────────────────────────────────────────────
 
@@ -93,10 +99,8 @@ class AdminInvitationController extends ChangeNotifier {
   }) async {
     return _executeAction(
       action: InvitationAction.idle,
-      operation: () => _send(
-        tournamentId: tournamentId,
-        invitedUserId: invitedUserId,
-      ),
+      operation: () =>
+          _send(tournamentId: tournamentId, invitedUserId: invitedUserId),
       successMessage: 'Invitación enviada correctamente.',
     );
   }
@@ -108,6 +112,7 @@ class AdminInvitationController extends ChangeNotifier {
     required Future<void> Function() operation,
     required String successMessage,
   }) async {
+    _ensureUseCases();
     _action = action;
     _errorMessage = null;
     _successMessage = null;

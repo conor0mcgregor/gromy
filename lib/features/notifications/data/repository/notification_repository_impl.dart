@@ -46,6 +46,17 @@ class NotificationRepositoryImpl implements NotificationRepository {
   }
 
   @override
+  Future<void> updateNotificationData({
+    required String notificationId,
+    required Map<String, dynamic> data,
+  }) {
+    return _datasource.updateNotificationData(
+      notificationId: notificationId,
+      data: data,
+    );
+  }
+
+  @override
   Future<void> deleteNotification({required String notificationId}) {
     return _datasource.deleteNotification(notificationId: notificationId);
   }

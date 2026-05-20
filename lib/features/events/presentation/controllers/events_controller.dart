@@ -11,11 +11,10 @@ class EventsController {
   EventsController({
     TournamentRepository? tournamentRepository,
     FirebaseAuth? auth,
-  })  : _tournamentRepository =
-            tournamentRepository ?? FirestoreTournamentService(),
-        _authOverride = auth;
+  }) : _tournamentRepository = tournamentRepository,
+       _authOverride = auth;
 
-  final TournamentRepository _tournamentRepository;
+  final TournamentRepository? _tournamentRepository;
   final FirebaseAuth? _authOverride;
 
   FirebaseAuth? get _authSafe {
@@ -35,13 +34,16 @@ class EventsController {
     }
   }
 
-
-
   /// Stream con los torneos en los que el usuario autenticado está inscrito.
   Stream<List<AppTournament>> watchEnrolledTournaments() {
     final uid = currentUid;
     if (uid == null) return const Stream.empty();
-    return _tournamentRepository.watchEnrolledTournaments(uid);
+    try {
+      final repository = _tournamentRepository ?? FirestoreTournamentService();
+      return repository.watchEnrolledTournaments(uid);
+    } catch (e) {
+      return Stream<List<AppTournament>>.error(e);
+    }
   }
 
   /// Cancela la inscripción del usuario en un torneo.
@@ -51,7 +53,8 @@ class EventsController {
     required String tournamentId,
     required String participantId,
   }) {
-    final useCase = CancelEnrollmentUseCase(_tournamentRepository);
+    final repository = _tournamentRepository ?? FirestoreTournamentService();
+    final useCase = CancelEnrollmentUseCase(repository);
     return useCase.execute(
       tournamentId: tournamentId,
       participantId: participantId,

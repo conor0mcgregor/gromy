@@ -73,21 +73,31 @@ enum TournamentStatus {
 
   static TournamentStatus fromValue(String value) {
     final val = value.toLowerCase().trim();
-    if (val == 'registration' || val == 'published' || val == 'draft') {
+    if (val.isEmpty || val == 'published') {
+      return TournamentStatus.published;
+    }
+    if (val == 'registration') {
       return TournamentStatus.registration;
     }
-    if (val == 'in_progress' || val == 'closed' || val == 'cancelled') {
+    if (val == 'draft') {
+      return TournamentStatus.draft;
+    }
+    if (val == 'in_progress' || val == 'closed') {
       return TournamentStatus.in_progress;
     }
+    if (val == 'cancelled') return TournamentStatus.cancelled;
     if (val == 'completed' || val == 'finished') {
       return TournamentStatus.completed;
     }
-    return TournamentStatus.registration;
+    return TournamentStatus.published;
   }
 
-  bool get acceptsRegistrations => this == TournamentStatus.registration;
+  bool get acceptsRegistrations =>
+      this == TournamentStatus.registration ||
+      this == TournamentStatus.published;
   bool get isPubliclyVisible =>
       this == TournamentStatus.registration ||
+      this == TournamentStatus.published ||
       this == TournamentStatus.in_progress ||
       this == TournamentStatus.completed;
 }

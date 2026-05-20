@@ -9,11 +9,10 @@ class MyTournamentsListController {
   MyTournamentsListController({
     TournamentRepository? tournamentRepository,
     FirebaseAuth? auth,
-  })  : _tournamentRepository =
-            tournamentRepository ?? FirestoreTournamentService(),
-        _authOverride = auth;
+  }) : _tournamentRepository = tournamentRepository,
+       _authOverride = auth;
 
-  final TournamentRepository _tournamentRepository;
+  final TournamentRepository? _tournamentRepository;
   final FirebaseAuth? _authOverride;
 
   FirebaseAuth? get _authSafe {
@@ -37,24 +36,33 @@ class MyTournamentsListController {
     final uid = currentUid;
     if (uid == null) return const Stream.empty();
 
-    return Rx.combineLatest2<List<AppTournament>, List<AppTournament>,
-        List<AppTournament>>(
-      _tournamentRepository.watchMyTournaments(uid),
-      _tournamentRepository.watchTournamentsAdmin(uid),
-      (myList, adminList) {
-        final combined = [...myList, ...adminList];
-        final uniqueIds = <String>{};
-        final result = <AppTournament>[];
+    try {
+      final repository = _tournamentRepository ?? FirestoreTournamentService();
+      return Rx.combineLatest2<
+            List<AppTournament>,
+            List<AppTournament>,
+            List<AppTournament>
+          >(
+            repository.watchMyTournaments(uid),
+            repository.watchTournamentsAdmin(uid),
+            (myList, adminList) {
+              final combined = [...myList, ...adminList];
+              final uniqueIds = <String>{};
+              final result = <AppTournament>[];
 
-        for (final t in combined) {
-          if (uniqueIds.add(t.id)) {
-            result.add(t);
-          }
-        }
+              for (final t in combined) {
+                if (uniqueIds.add(t.id)) {
+                  result.add(t);
+                }
+              }
 
-        result.sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
-        return result;
-      },
-    ).distinct();
+              result.sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
+              return result;
+            },
+          )
+          .distinct();
+    } catch (e) {
+      return Stream<List<AppTournament>>.error(e);
+    }
   }
 }

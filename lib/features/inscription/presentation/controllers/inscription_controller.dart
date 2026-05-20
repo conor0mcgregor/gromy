@@ -6,6 +6,7 @@ import '../../../../database/team/models/app_team.dart';
 import '../../../../features/tournament/data/model/app_tournament.dart';
 import '../../../../features/tournament/data/model/enums_tournament.dart';
 import '../../../../features/user/data/models/app_user.dart';
+import '../../../notifications/data/repository/tournament_invitation_repository_impl.dart';
 import '../../data/models/join_request.dart';
 import '../../domain/use_cases/create_join_request_use_case.dart';
 import '../../domain/use_cases/enroll_in_tournament_use_case.dart';
@@ -29,15 +30,20 @@ enum InscriptionSubmitState { idle, submitting, success, error }
 class InscriptionController extends ChangeNotifier {
   InscriptionController({
     required this.tournament,
+    this.invitationNotificationId,
     EnrollInTournamentUseCase? useCase,
     CreateJoinRequestUseCase? createJoinRequestUseCase,
+    CloudFunctionTournamentInvitationRepository? invitationRepository,
   }) : _useCase = useCase ?? EnrollInTournamentUseCase(),
        _createJoinRequestUseCase =
-           createJoinRequestUseCase ?? CreateJoinRequestUseCase();
+           createJoinRequestUseCase ?? CreateJoinRequestUseCase(),
+       _invitationRepository = invitationRepository;
 
   final AppTournament tournament;
+  final String? invitationNotificationId;
   final EnrollInTournamentUseCase _useCase;
   final CreateJoinRequestUseCase _createJoinRequestUseCase;
+  final CloudFunctionTournamentInvitationRepository? _invitationRepository;
 
   // ── Estado de carga ────────────────────────────────────────────────────────
   InscriptionLoadState loadState = InscriptionLoadState.idle;
@@ -184,6 +190,8 @@ class InscriptionController extends ChangeNotifier {
         submittedJoinRequest = true;
       }
 
+      await _acceptInvitationIfNeeded();
+
       submitState = InscriptionSubmitState.success;
       notifyListeners();
       return result;
@@ -204,5 +212,13 @@ class InscriptionController extends ChangeNotifier {
     submitState = InscriptionSubmitState.idle;
     submitError = null;
     notifyListeners();
+  }
+
+  Future<void> _acceptInvitationIfNeeded() async {
+    final notificationId = invitationNotificationId;
+    if (notificationId == null || notificationId.isEmpty) return;
+    final repository =
+        _invitationRepository ?? CloudFunctionTournamentInvitationRepository();
+    await repository.acceptInvitation(notificationId: notificationId);
   }
 }

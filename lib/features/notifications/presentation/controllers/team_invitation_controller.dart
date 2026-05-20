@@ -18,20 +18,26 @@ import '../../domain/use_cases/team_invitation_use_cases.dart';
 enum TeamInvitationAction { accepting, rejecting, idle }
 
 class TeamInvitationController extends ChangeNotifier {
-  TeamInvitationController({
-    TeamInvitationRepository? repository,
-  }) {
-    final repo = repository ?? CloudFunctionTeamInvitationRepository();
-    _accept = AcceptTeamInvitationUseCase(repo);
-    _reject = RejectTeamInvitationUseCase(repo);
-    _cancel = CancelTeamInvitationUseCase(repo);
-    _send = SendTeamInvitationUseCase(repo);
-  }
+  TeamInvitationController({TeamInvitationRepository? repository})
+    : _repository = repository;
+
+  TeamInvitationRepository? _repository;
+  bool _useCasesReady = false;
 
   late final AcceptTeamInvitationUseCase _accept;
   late final RejectTeamInvitationUseCase _reject;
   late final CancelTeamInvitationUseCase _cancel;
   late final SendTeamInvitationUseCase _send;
+
+  void _ensureUseCases() {
+    if (_useCasesReady) return;
+    final repo = _repository ??= CloudFunctionTeamInvitationRepository();
+    _accept = AcceptTeamInvitationUseCase(repo);
+    _reject = RejectTeamInvitationUseCase(repo);
+    _cancel = CancelTeamInvitationUseCase(repo);
+    _send = SendTeamInvitationUseCase(repo);
+    _useCasesReady = true;
+  }
 
   // ── Estado reactivo ────────────────────────────────────────────────────────
 
@@ -82,6 +88,7 @@ class TeamInvitationController extends ChangeNotifier {
     required String teamId,
     required String invitedUserId,
   }) async {
+    _ensureUseCases();
     _action = TeamInvitationAction.idle;
     _errorMessage = null;
     _successMessage = null;
@@ -110,6 +117,7 @@ class TeamInvitationController extends ChangeNotifier {
     required Future<void> Function() operation,
     required String successMessage,
   }) async {
+    _ensureUseCases();
     _action = action;
     _errorMessage = null;
     _successMessage = null;

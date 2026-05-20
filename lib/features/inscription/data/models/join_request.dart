@@ -94,6 +94,25 @@ class JoinRequest {
     );
   }
 
+  JoinRequest copyWithStatus(JoinRequestStatus status) {
+    return JoinRequest(
+      id: id,
+      tournamentId: tournamentId,
+      entityId: entityId,
+      entityType: entityType,
+      requestedBy: requestedBy,
+      status: status,
+      createdAt: createdAt,
+      updatedAt: DateTime.now(),
+      categoryId: categoryId,
+      reviewedBy: reviewedBy,
+      reviewedAt: reviewedAt,
+      rejectionReason: rejectionReason,
+      registrationFormVersion: registrationFormVersion,
+      responses: responses,
+    );
+  }
+
   static DateTime _dateFromValue(dynamic value) {
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;

@@ -13,10 +13,7 @@ class WatchNotificationsUseCase {
   const WatchNotificationsUseCase(this._repository);
   final NotificationRepository _repository;
 
-  Stream<List<AppNotification>> call({
-    required String userId,
-    int? limit,
-  }) {
+  Stream<List<AppNotification>> call({required String userId, int? limit}) {
     return _repository.watchNotifications(userId: userId, limit: limit);
   }
 }
@@ -61,7 +58,23 @@ class MarkAsClickedUseCase {
   }
 }
 
-/// Elimina una notificación específica.
+/// Actualiza datos contextuales de una notificacion.
+class UpdateNotificationDataUseCase {
+  const UpdateNotificationDataUseCase(this._repository);
+  final NotificationRepository _repository;
+
+  Future<void> call({
+    required String notificationId,
+    required Map<String, dynamic> data,
+  }) {
+    return _repository.updateNotificationData(
+      notificationId: notificationId,
+      data: data,
+    );
+  }
+}
+
+/// Elimina una notificacion especifica.
 class DeleteNotificationUseCase {
   const DeleteNotificationUseCase(this._repository);
   final NotificationRepository _repository;
@@ -104,10 +117,7 @@ class RemoveFcmTokenUseCase {
   const RemoveFcmTokenUseCase(this._repository);
   final NotificationRepository _repository;
 
-  Future<void> call({
-    required String userId,
-    required String token,
-  }) {
+  Future<void> call({required String userId, required String token}) {
     return _repository.removeToken(userId: userId, token: token);
   }
 }

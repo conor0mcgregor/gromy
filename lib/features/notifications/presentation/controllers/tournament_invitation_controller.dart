@@ -7,10 +7,9 @@ enum TournamentInvitationAction { idle, accepting, rejecting }
 class TournamentInvitationController extends ChangeNotifier {
   TournamentInvitationController({
     CloudFunctionTournamentInvitationRepository? repository,
-  }) : _repository =
-           repository ?? CloudFunctionTournamentInvitationRepository();
+  }) : _repository = repository;
 
-  final CloudFunctionTournamentInvitationRepository _repository;
+  CloudFunctionTournamentInvitationRepository? _repository;
 
   TournamentInvitationAction action = TournamentInvitationAction.idle;
   String? errorMessage;
@@ -18,16 +17,23 @@ class TournamentInvitationController extends ChangeNotifier {
   Future<bool> acceptInvitation(String notificationId) async {
     return _run(
       TournamentInvitationAction.accepting,
-      () => _repository.acceptInvitation(notificationId: notificationId),
+      () => _invitationRepository.acceptInvitation(
+        notificationId: notificationId,
+      ),
     );
   }
 
   Future<bool> rejectInvitation(String notificationId) async {
     return _run(
       TournamentInvitationAction.rejecting,
-      () => _repository.rejectInvitation(notificationId: notificationId),
+      () => _invitationRepository.rejectInvitation(
+        notificationId: notificationId,
+      ),
     );
   }
+
+  CloudFunctionTournamentInvitationRepository get _invitationRepository =>
+      _repository ??= CloudFunctionTournamentInvitationRepository();
 
   Future<bool> _run(
     TournamentInvitationAction nextAction,

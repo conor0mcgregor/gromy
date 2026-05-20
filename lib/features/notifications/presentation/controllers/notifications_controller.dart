@@ -18,19 +18,11 @@ import '../../domain/use_cases/notification_use_cases.dart';
 enum NotificationsState { loading, loaded, empty, error }
 
 class NotificationsController extends ChangeNotifier {
-  NotificationsController({
-    NotificationRepository? repository,
-  }) : _repository = repository ?? NotificationRepositoryImpl() {
-    _watchNotifications = WatchNotificationsUseCase(_repository);
-    _watchUnreadCount = WatchUnreadCountUseCase(_repository);
-    _markAsRead = MarkAsReadUseCase(_repository);
-    _markAllAsRead = MarkAllAsReadUseCase(_repository);
-    _markAsClicked = MarkAsClickedUseCase(_repository);
-    _deleteNotification = DeleteNotificationUseCase(_repository);
-    _deleteAllNotifications = DeleteAllNotificationsUseCase(_repository);
-  }
+  NotificationsController({NotificationRepository? repository})
+    : _repository = repository;
 
-  final NotificationRepository _repository;
+  NotificationRepository? _repository;
+  bool _useCasesReady = false;
 
   // Use cases
   late final WatchNotificationsUseCase _watchNotifications;
@@ -38,6 +30,7 @@ class NotificationsController extends ChangeNotifier {
   late final MarkAsReadUseCase _markAsRead;
   late final MarkAllAsReadUseCase _markAllAsRead;
   late final MarkAsClickedUseCase _markAsClicked;
+  late final UpdateNotificationDataUseCase _updateNotificationData;
   late final DeleteNotificationUseCase _deleteNotification;
   late final DeleteAllNotificationsUseCase _deleteAllNotifications;
 
@@ -59,11 +52,30 @@ class NotificationsController extends ChangeNotifier {
   StreamSubscription<int>? _unreadCountSub;
   String? _activeUserId;
 
+  void _ensureUseCases() {
+    if (_useCasesReady) return;
+    final repository = _repository ??= NotificationRepositoryImpl();
+    _watchNotifications = WatchNotificationsUseCase(repository);
+    _watchUnreadCount = WatchUnreadCountUseCase(repository);
+    _markAsRead = MarkAsReadUseCase(repository);
+    _markAllAsRead = MarkAllAsReadUseCase(repository);
+    _markAsClicked = MarkAsClickedUseCase(repository);
+    _updateNotificationData = UpdateNotificationDataUseCase(repository);
+    _deleteNotification = DeleteNotificationUseCase(repository);
+    _deleteAllNotifications = DeleteAllNotificationsUseCase(repository);
+    _useCasesReady = true;
+  }
+
   // ── Inicialización ─────────────────────────────────────────────────────────
 
   /// Inicia la escucha en tiempo real de las notificaciones del usuario.
   void init(String userId) {
-    if (_activeUserId == userId && _notificationsSub != null) return;
+    if (_activeUserId == userId && _notificationsSub != null) {
+      // La pantalla puede montarse después de que el stream ya emitió datos.
+      notifyListeners();
+      return;
+    }
+    _ensureUseCases();
 
     _activeUserId = userId;
     _state = NotificationsState.loading;
@@ -104,6 +116,7 @@ class NotificationsController extends ChangeNotifier {
 
   Future<void> markNotificationAsRead(String notificationId) async {
     try {
+      _ensureUseCases();
       await _markAsRead(notificationId: notificationId);
     } catch (e) {
       debugPrint('Error marcando como leída: $e');
@@ -112,6 +125,7 @@ class NotificationsController extends ChangeNotifier {
 
   Future<void> markAllNotificationsAsRead(String userId) async {
     try {
+      _ensureUseCases();
       await _markAllAsRead(userId: userId);
     } catch (e) {
       debugPrint('Error marcando todas como leídas: $e');
@@ -120,14 +134,28 @@ class NotificationsController extends ChangeNotifier {
 
   Future<void> markNotificationAsClicked(String notificationId) async {
     try {
+      _ensureUseCases();
       await _markAsClicked(notificationId: notificationId);
     } catch (e) {
       debugPrint('Error marcando como clickeada: $e');
     }
   }
 
+  Future<void> updateNotificationData(
+    String notificationId,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      _ensureUseCases();
+      await _updateNotificationData(notificationId: notificationId, data: data);
+    } catch (e) {
+      debugPrint('Error actualizando datos de notificacion: $e');
+    }
+  }
+
   Future<void> removeNotification(String notificationId) async {
     try {
+      _ensureUseCases();
       await _deleteNotification(notificationId: notificationId);
     } catch (e) {
       debugPrint('Error eliminando notificación: $e');
@@ -136,6 +164,7 @@ class NotificationsController extends ChangeNotifier {
 
   Future<void> removeAllNotifications(String userId) async {
     try {
+      _ensureUseCases();
       await _deleteAllNotifications(userId: userId);
     } catch (e) {
       debugPrint('Error eliminando todas las notificaciones: $e');

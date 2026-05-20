@@ -8,9 +8,18 @@ import '../presentation/models/join_request_display.dart';
 import '../presentation/widgets/join_request_card.dart';
 
 class TournamentJoinRequestsScreen extends StatefulWidget {
-  const TournamentJoinRequestsScreen({super.key, required this.tournament});
+  const TournamentJoinRequestsScreen({
+    super.key,
+    required this.tournament,
+    this.initialRequestId,
+    this.initialStatusFilter = JoinRequestStatus.pending,
+    this.onRequestHandled,
+  });
 
   final AppTournament tournament;
+  final String? initialRequestId;
+  final JoinRequestStatus? initialStatusFilter;
+  final ValueChanged<JoinRequest>? onRequestHandled;
 
   @override
   State<TournamentJoinRequestsScreen> createState() =>
@@ -27,7 +36,7 @@ class _TournamentJoinRequestsScreenState
     _controller =
         TournamentJoinRequestsController(tournament: widget.tournament)
           ..addListener(_onChange)
-          ..init();
+          ..init(initialStatusFilter: widget.initialStatusFilter);
   }
 
   void _onChange() {
@@ -62,6 +71,12 @@ class _TournamentJoinRequestsScreenState
     );
     if (ok != true) return;
     final success = await _controller.approve(display.request.id);
+    if (success) {
+      widget.onRequestHandled?.call(
+        display.request.copyWithStatus(JoinRequestStatus.approved),
+      );
+      _controller.watch(null);
+    }
     _showSnack(
       success
           ? 'Solicitud aprobada correctamente.'
@@ -77,6 +92,12 @@ class _TournamentJoinRequestsScreenState
       display.request.id,
       reason: reason,
     );
+    if (success) {
+      widget.onRequestHandled?.call(
+        display.request.copyWithStatus(JoinRequestStatus.rejected),
+      );
+      _controller.watch(null);
+    }
     _showSnack(
       success
           ? 'Solicitud rechazada correctamente.'
@@ -237,11 +258,13 @@ class _TournamentJoinRequestsScreenState
       JoinRequestsLoadState.loaded => ListView.separated(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
         itemCount: _controller.requests.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final display = _controller.requests[index];
+          final isHighlighted = display.request.id == widget.initialRequestId;
           return JoinRequestCard(
             display: display,
+            isHighlighted: isHighlighted,
             isProcessing: _controller.isProcessing(display.request.id),
             onApprove: () => _approve(display),
             onReject: () => _reject(display),

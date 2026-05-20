@@ -35,7 +35,9 @@ void main() {
     await tester.pump();
     expect(find.byType(EventsScreen), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.tap(find.text('mis torneos'));
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.add_rounded));
     await tester.pump();
     expect(find.byType(CreateTournamentScreen), findsOneWidget);
 

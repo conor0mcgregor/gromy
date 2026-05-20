@@ -47,6 +47,7 @@ class PreinscriptionScreen extends StatefulWidget {
   final AppParticipant? initialParticipant;
   final AppTeam? initialEnrolledTeam;
   final bool? initialCanCancelTeam;
+  final String? invitationNotificationId;
 
   const PreinscriptionScreen({
     super.key,
@@ -55,6 +56,7 @@ class PreinscriptionScreen extends StatefulWidget {
     this.initialParticipant,
     this.initialEnrolledTeam,
     this.initialCanCancelTeam,
+    this.invitationNotificationId,
   });
 
   @override
@@ -99,8 +101,8 @@ class _PreinscriptionScreenState extends State<PreinscriptionScreen> {
         final uid = FirebaseAuth.instance.currentUser?.uid;
         final isTournamentAdmin =
             uid != null &&
-                (widget.tournament.organizerUid == uid ||
-                    widget.tournament.adminIds.contains(uid));
+            (widget.tournament.organizerUid == uid ||
+                widget.tournament.adminIds.contains(uid));
 
         return Scaffold(
           backgroundColor: const Color(0xFF0F172A),
@@ -124,16 +126,17 @@ class _PreinscriptionScreenState extends State<PreinscriptionScreen> {
           bottomNavigationBar: _controller.state == PreinscriptionState.loading
               ? const _LoadingBottomBar()
               : _StickyEnrollBar(
-            tournament: widget.tournament,
-            isEnrolled: status.isEnrolled,
-            onCancelInscription: status.isEnrolled
-                ? _controller.cancelInscription
-                : null,
-            participant: status.participant,
-            enrolledTeam: status.enrolledTeam,
-            canCancelTeam: status.canCancel,
-            hasPendingJoinRequest: status.hasPendingJoinRequest,
-          ),
+                  tournament: widget.tournament,
+                  isEnrolled: status.isEnrolled,
+                  onCancelInscription: status.isEnrolled
+                      ? _controller.cancelInscription
+                      : null,
+                  participant: status.participant,
+                  enrolledTeam: status.enrolledTeam,
+                  canCancelTeam: status.canCancel,
+                  hasPendingJoinRequest: status.hasPendingJoinRequest,
+                  invitationNotificationId: widget.invitationNotificationId,
+                ),
 
           // ── Contenido scrollable ──
           body: SingleChildScrollView(
@@ -239,7 +242,7 @@ class _CoverHero extends StatelessWidget {
               fit: BoxFit.cover,
               filterQuality: FilterQuality.medium,
               loadingBuilder: (_, child, progress) =>
-              progress == null ? child : _buildPlaceholder(),
+                  progress == null ? child : _buildPlaceholder(),
               errorBuilder: (_, e, s) => _buildPlaceholder(),
             )
           else
@@ -407,10 +410,8 @@ class _OrganizerChip extends StatelessWidget {
         if (FirebaseAuth.instance.currentUser?.uid == organizerUid) {
           Navigator.pushAndRemoveUntil(
             context,
-            MaterialPageRoute(
-              builder: (_) => const AppShell(initialIndex: 4),
-            ),
-                (route) => false,
+            MaterialPageRoute(builder: (_) => const AppShell(initialIndex: 4)),
+            (route) => false,
           );
           return;
         }
@@ -531,7 +532,7 @@ class _DescriptionSection extends StatelessWidget {
     final hasRules = tournament.allInformation.isNotEmpty;
     final hasAdditional =
         tournament.additionalInfo != null &&
-            tournament.additionalInfo!.isNotEmpty;
+        tournament.additionalInfo!.isNotEmpty;
 
     if (!hasRules && !hasAdditional) {
       return const SizedBox.shrink();
@@ -609,7 +610,7 @@ class _ContactsSection extends StatelessWidget {
     final hasLinks = tournament.contactLinks.isNotEmpty;
     final hasOrganizer =
         tournament.organizerDisplayName != null &&
-            tournament.organizerDisplayName!.isNotEmpty;
+        tournament.organizerDisplayName!.isNotEmpty;
 
     // Si no hay ningún dato de contacto, no mostramos la sección
     if (!hasEmail && !hasPhone && !hasLinks && !hasOrganizer) {
@@ -652,7 +653,7 @@ class _ContactsSection extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           ...tournament.contactLinks.map(
-                (link) => Padding(
+            (link) => Padding(
               padding: const EdgeInsets.only(bottom: 6),
               child: Row(
                 children: [
@@ -904,6 +905,7 @@ class _StickyEnrollBar extends StatefulWidget {
     this.enrolledTeam,
     this.canCancelTeam = true,
     this.hasPendingJoinRequest = false,
+    this.invitationNotificationId,
   });
   final AppTournament tournament;
   final bool isEnrolled;
@@ -912,6 +914,7 @@ class _StickyEnrollBar extends StatefulWidget {
   final AppTeam? enrolledTeam;
   final bool canCancelTeam;
   final bool hasPendingJoinRequest;
+  final String? invitationNotificationId;
 
   @override
   State<_StickyEnrollBar> createState() => _StickyEnrollBarState();
@@ -1082,35 +1085,35 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
         top: false,
         child: widget.isEnrolled
             ? Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (widget.enrolledTeam != null) ...[
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Text(
-                  'Inscrito como: ${widget.enrolledTeam!.name}',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ] else ...[
-              const Padding(
-                padding: EdgeInsets.only(bottom: 12),
-                child: Text(
-                  'Ya estás inscrito en este torneo',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-            GradientButton(
-              label: editBlockReason ?? 'Editar inscripcion',
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (widget.enrolledTeam != null) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        'Inscrito como: ${widget.enrolledTeam!.name}',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        'Ya estás inscrito en este torneo',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                  GradientButton(
+                    label: editBlockReason ?? 'Editar inscripcion',
                     icon: Icons.edit_rounded,
                     onPressed: canEdit ? _handleEdit : null,
                     variant: GradientButtonVariant.select,
@@ -1119,23 +1122,23 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
                   const SizedBox(height: 10),
                   GradientButton(
                     label: widget.canCancelTeam
-                  ? (_isCancelling
-                  ? 'Cancelando...'
-                  : 'Cancelar inscripción')
-                  : 'Solo administradores pueden cancelar',
-              icon: widget.canCancelTeam
-                  ? (_isCancelling
-                  ? Icons.hourglass_top_rounded
-                  : Icons.cancel_rounded)
-                  : Icons.lock_outline_rounded,
-              onPressed: (widget.canCancelTeam && !_isCancelling)
-                  ? _handleCancel
-                  : null,
-              variant: GradientButtonVariant.danger,
-              size: GradientButtonSize.large,
-            ),
-          ],
-        )
+                        ? (_isCancelling
+                              ? 'Cancelando...'
+                              : 'Cancelar inscripción')
+                        : 'Solo administradores pueden cancelar',
+                    icon: widget.canCancelTeam
+                        ? (_isCancelling
+                              ? Icons.hourglass_top_rounded
+                              : Icons.cancel_rounded)
+                        : Icons.lock_outline_rounded,
+                    onPressed: (widget.canCancelTeam && !_isCancelling)
+                        ? _handleCancel
+                        : null,
+                    variant: GradientButtonVariant.danger,
+                    size: GradientButtonSize.large,
+                  ),
+                ],
+              )
             : GradientButton(
                 label: !acceptsRegistrations
                     ? 'Inscripción no disponible'
@@ -1149,15 +1152,17 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
                     : hasPendingJoinRequest
                     ? Icons.pending_actions_rounded
                     : Icons.how_to_reg_rounded,
-                onPressed: !acceptsRegistrations ||
-                        isFull ||
-                        hasPendingJoinRequest
+                onPressed:
+                    !acceptsRegistrations || isFull || hasPendingJoinRequest
                     ? null
                     : () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              InscriptionScreen(tournament: widget.tournament),
+                          builder: (_) => InscriptionScreen(
+                            tournament: widget.tournament,
+                            invitationNotificationId:
+                                widget.invitationNotificationId,
+                          ),
                         ),
                       ),
                 variant: isFull || !acceptsRegistrations

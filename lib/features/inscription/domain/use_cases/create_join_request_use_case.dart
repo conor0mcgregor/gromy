@@ -58,6 +58,21 @@ class CreateJoinRequestUseCase {
           entityType: entityType,
           fallbackUser: requestedBy,
         ),
+        requesterNickname: await _resolveEntityNickname(
+          entityId: entityId,
+          entityType: entityType,
+          fallbackUser: requestedBy,
+        ),
+        requesterAvatarUrl: await _resolveEntityAvatar(
+          entityId: entityId,
+          entityType: entityType,
+        ),
+        tournamentPortadaUrl: tournament.portadaUrl,
+        tournamentSport: tournament.sport.label,
+        tournamentLocation: tournament.location,
+        tournamentParticipantCount: tournament.participantCount,
+        tournamentMaxParticipants: tournament.maxParticipants,
+        entityType: entityType.name,
       );
     } catch (_) {
       // La solicitud no debe fallar si la notificacion no se puede crear.
@@ -79,5 +94,30 @@ class CreateJoinRequestUseCase {
     final resolved = user ?? fallbackUser;
     final fullName = '${resolved.name} ${resolved.lastName}'.trim();
     return fullName.isNotEmpty ? fullName : resolved.nickname;
+  }
+
+  Future<String?> _resolveEntityNickname({
+    required String entityId,
+    required ParticipantEntityType entityType,
+    required AppUser fallbackUser,
+  }) async {
+    if (entityType == ParticipantEntityType.team) {
+      final AppTeam? team = await _teamRepository.getTeam(entityId);
+      return team?.name;
+    }
+    final user = await _userRepository.getUser(entityId);
+    return (user ?? fallbackUser).nickname;
+  }
+
+  Future<String?> _resolveEntityAvatar({
+    required String entityId,
+    required ParticipantEntityType entityType,
+  }) async {
+    if (entityType == ParticipantEntityType.team) {
+      final AppTeam? team = await _teamRepository.getTeam(entityId);
+      return team?.photoUrl;
+    }
+    final user = await _userRepository.getUser(entityId);
+    return user?.photoUrl;
   }
 }

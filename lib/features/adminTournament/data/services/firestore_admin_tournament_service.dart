@@ -28,6 +28,20 @@ class FirestoreAdminTournamentService implements AdminTournamentRepository {
   CollectionReference<Map<String, dynamic>> get _tournaments =>
       _db.collection('tournaments');
 
+  CollectionReference<Map<String, dynamic>> get _privateTournaments =>
+      _db.collection('private_tournaments');
+
+  Future<DocumentReference<Map<String, dynamic>>> _tournamentRefFor(
+    String tournamentId,
+  ) async {
+    final publicRef = _tournaments.doc(tournamentId);
+    final publicDoc = await publicRef.get().timeout(
+      const Duration(seconds: 10),
+    );
+    if (publicDoc.exists) return publicRef;
+    return _privateTournaments.doc(tournamentId);
+  }
+
   // ── Actualización ─────────────────────────────────────────────────────────
 
   @override
@@ -39,10 +53,8 @@ class FirestoreAdminTournamentService implements AdminTournamentRepository {
     if (data.isEmpty) return;
 
     data['updatedAt'] = Timestamp.fromDate(updated.updatedAt);
-    await _tournaments
-        .doc(updated.id)
-        .update(data)
-        .timeout(const Duration(seconds: 10));
+    final tournamentRef = await _tournamentRefFor(updated.id);
+    await tournamentRef.update(data).timeout(const Duration(seconds: 10));
   }
 
   Map<String, dynamic> _changedFields(
@@ -125,12 +137,7 @@ class FirestoreAdminTournamentService implements AdminTournamentRepository {
       original.organizerEmail,
       updated.organizerEmail,
     );
-    _putIfChanged(
-      data,
-      'status',
-      original.status.name,
-      updated.status.name,
-    );
+    _putIfChanged(data, 'status', original.status.name, updated.status.name);
     if (!_stringListEquals(original.contactLinks, updated.contactLinks)) {
       data['contactLinks'] = updated.contactLinks;
     }
@@ -207,14 +214,29 @@ class FirestoreAdminTournamentService implements AdminTournamentRepository {
     required String tournamentId,
     required String participantId,
   }) async {
-    final tournamentRef = _tournaments.doc(tournamentId);
-    final participantRef = tournamentRef
-        .collection('participants')
-        .doc(participantId);
+    final tournamentRef = await _tournamentRefFor(tournamentId);
 
     await _db.runTransaction((transaction) async {
       // 1. Verificar existencia del participante
-      final participantDoc = await transaction.get(participantRef);
+      final participantRef = tournamentRef
+          .collection('participants')
+          .doc(participantId);
+      var writableParticipantRef = participantRef;
+      var participantDoc = await transaction.get(participantRef);
+      if (!participantDoc.exists &&
+          tournamentRef.parent.id == 'private_tournaments') {
+        final legacyParticipantRef = _tournaments
+            .doc(tournamentId)
+            .collection('participants')
+            .doc(participantId);
+        final legacyParticipantDoc = await transaction.get(
+          legacyParticipantRef,
+        );
+        if (legacyParticipantDoc.exists) {
+          writableParticipantRef = legacyParticipantRef;
+          participantDoc = legacyParticipantDoc;
+        }
+      }
       if (!participantDoc.exists) {
         throw Exception('El participante ya no está inscrito.');
       }
@@ -229,7 +251,7 @@ class FirestoreAdminTournamentService implements AdminTournamentRepository {
           tournamentDoc.data()?['participantCount'] as int? ?? 0;
 
       // 3. Eliminar participante
-      transaction.delete(participantRef);
+      transaction.delete(writableParticipantRef);
 
       // 4. Decrementar contador
       if (currentCount > 0) {
@@ -246,19 +268,36 @@ class FirestoreAdminTournamentService implements AdminTournamentRepository {
     required String participantId,
     required String categoryId,
   }) async {
-    final participantRef = _tournaments
-        .doc(tournamentId)
-        .collection('participants')
-        .doc(participantId);
+    final tournamentRef = await _tournamentRefFor(tournamentId);
 
     await _db
         .runTransaction((transaction) async {
-          final participantDoc = await transaction.get(participantRef);
+          final participantRef = tournamentRef
+              .collection('participants')
+              .doc(participantId);
+          var writableParticipantRef = participantRef;
+          var participantDoc = await transaction.get(participantRef);
+          if (!participantDoc.exists &&
+              tournamentRef.parent.id == 'private_tournaments') {
+            final legacyParticipantRef = _tournaments
+                .doc(tournamentId)
+                .collection('participants')
+                .doc(participantId);
+            final legacyParticipantDoc = await transaction.get(
+              legacyParticipantRef,
+            );
+            if (legacyParticipantDoc.exists) {
+              writableParticipantRef = legacyParticipantRef;
+              participantDoc = legacyParticipantDoc;
+            }
+          }
           if (!participantDoc.exists) {
             throw Exception('El participante ya no está inscrito.');
           }
 
-          transaction.update(participantRef, {'categoryId': categoryId});
+          transaction.update(writableParticipantRef, {
+            'categoryId': categoryId,
+          });
         })
         .timeout(const Duration(seconds: 10));
   }
@@ -270,8 +309,8 @@ class FirestoreAdminTournamentService implements AdminTournamentRepository {
     required String tournamentId,
     required String adminUid,
   }) async {
-    await _tournaments
-        .doc(tournamentId)
+    final tournamentRef = await _tournamentRefFor(tournamentId);
+    await tournamentRef
         .update({
           'adminIds': FieldValue.arrayUnion([adminUid]),
         })
@@ -283,8 +322,8 @@ class FirestoreAdminTournamentService implements AdminTournamentRepository {
     required String tournamentId,
     required String adminUid,
   }) async {
-    await _tournaments
-        .doc(tournamentId)
+    final tournamentRef = await _tournamentRefFor(tournamentId);
+    await tournamentRef
         .update({
           'adminIds': FieldValue.arrayRemove([adminUid]),
         })
@@ -295,7 +334,7 @@ class FirestoreAdminTournamentService implements AdminTournamentRepository {
 
   @override
   Future<void> deleteTournament(String tournamentId) async {
-    final tournamentRef = _tournaments.doc(tournamentId);
+    final tournamentRef = await _tournamentRefFor(tournamentId);
 
     // 1. Eliminar todos los participantes de la subcolección
     final participantsSnap = await tournamentRef
@@ -312,6 +351,16 @@ class FirestoreAdminTournamentService implements AdminTournamentRepository {
       batch.delete(doc.reference);
     }
 
+    if (tournamentRef.parent.id == 'private_tournaments') {
+      final legacyParticipantsSnap = await _tournaments
+          .doc(tournamentId)
+          .collection('participants')
+          .get();
+      for (final doc in legacyParticipantsSnap.docs) {
+        batch.delete(doc.reference);
+      }
+    }
+
     // 3. Eliminar el documento del torneo
     batch.delete(tournamentRef);
 
@@ -322,10 +371,16 @@ class FirestoreAdminTournamentService implements AdminTournamentRepository {
 
   @override
   Future<AppTournament?> getTournament(String tournamentId) async {
-    final doc = await _tournaments
+    var doc = await _tournaments
         .doc(tournamentId)
         .get()
         .timeout(const Duration(seconds: 10));
+    if (!doc.exists) {
+      doc = await _privateTournaments
+          .doc(tournamentId)
+          .get()
+          .timeout(const Duration(seconds: 10));
+    }
     if (!doc.exists || doc.data() == null) return null;
     return AppTournament.fromMap(doc.data()!);
   }

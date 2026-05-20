@@ -9,6 +9,7 @@ class JoinRequestCard extends StatelessWidget {
     super.key,
     required this.display,
     required this.isProcessing,
+    this.isHighlighted = false,
     this.onApprove,
     this.onReject,
     this.onTap,
@@ -16,6 +17,7 @@ class JoinRequestCard extends StatelessWidget {
 
   final JoinRequestDisplay display;
   final bool isProcessing;
+  final bool isHighlighted;
   final VoidCallback? onApprove;
   final VoidCallback? onReject;
   final VoidCallback? onTap;
@@ -34,8 +36,23 @@ class JoinRequestCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
-          color: Colors.white.withValues(alpha: 0.05),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          color: isHighlighted
+              ? _accent.withValues(alpha: 0.13)
+              : Colors.white.withValues(alpha: 0.05),
+          border: Border.all(
+            color: isHighlighted
+                ? _accent.withValues(alpha: 0.42)
+                : Colors.white.withValues(alpha: 0.08),
+          ),
+          boxShadow: isHighlighted
+              ? [
+                  BoxShadow(
+                    color: _accent.withValues(alpha: 0.16),
+                    blurRadius: 18,
+                    offset: const Offset(0, 5),
+                  ),
+                ]
+              : null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

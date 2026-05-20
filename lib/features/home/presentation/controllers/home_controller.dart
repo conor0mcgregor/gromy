@@ -5,11 +5,16 @@ import '../../../tournament/data/services/firestore_tournament_service.dart';
 
 class HomeController extends ChangeNotifier {
   HomeController({TournamentRepository? tournamentRepository})
-      : _tournamentRepository = tournamentRepository ?? FirestoreTournamentService();
+    : _tournamentRepository = tournamentRepository;
 
-  final TournamentRepository _tournamentRepository;
+  final TournamentRepository? _tournamentRepository;
 
   Stream<List<AppTournament>> watchTournaments() {
-    return _tournamentRepository.watchTournaments();
+    try {
+      final repository = _tournamentRepository ?? FirestoreTournamentService();
+      return repository.watchTournaments();
+    } catch (e) {
+      return Stream<List<AppTournament>>.error(e);
+    }
   }
 }

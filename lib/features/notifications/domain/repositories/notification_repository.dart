@@ -33,6 +33,11 @@ abstract interface class NotificationRepository {
   /// Marca una notificación como clickeada/interactuada.
   Future<void> markAsClicked({required String notificationId});
 
+  Future<void> updateNotificationData({
+    required String notificationId,
+    required Map<String, dynamic> data,
+  });
+
   /// Elimina una notificación específica.
   Future<void> deleteNotification({required String notificationId});
 

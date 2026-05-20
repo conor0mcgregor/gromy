@@ -21,7 +21,9 @@ import '../../../participants/presentation/widgets/participants_section.dart';
 import '../../../participants/presentation/widgets/team_card.dart';
 import '../../../inscription/screen/tournament_join_requests_screen.dart';
 import '../../../tournament/data/model/app_tournament.dart';
+import '../../../tournament/presentation/screens/create_tournament/form/widgets/registration_form_builder.dart';
 import '../../../tournament/presentation/screens/create_tournament/form/steps/step3_geolocation.dart';
+import '../../../user/data/models/app_user.dart';
 import '../controllers/tournament_management_controller.dart';
 import 'participants_management.dart';
 
@@ -658,36 +660,42 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Estado de Inscripciones',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Estado de Inscripciones',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _ctrl.edited.status == TournamentStatus.registration
-                        ? 'Abiertas (Público puede inscribirse)'
-                        : 'Cerradas (No se permiten más inscripciones)',
-                    style: TextStyle(
-                      color:
-                          _ctrl.edited.status == TournamentStatus.registration
-                          ? const Color(0xFF22C55E)
-                          : const Color(0xFFFF4D6A),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
+                    const SizedBox(height: 2),
+                    Text(
+                      _ctrl.edited.status == TournamentStatus.registration
+                          ? 'Abiertas (Público puede inscribirse)'
+                          : 'Cerradas (No se permiten más inscripciones)',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color:
+                            _ctrl.edited.status == TournamentStatus.registration
+                            ? const Color(0xFF22C55E)
+                            : const Color(0xFFFF4D6A),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 12),
               Switch(
                 value: _ctrl.edited.status == TournamentStatus.registration,
-                activeColor: const Color(0xFF6C63FF),
+                activeThumbColor: const Color(0xFF6C63FF),
                 onChanged: (_) => _ctrl.toggleRegistrationStatus(),
               ),
             ],

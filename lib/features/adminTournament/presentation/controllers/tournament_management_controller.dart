@@ -1151,6 +1151,8 @@ class TournamentManagementController extends ChangeNotifier {
     List<String>? adminIds,
     String? portadaUrl,
     int? participantCount,
+    TournamentStatus? status,
+    RegistrationFormSchema? registrationForm,
   }) {
     return AppTournament(
       id: _edited.id,
@@ -1207,8 +1209,10 @@ class TournamentManagementController extends ChangeNotifier {
         a.participantCount != b.participantCount ||
         a.organizerDisplayName != b.organizerDisplayName ||
         a.organizerEmail != b.organizerEmail ||
+        a.status != b.status ||
         !_listEquals(a.contactLinks, b.contactLinks) ||
         !_listEquals(a.categories, b.categories) ||
+        !_registrationFormsEqual(a.registrationForm, b.registrationForm) ||
         !_listEquals(a.adminIds, b.adminIds);
   }
 

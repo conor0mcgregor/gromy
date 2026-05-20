@@ -8,9 +8,7 @@ import '../../../../support/test_doubles.dart';
 void main() {
   Widget buildTestApp(AuthController controller) {
     return MaterialApp(
-      home: Scaffold(
-        body: ProfileScreen(authController: controller),
-      ),
+      home: Scaffold(body: ProfileScreen(authController: controller)),
     );
   }
 
@@ -28,7 +26,8 @@ void main() {
 
     await tester.pumpWidget(buildTestApp(controller));
     await tester.tap(find.text('Cerrar sesion'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(authRepository.signOutCalls, 1);
   });
@@ -48,7 +47,8 @@ void main() {
 
     await tester.pumpWidget(buildTestApp(controller));
     await tester.tap(find.text('Cerrar sesion'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(
       find.text('No se pudo cerrar sesion. Intentalo de nuevo.'),

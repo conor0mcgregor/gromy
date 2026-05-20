@@ -45,8 +45,10 @@ class TournamentJoinRequestsController extends ChangeNotifier {
 
   bool isProcessing(String requestId) => processingIds.contains(requestId);
 
-  void init() {
-    watch(statusFilter);
+  void init({
+    JoinRequestStatus? initialStatusFilter = JoinRequestStatus.pending,
+  }) {
+    watch(initialStatusFilter);
   }
 
   void watch(JoinRequestStatus? status) {

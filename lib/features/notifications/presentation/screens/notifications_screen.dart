@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -6,6 +8,7 @@ import '../controllers/team_invitation_controller.dart';
 import '../controllers/tournament_invitation_controller.dart';
 import '../navigation/notification_navigation_handler.dart';
 import '../widgets/admin_invitation_card.dart';
+import '../widgets/join_request_notification_card.dart';
 import '../widgets/notification_card.dart';
 import '../widgets/team_invitation_card.dart';
 import '../widgets/tournament_invitation_card.dart';
@@ -13,7 +16,9 @@ import '../../domain/entities/app_notification.dart';
 import '../../domain/entities/notification_type.dart';
 import 'admin_invitation_details_screen.dart';
 import 'team_invitation_details_screen.dart';
+import '../../../inscription/data/models/join_request.dart';
 import '../../../inscription/screen/preinscription_screen.dart';
+import '../../../inscription/screen/tournament_join_requests_screen.dart';
 import '../../../tournament/data/services/firestore_tournament_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -59,8 +64,13 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       parent: _fadeController,
       curve: Curves.easeOut,
     );
+    _syncFadeAnimation();
 
-    _userId = FirebaseAuth.instance.currentUser?.uid;
+    try {
+      _userId = FirebaseAuth.instance.currentUser?.uid;
+    } catch (_) {
+      _userId = null;
+    }
     // AppShell ya llama init(); diferimos por si esta pantalla se monta sola.
     if (_userId != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -70,10 +80,20 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     }
   }
 
+  void _syncFadeAnimation() {
+    if (_controller.state == NotificationsState.loaded ||
+        _controller.state == NotificationsState.empty) {
+      // Datos ya cargados en AppShell: evitar lista invisible (opacity 0).
+      _fadeController.value = 1.0;
+    }
+  }
+
   void _onStateChanged() {
     if (_controller.state == NotificationsState.loaded ||
         _controller.state == NotificationsState.empty) {
-      _fadeController.forward();
+      if (_fadeController.value < 1.0) {
+        _fadeController.forward();
+      }
     }
     if (mounted) setState(() {});
   }
@@ -398,6 +418,14 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             );
           }
 
+          if (notification.type == NotificationType.joinRequestPending) {
+            return JoinRequestNotificationCard(
+              notification: notification,
+              onDismiss: () => _controller.removeNotification(notification.id),
+              onTap: () async => _handleNotificationTap(notification),
+            );
+          }
+
           if (notification.type == NotificationType.tournamentInvitation ||
               (notification.type == NotificationType.invitation &&
                   notification.data['tournamentId'] != null)) {
@@ -475,6 +503,11 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     }
 
     // Navegación especializada para torneos privados y públicos
+    if (notification.type == NotificationType.joinRequestPending) {
+      await _openTournamentJoinRequests(notification);
+      return;
+    }
+
     if (notification.type == NotificationType.tournamentInvitation ||
         (notification.data['tournamentId'] != null &&
             notification.data['tournamentId'].toString().isNotEmpty)) {
@@ -530,6 +563,60 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       Navigator.of(context).pop(); // loading
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No se pudo abrir el torneo.')),
+      );
+    }
+  }
+
+  Future<void> _openTournamentJoinRequests(AppNotification notification) async {
+    final tournamentId = notification.data['tournamentId']?.toString() ?? '';
+    if (tournamentId.isEmpty) return;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final tournament = await FirestoreTournamentService().getTournament(
+        tournamentId,
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+
+      if (tournament == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('El torneo ya no existe.')),
+        );
+        return;
+      }
+
+      final requestId = notification.data['requestId']?.toString();
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => TournamentJoinRequestsScreen(
+            tournament: tournament,
+            initialRequestId: requestId,
+            initialStatusFilter: JoinRequestStatus.pending,
+            onRequestHandled: (request) {
+              _controller.markNotificationAsRead(notification.id);
+              _controller.updateNotificationData(notification.id, {
+                'status': request.status.name,
+                'reviewedAt': DateTime.now().toIso8601String(),
+              });
+            },
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo abrir la gestion de solicitudes.'),
+        ),
       );
     }
   }
@@ -615,6 +702,7 @@ class _ShimmerNotificationCardState extends State<_ShimmerNotificationCard>
     with SingleTickerProviderStateMixin {
   late final AnimationController _shimmerController;
   late final Animation<double> _shimmerAnimation;
+  Timer? _delayTimer;
 
   @override
   void initState() {
@@ -629,13 +717,14 @@ class _ShimmerNotificationCardState extends State<_ShimmerNotificationCard>
       curve: Curves.easeInOut,
     );
 
-    Future.delayed(Duration(milliseconds: widget.delay), () {
+    _delayTimer = Timer(Duration(milliseconds: widget.delay), () {
       if (mounted) _shimmerController.repeat(reverse: true);
     });
   }
 
   @override
   void dispose() {
+    _delayTimer?.cancel();
     _shimmerController.dispose();
     super.dispose();
   }

@@ -21,7 +21,7 @@ class ProfileTeamsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = FirebaseAuth.instance.currentUser;
+    final currentUser = _currentUser();
     if (currentUser == null) {
       return _buildErrorState('No se pudo obtener el usuario actual.');
     }
@@ -61,9 +61,7 @@ class ProfileTeamsTab extends StatelessWidget {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const CreateTeamScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const CreateTeamScreen()),
                   );
                 },
               ),
@@ -101,6 +99,14 @@ class ProfileTeamsTab extends StatelessWidget {
     );
   }
 
+  User? _currentUser() {
+    try {
+      return FirebaseAuth.instance.currentUser;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -110,10 +116,7 @@ class ProfileTeamsTab extends StatelessWidget {
             shaderCallback: (bounds) => const LinearGradient(
               colors: [Color(0xFF6C63FF), Color(0xFF00D4FF)],
             ).createShader(bounds),
-            child: const Icon(
-              Icons.groups_rounded,
-              size: 64,
-            ),
+            child: const Icon(Icons.groups_rounded, size: 64),
           ),
           const SizedBox(height: 16),
           ShaderMask(

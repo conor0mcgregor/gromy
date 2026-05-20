@@ -18,7 +18,13 @@ import '../presentation/widgets/dynamic_registration_field.dart';
 
 class InscriptionScreen extends StatefulWidget {
   final AppTournament tournament;
-  const InscriptionScreen({super.key, required this.tournament});
+  final String? invitationNotificationId;
+
+  const InscriptionScreen({
+    super.key,
+    required this.tournament,
+    this.invitationNotificationId,
+  });
 
   @override
   State<InscriptionScreen> createState() => _InscriptionScreenState();
@@ -34,7 +40,10 @@ class _InscriptionScreenState extends State<InscriptionScreen> {
   @override
   void initState() {
     super.initState();
-    _ctrl = InscriptionController(tournament: widget.tournament);
+    _ctrl = InscriptionController(
+      tournament: widget.tournament,
+      invitationNotificationId: widget.invitationNotificationId,
+    );
     _ctrl.addListener(_onControllerChange);
     _ctrl.initialize();
   }

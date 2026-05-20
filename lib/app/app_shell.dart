@@ -11,6 +11,7 @@ import '../features/notifications/presentation/controllers/notifications_control
 import '../features/notifications/presentation/navigation/notification_navigation_handler.dart';
 import '../features/notifications/presentation/screens/notifications_screen.dart';
 import '../features/profile/presentation/screens/profile_screen.dart';
+import '../features/inscription/data/models/join_request.dart';
 import '../features/inscription/screen/preinscription_screen.dart';
 import '../features/inscription/screen/tournament_join_requests_screen.dart';
 import '../features/tournament/data/services/firestore_tournament_service.dart';
@@ -23,7 +24,6 @@ class AppShell extends StatefulWidget {
   final AuthController? authController;
   final int initialIndex;
 
-
   @override
   State<AppShell> createState() => _AppShellState();
 }
@@ -33,9 +33,9 @@ class _AppShellState extends State<AppShell> {
   late final AuthController _authController;
   late final bool _ownsAuthController;
   late final NotificationsController _controllerNotifications;
+  late final List<Widget?> _tabs;
 
   String? _userId;
-
 
   @override
   void initState() {
@@ -44,8 +44,13 @@ class _AppShellState extends State<AppShell> {
     _ownsAuthController = widget.authController == null;
     _authController = widget.authController ?? AuthController();
     _controllerNotifications = NotificationsController();
+    _tabs = List<Widget?>.filled(5, null);
 
-    _userId = FirebaseAuth.instance.currentUser?.uid;
+    try {
+      _userId = FirebaseAuth.instance.currentUser?.uid;
+    } catch (_) {
+      _userId = null;
+    }
     if (_userId != null) {
       _controllerNotifications.init(_userId!);
     }
@@ -55,17 +60,38 @@ class _AppShellState extends State<AppShell> {
   void _registerNotificationRoutes() {
     NotificationNavigationHandler.instance.registerRoutes({
       '/tournament/join-requests': (context, data) async {
-        final tournamentId = data['tournamentId'] as String?;
+        final tournamentId = data['tournamentId']?.toString();
         if (tournamentId == null || tournamentId.isEmpty) return;
         final tournament = await FirestoreTournamentService().getTournament(
           tournamentId,
         );
-        if (tournament == null || !context.mounted) return;
+        if (!context.mounted) return;
+        if (tournament == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('El torneo ya no existe.')),
+          );
+          return;
+        }
+        final requestId = data['requestId']?.toString();
+        final notificationId =
+            data['notificationId']?.toString() ?? data['id']?.toString();
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) =>
-                TournamentJoinRequestsScreen(tournament: tournament),
+            builder: (_) => TournamentJoinRequestsScreen(
+              tournament: tournament,
+              initialRequestId: requestId,
+              initialStatusFilter: JoinRequestStatus.pending,
+              onRequestHandled: (request) {
+                if (notificationId == null || notificationId.isEmpty) return;
+                _controllerNotifications.markNotificationAsRead(notificationId);
+                _controllerNotifications
+                    .updateNotificationData(notificationId, {
+                      'status': request.status.name,
+                      'reviewedAt': DateTime.now().toIso8601String(),
+                    });
+              },
+            ),
           ),
         );
       },
@@ -98,19 +124,19 @@ class _AppShellState extends State<AppShell> {
     super.dispose();
   }
 
-  List<Widget> _buildTabs() {
-    return [
-      const HomeScreen(),
-      const EventsScreen(),
-      const MyTournamentScreen(),
-      NotificationsScreen(controller: _controllerNotifications),
-      ProfileScreen(authController: _authController),
-    ];
+  Widget _buildTab(int index) {
+    return _tabs[index] ??= switch (index) {
+      0 => const HomeScreen(),
+      1 => const EventsScreen(),
+      2 => const MyTournamentScreen(),
+      3 => NotificationsScreen(controller: _controllerNotifications),
+      _ => ProfileScreen(authController: _authController),
+    };
   }
 
   @override
   Widget build(BuildContext context) {
-    final tabs = _buildTabs();
+    _buildTab(_currentIndex);
 
     return Scaffold(
       extendBody: true,
@@ -146,7 +172,19 @@ class _AppShellState extends State<AppShell> {
               size: 220,
             ),
           ),
-          IndexedStack(index: _currentIndex, children: tabs),
+          Stack(
+            children: [
+              for (var i = 0; i < _tabs.length; i++)
+                if (_tabs[i] != null)
+                  Offstage(
+                    offstage: _currentIndex != i,
+                    child: TickerMode(
+                      enabled: _currentIndex == i,
+                      child: _tabs[i]!,
+                    ),
+                  ),
+            ],
+          ),
         ],
       ),
       bottomNavigationBar: ListenableBuilder(

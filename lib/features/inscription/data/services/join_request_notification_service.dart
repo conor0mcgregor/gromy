@@ -13,14 +13,26 @@ class JoinRequestNotificationService {
     required String tournamentName,
     required String requestId,
     required String requesterName,
+    String? tournamentPortadaUrl,
+    String? tournamentSport,
+    String? tournamentLocation,
+    int? tournamentParticipantCount,
+    int? tournamentMaxParticipants,
+    String? requesterNickname,
+    String? requesterAvatarUrl,
+    String? entityType,
   }) {
+    final requesterLabel = requesterNickname?.trim().isNotEmpty == true
+        ? '@${requesterNickname!.trim()}'
+        : requesterName;
+
     return _repository.createNotification(
       AppNotification(
         id: '',
         userId: organizerUid,
         type: NotificationType.joinRequestPending,
         title: 'Nueva solicitud de inscripcion',
-        body: '$requesterName quiere unirse a $tournamentName.',
+        body: '$requesterLabel ha solicitado unirse a tu torneo.',
         createdAt: DateTime.now(),
         actionRoute: '/tournament/join-requests',
         data: {
@@ -28,6 +40,15 @@ class JoinRequestNotificationService {
           'requestId': requestId,
           'tournamentName': tournamentName,
           'requesterName': requesterName,
+          'requesterNickname': requesterNickname,
+          'requesterAvatarUrl': requesterAvatarUrl,
+          'tournamentPortadaUrl': tournamentPortadaUrl,
+          'tournamentSport': tournamentSport,
+          'tournamentLocation': tournamentLocation,
+          'tournamentParticipantCount': tournamentParticipantCount,
+          'tournamentMaxParticipants': tournamentMaxParticipants,
+          'entityType': entityType,
+          'status': 'pending',
         },
       ),
     );
