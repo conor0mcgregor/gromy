@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../core/models/registration_form.dart';
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  AppParticipant  ·  Dominio
 //
@@ -24,13 +26,24 @@ enum ParticipantEntityType {
 }
 
 enum ParticipantStatus {
+  active,
   pending,
   approved,
+  pendingReview,
+  cancelled,
   rejected;
 
+  String get firestoreValue {
+    return switch (this) {
+      ParticipantStatus.pendingReview => 'pending_review',
+      _ => name,
+    };
+  }
+
   static ParticipantStatus fromValue(String value) {
+    if (value == 'pending_review') return ParticipantStatus.pendingReview;
     return ParticipantStatus.values.firstWhere(
-      (e) => e.name == value,
+      (e) => e.name == value || e.firestoreValue == value,
       orElse: () => ParticipantStatus.pending,
     );
   }
@@ -45,6 +58,17 @@ class AppParticipant {
     required this.enrolledAt,
     required this.status,
     this.categoryId,
+    this.registrationFormVersion = 1,
+    this.registrationResponses = const [],
+    this.notes,
+    this.complementaryInfo,
+    this.updatedAt,
+    this.approvedBy,
+    this.requiresReview = false,
+    this.reviewStatus,
+    this.reviewReason,
+    this.lastEditedAt,
+    this.updatedBy,
   });
 
   /// ID del documento Firestore (= `participantId`).
@@ -67,18 +91,44 @@ class AppParticipant {
 
   /// Categoría opcional del torneo a la que se inscribe.
   final String? categoryId;
+  final int registrationFormVersion;
+  final List<RegistrationResponse> registrationResponses;
+  final String? notes;
+  final String? complementaryInfo;
+  final DateTime? updatedAt;
+  final String? approvedBy;
+  final bool requiresReview;
+  final String? reviewStatus;
+  final String? reviewReason;
+  final DateTime? lastEditedAt;
+  final String? updatedBy;
 
   // ── Serialización ──────────────────────────────────────────────────────────
 
   Map<String, dynamic> toMap() => {
-        'id': id,
-        'tournamentId': tournamentId,
-        'entityId': entityId,
-        'entityType': entityType.name,
-        'enrolledAt': Timestamp.fromDate(enrolledAt),
-        'status': status.name,
-        'categoryId': categoryId,
-      };
+    'id': id,
+    'tournamentId': tournamentId,
+    'entityId': entityId,
+    'entityType': entityType.name,
+    'enrolledAt': Timestamp.fromDate(enrolledAt),
+    'status': status.firestoreValue,
+    'categoryId': categoryId,
+    'registrationFormVersion': registrationFormVersion,
+    'responses': registrationResponses
+        .map((response) => response.toMap())
+        .toList(),
+    'notes': notes,
+    'complementaryInfo': complementaryInfo,
+    'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
+    'approvedBy': approvedBy,
+    'requiresReview': requiresReview,
+    'reviewStatus': reviewStatus,
+    'reviewReason': reviewReason,
+    'lastEditedAt': lastEditedAt != null
+        ? Timestamp.fromDate(lastEditedAt!)
+        : null,
+    'updatedBy': updatedBy,
+  };
 
   factory AppParticipant.fromMap(Map<String, dynamic> map) {
     return AppParticipant(
@@ -91,6 +141,22 @@ class AppParticipant {
       enrolledAt: _dateFromValue(map['enrolledAt']),
       status: ParticipantStatus.fromValue(map['status'] as String? ?? ''),
       categoryId: map['categoryId'] as String?,
+      registrationFormVersion:
+          (map['registrationFormVersion'] as num?)?.toInt() ?? 1,
+      registrationResponses:
+          (map['responses'] as List<dynamic>? ?? const <dynamic>[])
+              .whereType<Map<String, dynamic>>()
+              .map(RegistrationResponse.fromMap)
+              .toList(),
+      notes: map['notes'] as String?,
+      complementaryInfo: map['complementaryInfo'] as String?,
+      updatedAt: _nullableDateFromValue(map['updatedAt']),
+      approvedBy: map['approvedBy'] as String?,
+      requiresReview: map['requiresReview'] as bool? ?? false,
+      reviewStatus: map['reviewStatus'] as String?,
+      reviewReason: map['reviewReason'] as String?,
+      lastEditedAt: _nullableDateFromValue(map['lastEditedAt']),
+      updatedBy: map['updatedBy'] as String?,
     );
   }
 
@@ -104,6 +170,17 @@ class AppParticipant {
     DateTime? enrolledAt,
     ParticipantStatus? status,
     String? categoryId,
+    int? registrationFormVersion,
+    List<RegistrationResponse>? registrationResponses,
+    String? notes,
+    String? complementaryInfo,
+    DateTime? updatedAt,
+    String? approvedBy,
+    bool? requiresReview,
+    String? reviewStatus,
+    String? reviewReason,
+    DateTime? lastEditedAt,
+    String? updatedBy,
   }) {
     return AppParticipant(
       id: id ?? this.id,
@@ -113,6 +190,19 @@ class AppParticipant {
       enrolledAt: enrolledAt ?? this.enrolledAt,
       status: status ?? this.status,
       categoryId: categoryId ?? this.categoryId,
+      registrationFormVersion:
+          registrationFormVersion ?? this.registrationFormVersion,
+      registrationResponses:
+          registrationResponses ?? this.registrationResponses,
+      notes: notes ?? this.notes,
+      complementaryInfo: complementaryInfo ?? this.complementaryInfo,
+      updatedAt: updatedAt ?? this.updatedAt,
+      approvedBy: approvedBy ?? this.approvedBy,
+      requiresReview: requiresReview ?? this.requiresReview,
+      reviewStatus: reviewStatus ?? this.reviewStatus,
+      reviewReason: reviewReason ?? this.reviewReason,
+      lastEditedAt: lastEditedAt ?? this.lastEditedAt,
+      updatedBy: updatedBy ?? this.updatedBy,
     );
   }
 
@@ -120,5 +210,12 @@ class AppParticipant {
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
     return DateTime.now();
+  }
+
+  static DateTime? _nullableDateFromValue(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    return null;
   }
 }

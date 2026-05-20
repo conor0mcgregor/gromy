@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../../core/getColors/getter_colors.dart';
+import '../../../account/presentation/widgets/delete_account_dialog.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../user/data/models/app_user.dart';
 import '../../../user/data/services/firestore_user_service.dart';
@@ -20,7 +22,7 @@ class ProfileInfoTab extends StatefulWidget {
 
 class _ProfileInfoTabState extends State<ProfileInfoTab> {
   bool _isLoggingOut = false;
-  final _userService = FirestoreUserService();
+  FirestoreUserService? _userService;
 
   late Future<AppUser?> _userFuture;
 
@@ -31,11 +33,20 @@ class _ProfileInfoTabState extends State<ProfileInfoTab> {
   }
 
   void _loadUser() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _currentUid();
     if (uid != null) {
-      _userFuture = _userService.getUser(uid);
+      _userService ??= FirestoreUserService();
+      _userFuture = _userService!.getUser(uid);
     } else {
-      _userFuture = Future.value(null);
+      _userFuture = SynchronousFuture(null);
+    }
+  }
+
+  String? _currentUid() {
+    try {
+      return FirebaseAuth.instance.currentUser?.uid;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -86,17 +97,72 @@ class _ProfileInfoTabState extends State<ProfileInfoTab> {
     }
   }
 
+  Future<void> _openDeleteAccountFlow() async {
+    final deleted = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const DeleteAccountDialog(),
+    );
+
+    if (!mounted || deleted != true) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Tu cuenta ha sido eliminada correctamente.'),
+        backgroundColor: Color(0xFF22C55E),
+      ),
+    );
+  }
+
+  Widget _buildLogoutButton() {
+    final label = _isLoggingOut ? 'Cerrando sesion...' : 'Cerrar sesion';
+    if (_currentUid() == null) {
+      return FilledButton.icon(
+        onPressed: _isLoggingOut ? null : _handleLogout,
+        icon: const Icon(Icons.logout_rounded),
+        label: Text(label),
+        style: FilledButton.styleFrom(
+          backgroundColor: const Color(0xFFD60039),
+          foregroundColor: Colors.white,
+          minimumSize: const Size.fromHeight(52),
+        ),
+      );
+    }
+
+    return GradientButton(
+      onPressed: _isLoggingOut ? null : _handleLogout,
+      label: label,
+      isLoading: _isLoggingOut,
+      icon: Icons.logout_rounded,
+      variant: GradientButtonVariant.danger,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<AppUser?>(
       future: _userFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: Color(0xFF6C63FF)));
+          return const Center(
+            child: CircularProgressIndicator(color: Color(0xFF6C63FF)),
+          );
         }
 
         if (snapshot.hasError || snapshot.data == null) {
-          return const Center(child: Text('Error al cargar perfil', style: TextStyle(color: Colors.white)));
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  'Error al cargar perfil',
+                  style: TextStyle(color: Colors.white),
+                ),
+                const SizedBox(height: 24),
+                _buildLogoutButton(),
+              ],
+            ),
+          );
         }
 
         final user = snapshot.data!;
@@ -111,16 +177,23 @@ class _ProfileInfoTabState extends State<ProfileInfoTab> {
                 height: 100,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 2),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    width: 2,
+                  ),
                   image: user.photoUrl != null
                       ? DecorationImage(
-                    image: NetworkImage(user.photoUrl!),
-                    fit: BoxFit.cover,
-                  )
+                          image: NetworkImage(user.photoUrl!),
+                          fit: BoxFit.cover,
+                        )
                       : null,
                 ),
                 child: user.photoUrl == null
-                    ? const Icon(Icons.person_rounded, size: 50, color: Colors.white)
+                    ? const Icon(
+                        Icons.person_rounded,
+                        size: 50,
+                        color: Colors.white,
+                      )
                     : null,
               ),
               const SizedBox(height: 16),
@@ -153,16 +226,31 @@ class _ProfileInfoTabState extends State<ProfileInfoTab> {
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.1),
+                  ),
                 ),
                 child: Column(
                   children: [
-                    _buildInfoRow(Icons.email_outlined, 'Correo electrónico', user.email),
+                    _buildInfoRow(
+                      Icons.email_outlined,
+                      'Correo electrónico',
+                      user.email,
+                    ),
                     const Divider(color: Colors.white12, height: 1),
-                    _buildInfoRow(Icons.calendar_today_outlined, 'Miembro desde', '${user.createdAt.day.toString().padLeft(2, '0')}/${user.createdAt.month.toString().padLeft(2, '0')}/${user.createdAt.year}'),
-                    if (user.biography != null && user.biography!.isNotEmpty) ...[
+                    _buildInfoRow(
+                      Icons.calendar_today_outlined,
+                      'Miembro desde',
+                      '${user.createdAt.day.toString().padLeft(2, '0')}/${user.createdAt.month.toString().padLeft(2, '0')}/${user.createdAt.year}',
+                    ),
+                    if (user.biography != null &&
+                        user.biography!.isNotEmpty) ...[
                       const Divider(color: Colors.white12, height: 1),
-                      _buildInfoRow(Icons.info_outline_rounded, 'Biografía', user.biography!),
+                      _buildInfoRow(
+                        Icons.info_outline_rounded,
+                        'Biografía',
+                        user.biography!,
+                      ),
                     ],
                   ],
                 ),
@@ -210,12 +298,50 @@ class _ProfileInfoTabState extends State<ProfileInfoTab> {
               const SizedBox(height: 32),
 
               // Botón Cerrar sesión
-              GradientButton(
-                onPressed: _isLoggingOut ? null : _handleLogout,
-                label: _isLoggingOut ? 'Cerrando sesión...' : 'Cerrar sesión',
-                isLoading: _isLoggingOut,
-                icon: Icons.logout_rounded,
-                variant: GradientButtonVariant.danger,
+              _buildLogoutButton(),
+              const SizedBox(height: 24),
+
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF4D6A).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: const Color(0xFFFF4D6A).withValues(alpha: 0.24),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.dangerous_rounded, color: Color(0xFFFF8A8A)),
+                        SizedBox(width: 10),
+                        Text(
+                          'Zona peligrosa',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Gestiona la baja de tu cuenta y la anonimizacion de tus datos personales.',
+                      style: TextStyle(color: Colors.white70, height: 1.35),
+                    ),
+                    const SizedBox(height: 16),
+                    GradientButton(
+                      onPressed: _openDeleteAccountFlow,
+                      label: 'Eliminar cuenta',
+                      icon: Icons.delete_forever_rounded,
+                      variant: GradientButtonVariant.danger,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

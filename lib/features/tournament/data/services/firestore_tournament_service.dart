@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:rxdart/rxdart.dart';
 
+import '../../../../core/models/registration_form.dart';
 import '../../../../database/participant/models/app_participant.dart';
 import '../../../../database/participant/repositories/participant_repository.dart';
 import '../../../../database/participant/services/firestore_participant_service.dart';
@@ -187,12 +188,31 @@ class FirestoreTournamentService implements TournamentRepository {
   // ── Participantes (delegación en ParticipantRepository) ───────────────────
 
   @override
+  Future<AppTournament?> getTournament(String tournamentId) async {
+    var doc = await _tournaments
+        .doc(tournamentId)
+        .get()
+        .timeout(const Duration(seconds: 10));
+    if (!doc.exists) {
+      doc = await _privateTournaments
+          .doc(tournamentId)
+          .get()
+          .timeout(const Duration(seconds: 10));
+    }
+    final data = doc.data();
+    if (!doc.exists || data == null) return null;
+    return AppTournament.fromMap(data);
+  }
+
+  @override
   Future<AppParticipant> joinTournament({
     required String tournamentId,
     required String entityId,
     required ParticipantEntityType entityType,
     ParticipantStatus status = ParticipantStatus.pending,
     String? categoryId,
+    int registrationFormVersion = 1,
+    List<RegistrationResponse> registrationResponses = const [],
   }) async {
     final docRef = await _getTournamentDoc(tournamentId);
     final doc = await docRef.get();
@@ -205,13 +225,14 @@ class FirestoreTournamentService implements TournamentRepository {
     } else {
       throw Exception('El torneo no existe.');
     }
-
     return _participantRepo.joinTournament(
       tournamentId: tournamentId,
       entityId: entityId,
       entityType: entityType,
       status: status,
       categoryId: categoryId,
+      registrationFormVersion: registrationFormVersion,
+      registrationResponses: registrationResponses,
     );
   }
 

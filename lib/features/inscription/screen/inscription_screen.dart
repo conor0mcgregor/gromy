@@ -6,8 +6,10 @@ import '../../../core/widgets/bar_small_botton.dart';
 import '../../../core/widgets/gradient_button.dart';
 import '../../../database/team/models/app_team.dart';
 import '../../../features/tournament/data/model/app_tournament.dart';
+import '../../../features/tournament/data/model/enums_tournament.dart';
 import '../../../features/profile/presentation/screens/profile_teams_tab.dart';
 import '../presentation/controllers/inscription_controller.dart';
+import '../presentation/widgets/dynamic_registration_field.dart';
 
 // ════════════════════════════════════════════════════════════════
 //  INSCRIPTION SCREEN
@@ -61,6 +63,7 @@ class _InscriptionScreenState extends State<InscriptionScreen> {
       context: context,
       barrierDismissible: false,
       builder: (_) => _SuccessDialog(
+        isJoinRequest: _ctrl.submittedJoinRequest,
         onClose: () {
           Navigator.of(context).pop(); // cerrar dialog
           Navigator.of(context).pop(); // volver a preinscription
@@ -120,10 +123,7 @@ class _InscriptionScreenState extends State<InscriptionScreen> {
       case InscriptionLoadState.loading:
       case InscriptionLoadState.idle:
         return const Center(
-          child: CircularProgressIndicator(
-            strokeWidth: 2.5,
-            color: _accent,
-          ),
+          child: CircularProgressIndicator(strokeWidth: 2.5, color: _accent),
         );
       case InscriptionLoadState.error:
         return _ErrorState(message: _ctrl.loadError ?? 'Error desconocido');
@@ -161,7 +161,9 @@ class _InscriptionScreenState extends State<InscriptionScreen> {
                 // 3. Tipo de inscripción (equipo si aplica)
                 if (_ctrl.isTeamTournament) ...[
                   _SectionTitle(
-                      label: 'Seleccionar equipo', icon: Icons.groups_rounded),
+                    label: 'Seleccionar equipo',
+                    icon: Icons.groups_rounded,
+                  ),
                   const SizedBox(height: 4),
                   _TeamRequirementHint(tournament: widget.tournament),
                   const SizedBox(height: 12),
@@ -172,9 +174,21 @@ class _InscriptionScreenState extends State<InscriptionScreen> {
                 // 4. Categorías
                 if (_ctrl.hasCategories) ...[
                   _SectionTitle(
-                      label: 'Categoría', icon: Icons.category_rounded),
+                    label: 'Categoría',
+                    icon: Icons.category_rounded,
+                  ),
                   const SizedBox(height: 12),
                   _CategorySelector(ctrl: _ctrl),
+                  const SizedBox(height: 28),
+                ],
+
+                if (_ctrl.hasAdditionalFields) ...[
+                  _SectionTitle(
+                    label: 'Datos adicionales',
+                    icon: Icons.dynamic_form_rounded,
+                  ),
+                  const SizedBox(height: 12),
+                  _AdditionalFieldsSection(ctrl: _ctrl),
                   const SizedBox(height: 28),
                 ],
 
@@ -207,7 +221,9 @@ class _TournamentChip extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         color: const Color(0xFF6C63FF).withValues(alpha: 0.1),
-        border: Border.all(color: const Color(0xFF6C63FF).withValues(alpha: 0.3)),
+        border: Border.all(
+          color: const Color(0xFF6C63FF).withValues(alpha: 0.3),
+        ),
       ),
       child: Row(
         children: [
@@ -218,7 +234,11 @@ class _TournamentChip extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               color: const Color(0xFF6C63FF).withValues(alpha: 0.2),
             ),
-            child: const Icon(Icons.emoji_events_rounded, color: Color(0xFF6C63FF), size: 20),
+            child: const Icon(
+              Icons.emoji_events_rounded,
+              color: Color(0xFF6C63FF),
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -227,14 +247,21 @@ class _TournamentChip extends StatelessWidget {
               children: [
                 Text(
                   tournament.name,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(
                   tournament.sport.label,
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
@@ -293,11 +320,23 @@ class _UserInfoCard extends StatelessWidget {
           ),
           child: Column(
             children: [
-              _InfoRow(label: 'Nickname', value: '@${user.nickname}', icon: Icons.alternate_email_rounded),
+              _InfoRow(
+                label: 'Nickname',
+                value: '@${user.nickname}',
+                icon: Icons.alternate_email_rounded,
+              ),
               const SizedBox(height: 12),
-              _InfoRow(label: 'Nombre', value: '${user.name} ${user.lastName}', icon: Icons.badge_rounded),
+              _InfoRow(
+                label: 'Nombre',
+                value: '${user.name} ${user.lastName}',
+                icon: Icons.badge_rounded,
+              ),
               const SizedBox(height: 12),
-              _InfoRow(label: 'Email', value: user.email, icon: Icons.email_rounded),
+              _InfoRow(
+                label: 'Email',
+                value: user.email,
+                icon: Icons.email_rounded,
+              ),
             ],
           ),
         ),
@@ -307,7 +346,11 @@ class _UserInfoCard extends StatelessWidget {
 }
 
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.label, required this.value, required this.icon});
+  const _InfoRow({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
   final String label;
   final String value;
   final IconData icon;
@@ -323,20 +366,41 @@ class _InfoRow extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             color: Colors.white.withValues(alpha: 0.06),
           ),
-          child: Icon(icon, size: 15, color: Colors.white.withValues(alpha: 0.4)),
+          child: Icon(
+            icon,
+            size: 15,
+            color: Colors.white.withValues(alpha: 0.4),
+          ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11)),
+              Text(
+                label,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.4),
+                  fontSize: 11,
+                ),
+              ),
               const SizedBox(height: 2),
-              Text(value, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
         ),
-        const Icon(Icons.lock_outline_rounded, size: 13, color: Color(0xFF6C63FF)),
+        const Icon(
+          Icons.lock_outline_rounded,
+          size: 13,
+          color: Color(0xFF6C63FF),
+        ),
       ],
     );
   }
@@ -356,7 +420,11 @@ class _TeamRequirementHint extends StatelessWidget {
       padding: const EdgeInsets.only(top: 4, bottom: 4),
       child: Row(
         children: [
-          const Icon(Icons.info_outline_rounded, size: 13, color: Color(0xFFFFB347)),
+          const Icon(
+            Icons.info_outline_rounded,
+            size: 13,
+            color: Color(0xFFFFB347),
+          ),
           const SizedBox(width: 6),
           Text(
             'Este torneo requiere equipos de $required miembros.',
@@ -380,7 +448,12 @@ class _TeamSelector extends StatelessWidget {
       stream: ctrl.watchUserTeams(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF6C63FF)));
+          return const Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Color(0xFF6C63FF),
+            ),
+          );
         }
 
         final teams = snapshot.data ?? [];
@@ -392,12 +465,14 @@ class _TeamSelector extends StatelessWidget {
         return Column(
           children: [
             // Selector de equipo
-            ...teams.map((team) => _TeamTile(
-              team: team,
-              isSelected: ctrl.selectedTeam?.id == team.id,
-              tournament: ctrl.tournament,
-              onTap: () => ctrl.selectTeam(team),
-            )),
+            ...teams.map(
+              (team) => _TeamTile(
+                team: team,
+                isSelected: ctrl.selectedTeam?.id == team.id,
+                tournament: ctrl.tournament,
+                onTap: () => ctrl.selectTeam(team),
+              ),
+            ),
 
             const SizedBox(height: 12),
 
@@ -458,10 +533,21 @@ class _TeamTile extends StatelessWidget {
               child: team.photoUrl != null
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.network(team.photoUrl!, fit: BoxFit.cover,
-                          errorBuilder: (_, e, s) => const Icon(Icons.groups_rounded, color: Color(0xFF6C63FF), size: 22)),
+                      child: Image.network(
+                        team.photoUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, e, s) => const Icon(
+                          Icons.groups_rounded,
+                          color: Color(0xFF6C63FF),
+                          size: 22,
+                        ),
+                      ),
                     )
-                  : const Icon(Icons.groups_rounded, color: Color(0xFF6C63FF), size: 22),
+                  : const Icon(
+                      Icons.groups_rounded,
+                      color: Color(0xFF6C63FF),
+                      size: 22,
+                    ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -470,24 +556,42 @@ class _TeamTile extends StatelessWidget {
                 children: [
                   Text(
                     team.name,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
                   ),
                   const SizedBox(height: 3),
                   Row(
                     children: [
-                      Icon(Icons.people_alt_rounded, size: 12, color: Colors.white.withValues(alpha: 0.4)),
+                      Icon(
+                        Icons.people_alt_rounded,
+                        size: 12,
+                        color: Colors.white.withValues(alpha: 0.4),
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '${team.members.length} miembro${team.members.length == 1 ? '' : 's'}',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 12),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.45),
+                          fontSize: 12,
+                        ),
                       ),
                       if (!hasEnough && required > 0) ...[
                         const SizedBox(width: 8),
-                        const Icon(Icons.warning_amber_rounded, size: 12, color: Color(0xFFFF4D6A)),
+                        const Icon(
+                          Icons.warning_amber_rounded,
+                          size: 12,
+                          color: Color(0xFFFF4D6A),
+                        ),
                         const SizedBox(width: 3),
                         Text(
                           'Necesita $required',
-                          style: const TextStyle(color: Color(0xFFFF4D6A), fontSize: 11),
+                          style: const TextStyle(
+                            color: Color(0xFFFF4D6A),
+                            fontSize: 11,
+                          ),
                         ),
                       ],
                     ],
@@ -496,9 +600,17 @@ class _TeamTile extends StatelessWidget {
               ),
             ),
             if (isSelected)
-              const Icon(Icons.check_circle_rounded, color: Color(0xFF6C63FF), size: 22)
+              const Icon(
+                Icons.check_circle_rounded,
+                color: Color(0xFF6C63FF),
+                size: 22,
+              )
             else
-              Icon(Icons.radio_button_unchecked_rounded, color: Colors.white.withValues(alpha: 0.2), size: 22),
+              Icon(
+                Icons.radio_button_unchecked_rounded,
+                color: Colors.white.withValues(alpha: 0.2),
+                size: 22,
+              ),
           ],
         ),
       ),
@@ -522,16 +634,27 @@ class _NoTeamsState extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(Icons.groups_outlined, size: 48, color: Colors.white.withValues(alpha: 0.2)),
+          Icon(
+            Icons.groups_outlined,
+            size: 48,
+            color: Colors.white.withValues(alpha: 0.2),
+          ),
           const SizedBox(height: 12),
           Text(
             'No tienes equipos',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 16, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.8),
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             'Crea un equipo para poder inscribirte en este torneo.',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.4),
+              fontSize: 13,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
@@ -547,14 +670,19 @@ class _CreateTeamButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => _TeamCreationPage()));
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => _TeamCreationPage()),
+        );
       },
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFF6C63FF).withValues(alpha: 0.4)),
+          border: Border.all(
+            color: const Color(0xFF6C63FF).withValues(alpha: 0.4),
+          ),
           color: const Color(0xFF6C63FF).withValues(alpha: 0.07),
         ),
         child: const Row(
@@ -564,7 +692,11 @@ class _CreateTeamButton extends StatelessWidget {
             SizedBox(width: 8),
             Text(
               'Crear equipo',
-              style: TextStyle(color: Color(0xFF6C63FF), fontSize: 14, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: Color(0xFF6C63FF),
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),
@@ -588,12 +720,19 @@ class _TeamCreationPage extends StatelessWidget {
         ),
         title: const Text(
           'Mis equipos',
-          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         centerTitle: true,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+          child: Container(
+            height: 1,
+            color: Colors.white.withValues(alpha: 0.06),
+          ),
         ),
       ),
       body: const ProfileTeamsTab(),
@@ -633,15 +772,21 @@ class _CategorySelector extends StatelessWidget {
             child: Row(
               children: [
                 Icon(
-                  isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                  color: isSelected ? const Color(0xFFA855F7) : Colors.white.withValues(alpha: 0.25),
+                  isSelected
+                      ? Icons.check_circle_rounded
+                      : Icons.radio_button_unchecked_rounded,
+                  color: isSelected
+                      ? const Color(0xFFA855F7)
+                      : Colors.white.withValues(alpha: 0.25),
                   size: 20,
                 ),
                 const SizedBox(width: 12),
                 Text(
                   cat,
                   style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.7),
+                    color: isSelected
+                        ? Colors.white
+                        : Colors.white.withValues(alpha: 0.7),
                     fontSize: 14,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   ),
@@ -651,6 +796,44 @@ class _CategorySelector extends StatelessWidget {
           ),
         );
       }).toList(),
+    );
+  }
+}
+
+class _AdditionalFieldsSection extends StatelessWidget {
+  const _AdditionalFieldsSection({required this.ctrl});
+
+  final InscriptionController ctrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final fields = ctrl.registrationForm.activeFields;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        color: Colors.white.withValues(alpha: 0.04),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+      ),
+      child: Column(
+        children: [
+          for (var i = 0; i < fields.length; i++) ...[
+            DynamicRegistrationField(
+              field: fields[i],
+              value: ctrl.registrationValues[fields[i].id],
+              errorText: ctrl.registrationErrors[fields[i].id],
+              onChanged: (value) =>
+                  ctrl.updateRegistrationValue(fields[i].id, value),
+            ),
+            if (i < fields.length - 1) ...[
+              const SizedBox(height: 16),
+              Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+              const SizedBox(height: 16),
+            ],
+          ],
+        ],
+      ),
     );
   }
 }
@@ -726,6 +909,8 @@ class _SubmitButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isLoading = ctrl.submitState == InscriptionSubmitState.submitting;
+    final requiresApproval =
+        ctrl.tournament.accessType != TournamentAccessType.publicOpen;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -734,20 +919,38 @@ class _SubmitButton extends StatelessWidget {
         if (ctrl.loadState == InscriptionLoadState.loaded) ...[
           if (ctrl.isTeamTournament && ctrl.selectedTeam == null)
             _HintRow(
-                text: 'Selecciona un equipo para continuar',
-                color: const Color(0xFFFFB347)),
+              text: 'Selecciona un equipo para continuar',
+              color: const Color(0xFFFFB347),
+            ),
           if (ctrl.isTeamTournament && ctrl.teamValidationError != null)
-            _HintRow(text: ctrl.teamValidationError!, color: const Color(0xFFFF4D6A)),
+            _HintRow(
+              text: ctrl.teamValidationError!,
+              color: const Color(0xFFFF4D6A),
+            ),
           if (ctrl.hasCategories && ctrl.selectedCategoryId == null)
             _HintRow(
-                text: 'Selecciona una categoría para continuar',
-                color: const Color(0xFFFFB347)),
+              text: 'Selecciona una categoría para continuar',
+              color: const Color(0xFFFFB347),
+            ),
+          if (ctrl.registrationErrors.isNotEmpty)
+            _HintRow(
+              text: 'Completa los campos adicionales obligatorios.',
+              color: const Color(0xFFFF4D6A),
+            ),
           const SizedBox(height: 12),
         ],
 
         GradientButton(
-          label: isLoading ? 'Inscribiendo...' : 'Confirmar inscripción',
-          icon: isLoading ? null : Icons.how_to_reg_rounded,
+          label: isLoading
+              ? (requiresApproval ? 'Enviando...' : 'Inscribiendo...')
+              : (requiresApproval
+                    ? 'Solicitar inscripcion'
+                    : 'Confirmar inscripción'),
+          icon: isLoading
+              ? null
+              : (requiresApproval
+                    ? Icons.pending_actions_rounded
+                    : Icons.how_to_reg_rounded),
           isLoading: isLoading,
           variant: GradientButtonVariant.forest,
           size: GradientButtonSize.large,
@@ -774,7 +977,11 @@ class _HintRow extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                color: color,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -797,14 +1004,19 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline_rounded,
-                size: 56, color: Color(0xFFFF4D6A)),
+            const Icon(
+              Icons.error_outline_rounded,
+              size: 56,
+              color: Color(0xFFFF4D6A),
+            ),
             const SizedBox(height: 16),
             Text(
               message,
               textAlign: TextAlign.center,
               style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6), fontSize: 14),
+                color: Colors.white.withValues(alpha: 0.6),
+                fontSize: 14,
+              ),
             ),
           ],
         ),
@@ -816,8 +1028,9 @@ class _ErrorState extends StatelessWidget {
 // ── Success dialog ─────────────────────────────────────────────────────────
 
 class _SuccessDialog extends StatelessWidget {
-  const _SuccessDialog({required this.onClose});
+  const _SuccessDialog({required this.onClose, required this.isJoinRequest});
   final VoidCallback onClose;
+  final bool isJoinRequest;
 
   @override
   Widget build(BuildContext context) {
@@ -836,17 +1049,24 @@ class _SuccessDialog extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: const Color(0xFF22C55E).withValues(alpha: 0.15),
                 border: Border.all(
-                    color: const Color(0xFF22C55E).withValues(alpha: 0.4),
-                    width: 2),
+                  color: const Color(0xFF22C55E).withValues(alpha: 0.4),
+                  width: 2,
+                ),
               ),
-              child: const Icon(Icons.check_rounded,
-                  color: Color(0xFF22C55E), size: 36),
+              child: const Icon(
+                Icons.check_rounded,
+                color: Color(0xFF22C55E),
+                size: 36,
+              ),
             ),
             const SizedBox(height: 20),
             const Text(
               '¡Inscripción enviada!',
               style: TextStyle(
-                  color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 10),
@@ -854,9 +1074,10 @@ class _SuccessDialog extends StatelessWidget {
               'Tu solicitud ha sido registrada correctamente. Recibirás confirmación próximamente.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.55),
-                  fontSize: 14,
-                  height: 1.5),
+                color: Colors.white.withValues(alpha: 0.55),
+                fontSize: 14,
+                height: 1.5,
+              ),
             ),
             const SizedBox(height: 28),
             GradientButton(

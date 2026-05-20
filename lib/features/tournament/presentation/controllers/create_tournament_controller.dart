@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../core/models/registration_form.dart';
 import '../../data/model/app_tournament.dart';
 import '../../data/model/enums_tournament.dart';
 import '../../../notifications/data/repository/admin_invitation_repository_impl.dart';
@@ -115,6 +116,7 @@ class CreateTournamentController extends ChangeNotifier {
     String? contactPhone,
     List<String> contactLinks = const [],
     List<String> categories = const [],
+    RegistrationFormSchema registrationForm = const RegistrationFormSchema(),
   }) async {
     _setSubmitting(true);
     _clearError();
@@ -181,6 +183,7 @@ class CreateTournamentController extends ChangeNotifier {
         contactPhone: contactPhone,
         contactLinks: contactLinks,
         categories: categories,
+        registrationForm: registrationForm,
       );
 
       return true;

@@ -19,6 +19,7 @@ import '../../../brackets/presentation/widgets/brankets_section.dart';
 import '../../../participants/data/models/participant_display.dart';
 import '../../../participants/presentation/widgets/participants_section.dart';
 import '../../../participants/presentation/widgets/team_card.dart';
+import '../../../inscription/screen/tournament_join_requests_screen.dart';
 import '../../../tournament/data/model/app_tournament.dart';
 import '../../../tournament/presentation/screens/create_tournament/form/steps/step3_geolocation.dart';
 import '../controllers/tournament_management_controller.dart';
@@ -826,17 +827,33 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
       children: [
         LineDivider(color: Colors.white),
         const SizedBox(height: 32),
-        ParticipantsSection(
-      tournament: _ctrl.edited,
-      enableManagementNavigation: true,
-      managementScreenBuilder: (_) => ParticipantsManagementScreen(
-        tournamentId: _ctrl.edited.id,
-        tournamentName: _ctrl.edited.name,
-        isTeamTournament: _ctrl.isTeamTournament,
-        categories: _ctrl.editedCategories,
+        GradientButton(
+          label: 'Revisar solicitudes de inscripcion',
+          icon: Icons.pending_actions_rounded,
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                    TournamentJoinRequestsScreen(tournament: _ctrl.edited),
+              ),
+            );
+          },
+          variant: GradientButtonVariant.select,
+          size: GradientButtonSize.large,
         ),
-      )
-      ]
+        const SizedBox(height: 16),
+        ParticipantsSection(
+          tournament: _ctrl.edited,
+          enableManagementNavigation: true,
+          managementScreenBuilder: (_) => ParticipantsManagementScreen(
+            tournamentId: _ctrl.edited.id,
+            tournamentName: _ctrl.edited.name,
+            isTeamTournament: _ctrl.isTeamTournament,
+            categories: _ctrl.editedCategories,
+          ),
+        ),
+      ],
     );
   }
 
@@ -951,10 +968,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 6,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(4),
                   color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
@@ -1193,44 +1207,42 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
   }
 
   Widget _buildDangerZone() {
-    return
-      ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              color: Colors.red.withValues(alpha: 0.08),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-            ),
-            child: _buildSection(
-              icon: Icons.warning_amber_rounded,
-              title: 'Zona peligrosa',
-              color: const Color(0xFFFF4D6A),
-              children: [
-                Text(
-                  'Eliminar el torneo es una acción permanente e irreversible.',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.55),
-                    fontSize: 13,
-                  ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: Colors.red.withValues(alpha: 0.08),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          ),
+          child: _buildSection(
+            icon: Icons.warning_amber_rounded,
+            title: 'Zona peligrosa',
+            color: const Color(0xFFFF4D6A),
+            children: [
+              Text(
+                'Eliminar el torneo es una acción permanente e irreversible.',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.55),
+                  fontSize: 13,
                 ),
-                const SizedBox(height: 16),
-                GradientButton(
-                  label: _ctrl.isDeleting ? 'Eliminando...' : 'Eliminar torneo',
-                  icon: Icons.delete_forever_rounded,
-                  isLoading: _ctrl.isDeleting,
-                  onPressed: _ctrl.isDeleting ? null : _handleDelete,
-                  variant: GradientButtonVariant.danger,
-                ),
-              ],
-            )
+              ),
+              const SizedBox(height: 16),
+              GradientButton(
+                label: _ctrl.isDeleting ? 'Eliminando...' : 'Eliminar torneo',
+                icon: Icons.delete_forever_rounded,
+                isLoading: _ctrl.isDeleting,
+                onPressed: _ctrl.isDeleting ? null : _handleDelete,
+                variant: GradientButtonVariant.danger,
+              ),
+            ],
           ),
         ),
-      );
-
+      ),
+    );
   }
 
   Widget _buildSection({

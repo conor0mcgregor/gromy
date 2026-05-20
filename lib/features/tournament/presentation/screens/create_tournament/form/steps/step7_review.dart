@@ -29,6 +29,7 @@ class Step7Review extends StatelessWidget {
     required this.contactEmail,
     required this.contactPhone,
     required this.contactLinks,
+    required this.registrationFields,
     this.pendingAdminLabels = const [],
   });
 
@@ -49,6 +50,8 @@ class Step7Review extends StatelessWidget {
   final String contactEmail;
   final String? contactPhone;
   final List<String> contactLinks;
+  final int registrationFields;
+
   /// Etiquetas de usuarios a los que se enviará invitación (no son admin hasta aceptar).
   final List<String> pendingAdminLabels;
 
@@ -74,7 +77,11 @@ class Step7Review extends StatelessWidget {
           accentColor: const Color(0xFF6C63FF),
           children: [
             InfoField(label: 'Nombre del torneo', value: name),
-            InfoField(label: 'Descripción', value: description, multiline: true),
+            InfoField(
+              label: 'Descripción',
+              value: description,
+              multiline: true,
+            ),
           ],
         ),
 
@@ -83,9 +90,7 @@ class Step7Review extends StatelessWidget {
           icon: Icons.sports_rounded,
           title: 'Disciplina',
           accentColor: const Color(0xFF00D4FF),
-          children: [
-            InfoField(label: 'Deporte', value: sport),
-          ],
+          children: [InfoField(label: 'Deporte', value: sport)],
         ),
 
         // ── Cronograma ────────────────────────────────────────────
@@ -117,7 +122,9 @@ class Step7Review extends StatelessWidget {
             InfoField(label: 'Lugar', value: location),
             InfoField(
               label: 'Coordenadas en el mapa',
-              value: hasCoordinates ? 'Marcadas correctamente' : 'Sin coordenadas',
+              value: hasCoordinates
+                  ? 'Marcadas correctamente'
+                  : 'Sin coordenadas',
               valueColor: hasCoordinates
                   ? const Color(0xFF22C55E)
                   : Colors.white.withValues(alpha: 0.45),
@@ -143,10 +150,7 @@ class Step7Review extends StatelessWidget {
                 label: 'Participantes máx.',
                 value: maxParticipants,
               ),
-              second: InfoField(
-                label: 'Acceso',
-                value: accessType,
-              ),
+              second: InfoField(label: 'Acceso', value: accessType),
             ),
             if (membersPerTeam != null)
               InfoField(label: 'Miembros por equipo', value: membersPerTeam!),
@@ -161,9 +165,7 @@ class Step7Review extends StatelessWidget {
           children: [
             InfoField(
               label: 'Reglas del torneo',
-              value: rulesPreview.isEmpty
-                  ? '—'
-                  : rulesPreview,
+              value: rulesPreview.isEmpty ? '—' : rulesPreview,
               multiline: true,
             ),
           ],
@@ -183,6 +185,21 @@ class Step7Review extends StatelessWidget {
               ),
             ],
           ),
+
+        InfoSection(
+          icon: Icons.dynamic_form_rounded,
+          title: 'Inscripcion',
+          accentColor: const Color(0xFF22C55E),
+          children: [
+            InfoField(
+              label: 'Campos adicionales',
+              value: registrationFields == 0
+                  ? 'No hay campos adicionales configurados.'
+                  : '$registrationFields campo${registrationFields == 1 ? '' : 's'} activo${registrationFields == 1 ? '' : 's'}',
+              multiline: true,
+            ),
+          ],
+        ),
 
         // ── Staff y Soporte ───────────────────────────────────────
         InfoSection(
@@ -424,7 +441,9 @@ class _CoverImage extends StatelessWidget {
           ),
           // Gradiente inferior para legibilidad
           Positioned(
-            left: 0, right: 0, bottom: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
             child: Container(
               height: 60,
               decoration: BoxDecoration(
@@ -440,11 +459,15 @@ class _CoverImage extends StatelessWidget {
             ),
           ),
           Positioned(
-            left: 14, bottom: 12,
+            left: 14,
+            bottom: 12,
             child: Row(
               children: [
-                Icon(Icons.image_rounded,
-                    color: Colors.white.withValues(alpha: 0.8), size: 14),
+                Icon(
+                  Icons.image_rounded,
+                  color: Colors.white.withValues(alpha: 0.8),
+                  size: 14,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   'Portada del torneo',
@@ -495,9 +518,7 @@ class InfoSection extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
               color: Colors.white.withValues(alpha: 0.04),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.09),
-              ),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.09)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -505,7 +526,9 @@ class InfoSection extends StatelessWidget {
                 // ── Cabecera de sección ──
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(20),
@@ -565,10 +588,7 @@ class InfoSection extends StatelessWidget {
       result.add(items[i]);
       if (i < items.length - 1) {
         result.add(
-          Divider(
-            height: 1,
-            color: Colors.white.withValues(alpha: 0.06),
-          ),
+          Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
         );
       }
     }
@@ -637,8 +657,8 @@ class InfoField extends StatelessWidget {
                   child: Icon(
                     leadingIcon,
                     size: 16,
-                    color: leadingIconColor ??
-                        Colors.white.withValues(alpha: 0.5),
+                    color:
+                        leadingIconColor ?? Colors.white.withValues(alpha: 0.5),
                   ),
                 ),
               ],
@@ -646,8 +666,9 @@ class InfoField extends StatelessWidget {
                 child: Text(
                   displayValue,
                   maxLines: multiline ? null : 3,
-                  overflow:
-                  multiline ? TextOverflow.visible : TextOverflow.ellipsis,
+                  overflow: multiline
+                      ? TextOverflow.visible
+                      : TextOverflow.ellipsis,
                   style: TextStyle(
                     color: effectiveValueColor,
                     fontSize: 15,

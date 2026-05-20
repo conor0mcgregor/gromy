@@ -32,6 +32,9 @@ abstract interface class NotificationDatasource {
   /// Elimina todas las notificaciones de un usuario.
   Future<void> deleteAllNotifications({required String userId});
 
+  /// Crea una notificaciÃ³n persistente.
+  Future<String> createNotification(AppNotification notification);
+
   /// Guarda un token FCM.
   Future<void> saveToken({
     required String userId,
@@ -40,8 +43,5 @@ abstract interface class NotificationDatasource {
   });
 
   /// Elimina un token FCM.
-  Future<void> removeToken({
-    required String userId,
-    required String token,
-  });
+  Future<void> removeToken({required String userId, required String token});
 }

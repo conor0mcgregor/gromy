@@ -1,5 +1,6 @@
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../core/models/registration_form.dart';
 import '../../../notifications/domain/use_cases/admin_invitation_use_cases.dart';
 import '../../data/model/app_tournament.dart';
 import '../../data/model/enums_tournament.dart';
@@ -47,6 +48,7 @@ class CreateTournamentAndInviteAdminsUseCase {
     String? contactPhone,
     List<String> contactLinks = const [],
     List<String> categories = const [],
+    RegistrationFormSchema registrationForm = const RegistrationFormSchema(),
   }) async {
     final invitees = invitedAdminUserIds
         .map((e) => e.trim())
@@ -77,6 +79,7 @@ class CreateTournamentAndInviteAdminsUseCase {
       contactPhone: contactPhone,
       contactLinks: contactLinks,
       categories: categories,
+      registrationForm: registrationForm,
     );
 
     final sentNotificationIds = <String>[];

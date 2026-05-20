@@ -1,5 +1,6 @@
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../core/models/registration_form.dart';
 import '../../data/model/app_tournament.dart';
 import '../../data/model/enums_tournament.dart';
 import '../../data/repositories/tournament_repository.dart';
@@ -31,6 +32,7 @@ class CreateTournamentUseCase {
     String? contactPhone,
     List<String> contactLinks = const [],
     List<String> categories = const [],
+    RegistrationFormSchema registrationForm = const RegistrationFormSchema(),
   }) async {
     final normalizedName = name.trim();
     final normalizedDescription = description.trim();
@@ -65,6 +67,13 @@ class CreateTournamentUseCase {
       throw ArgumentError('Selecciona una fecha válida para el torneo.');
     }
 
+    final formErrors = RegistrationFormValidator.validateSchema(
+      registrationForm,
+    );
+    if (formErrors.isNotEmpty) {
+      throw ArgumentError(formErrors.first);
+    }
+
     // Solo el creador es administrador real. Más admins vía invitación.
     final adminIds = <String>[uid];
 
@@ -96,6 +105,7 @@ class CreateTournamentUseCase {
       contactPhone: contactPhone?.trim(),
       contactLinks: contactLinks,
       categories: categories,
+      registrationForm: registrationForm.copyWith(version: 1),
       createdAt: now,
       updatedAt: now,
     );

@@ -25,6 +25,9 @@ abstract final class NotificationType {
   static const String error = 'error';
   static const String inscriptionConfirmed = 'inscription_confirmed';
   static const String inscriptionCancelled = 'inscription_cancelled';
+  static const String joinRequestPending = 'join_request_pending';
+  static const String joinRequestApproved = 'join_request_approved';
+  static const String joinRequestRejected = 'join_request_rejected';
   static const String teamInvitation = 'team_invitation';
   static const String tournamentUpdate = 'tournament_update';
   static const String tournamentCancelled = 'tournament_cancelled';
@@ -120,6 +123,24 @@ class NotificationTypeConfig {
         color: Color(0xFFFF6B9D),
         label: 'Inscripción cancelada',
         priority: 1,
+      ),
+      NotificationType.joinRequestPending => const NotificationTypeConfig(
+        icon: Icons.pending_actions_rounded,
+        color: Color(0xFFF59E0B),
+        label: 'Solicitud pendiente',
+        priority: 3,
+      ),
+      NotificationType.joinRequestApproved => const NotificationTypeConfig(
+        icon: Icons.verified_rounded,
+        color: Color(0xFF10B981),
+        label: 'Solicitud aprobada',
+        priority: 2,
+      ),
+      NotificationType.joinRequestRejected => const NotificationTypeConfig(
+        icon: Icons.block_rounded,
+        color: Color(0xFFEF4444),
+        label: 'Solicitud rechazada',
+        priority: 2,
       ),
       NotificationType.teamInvitation => const NotificationTypeConfig(
         icon: Icons.group_add_rounded,

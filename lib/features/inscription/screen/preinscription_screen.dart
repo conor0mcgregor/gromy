@@ -17,6 +17,7 @@ import '../../../../database/team/models/app_team.dart';
 import '../domain/models/enrollment_status.dart';
 import '../presentation/controllers/preinscription_controller.dart';
 import '../../events/presentation/controllers/favorites_controller.dart';
+import 'edit_inscription_screen.dart';
 import '../../profile/presentation/screens/other_user_profile_screen.dart';
 import 'inscription_screen.dart';
 
@@ -127,9 +128,10 @@ class _PreinscriptionScreenState extends State<PreinscriptionScreen> {
             onCancelInscription: status.isEnrolled
                 ? _controller.cancelInscription
                 : null,
-            enrolledTeam: status.enrolledTeam,
+            participant: status.participant,enrolledTeam: status.enrolledTeam,
             canCancelTeam: status.canCancel,
-          ),
+          hasPendingJoinRequest: status.hasPendingJoinRequest,
+                ),
 
           // ── Contenido scrollable ──
           body: SingleChildScrollView(
@@ -886,14 +888,18 @@ class _StickyEnrollBar extends StatefulWidget {
     required this.tournament,
     this.isEnrolled = false,
     this.onCancelInscription,
+    this.participant,
     this.enrolledTeam,
     this.canCancelTeam = true,
+    this.hasPendingJoinRequest = false,
   });
   final AppTournament tournament;
   final bool isEnrolled;
   final Future<void> Function()? onCancelInscription;
+  final AppParticipant? participant;
   final AppTeam? enrolledTeam;
   final bool canCancelTeam;
+  final bool hasPendingJoinRequest;
 
   @override
   State<_StickyEnrollBar> createState() => _StickyEnrollBarState();
@@ -968,10 +974,76 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
     }
   }
 
+  Future<void> _handleEdit() async {
+    final participant = widget.participant;
+    if (participant == null) return;
+
+    final updated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditInscriptionScreen(
+          tournament: widget.tournament,
+          participant: participant,
+        ),
+      ),
+    );
+    if (updated == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Inscripcion actualizada correctamente'),
+          backgroundColor: Color(0xFF22C55E),
+        ),
+      );
+    }
+  }
+
+  String? _editBlockReason() {
+    final participant = widget.participant;
+    if (participant == null) return 'No se pudo cargar la inscripcion';
+    if (!widget.canCancelTeam) return 'No tienes permisos para editar';
+    final now = DateTime.now();
+    if (!_isActiveStatus(participant.status)) {
+      return 'Esta inscripcion ya no puede editarse.';
+    }
+    if (!widget.tournament.scheduledAt.isAfter(now)) {
+      return 'El torneo ya ha comenzado';
+    }
+    final deadline = widget.tournament.registrationDeadline;
+    if (deadline != null && !deadline.isAfter(now)) {
+      return 'Plazo de edicion finalizado';
+    }
+    if (widget.tournament.maxParticipants > 0 &&
+        widget.tournament.participantCount >
+            widget.tournament.maxParticipants) {
+      return 'Conflicto con el cupo';
+    }
+    final expectsTeam =
+        widget.tournament.membersPerTeam != null &&
+        widget.tournament.membersPerTeam! > 0;
+    final modalityConflict = expectsTeam
+        ? participant.entityType != ParticipantEntityType.team
+        : participant.entityType != ParticipantEntityType.user;
+    if (modalityConflict) return 'Conflicto con la modalidad';
+    return null;
+  }
+
+  bool _isActiveStatus(ParticipantStatus status) {
+    return switch (status) {
+      ParticipantStatus.pending ||
+      ParticipantStatus.approved ||
+      ParticipantStatus.pendingReview ||
+      ParticipantStatus.active => true,
+      ParticipantStatus.rejected || ParticipantStatus.cancelled => false,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final isFull =
         widget.tournament.participantCount >= widget.tournament.maxParticipants;
+    final hasPendingJoinRequest = widget.hasPendingJoinRequest;
+    final editBlockReason = _editBlockReason();
+    final canEdit = editBlockReason == null && !_isCancelling;
     final acceptsRegistrations = widget.tournament.acceptsRegistrations;
 
     return Container(
@@ -1026,7 +1098,15 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
               ),
             ],
             GradientButton(
-              label: widget.canCancelTeam
+              label: editBlockReason ?? 'Editar inscripcion',
+                    icon: Icons.edit_rounded,
+                    onPressed: canEdit ? _handleEdit : null,
+                    variant: GradientButtonVariant.select,
+                    size: GradientButtonSize.large,
+                  ),
+                  const SizedBox(height: 10),
+                  GradientButton(
+                    label: widget.canCancelTeam
                   ? (_isCancelling
                   ? 'Cancelando...'
                   : 'Cancelar inscripción')
@@ -1054,6 +1134,17 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
                     ? Icons.block_rounded
                     : Icons.how_to_reg_rounded,
                 onPressed: !acceptsRegistrations || isFull
+                label: hasPendingJoinRequest
+                    ? 'Solicitud pendiente de revision'
+                    : isFull
+                    ? 'Torneo completo'
+                    : 'Inscribirse al torneo',
+                icon: hasPendingJoinRequest
+                    ? Icons.pending_actions_rounded
+                    : isFull
+                    ? Icons.block_rounded
+                    : Icons.how_to_reg_rounded,
+                onPressed: isFull || hasPendingJoinRequest
                     ? null
                     : () => Navigator.push(
                         context,

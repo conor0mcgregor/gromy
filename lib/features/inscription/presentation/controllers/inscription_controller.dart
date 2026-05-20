@@ -1,9 +1,13 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../../core/models/registration_form.dart';
 import '../../../../database/participant/models/app_participant.dart';
 import '../../../../database/team/models/app_team.dart';
 import '../../../../features/tournament/data/model/app_tournament.dart';
+import '../../../../features/tournament/data/model/enums_tournament.dart';
 import '../../../../features/user/data/models/app_user.dart';
+import '../../data/models/join_request.dart';
+import '../../domain/use_cases/create_join_request_use_case.dart';
 import '../../domain/use_cases/enroll_in_tournament_use_case.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -26,10 +30,14 @@ class InscriptionController extends ChangeNotifier {
   InscriptionController({
     required this.tournament,
     EnrollInTournamentUseCase? useCase,
-  }) : _useCase = useCase ?? EnrollInTournamentUseCase();
+    CreateJoinRequestUseCase? createJoinRequestUseCase,
+  }) : _useCase = useCase ?? EnrollInTournamentUseCase(),
+       _createJoinRequestUseCase =
+           createJoinRequestUseCase ?? CreateJoinRequestUseCase();
 
   final AppTournament tournament;
   final EnrollInTournamentUseCase _useCase;
+  final CreateJoinRequestUseCase _createJoinRequestUseCase;
 
   // ── Estado de carga ────────────────────────────────────────────────────────
   InscriptionLoadState loadState = InscriptionLoadState.idle;
@@ -38,16 +46,22 @@ class InscriptionController extends ChangeNotifier {
   AppUser? currentUser;
   String? loadError;
   String? submitError;
+  bool submittedJoinRequest = false;
 
   // ── Estado del formulario ──────────────────────────────────────────────────
   AppTeam? selectedTeam;
   String? teamValidationError;
   String? selectedCategoryId;
+  final Map<String, dynamic> registrationValues = {};
+  Map<String, String> registrationErrors = {};
 
   // ── Computed ───────────────────────────────────────────────────────────────
 
-  bool get isTeamTournament => tournament.membersPerTeam != null && tournament.membersPerTeam! > 0;
+  bool get isTeamTournament =>
+      tournament.membersPerTeam != null && tournament.membersPerTeam! > 0;
   bool get hasCategories => tournament.categories.isNotEmpty;
+  RegistrationFormSchema get registrationForm => tournament.registrationForm;
+  bool get hasAdditionalFields => registrationForm.activeFields.isNotEmpty;
 
   bool get canSubmit {
     if (loadState != InscriptionLoadState.loaded) return false;
@@ -55,6 +69,7 @@ class InscriptionController extends ChangeNotifier {
     if (isTeamTournament && selectedTeam == null) return false;
     if (isTeamTournament && teamValidationError != null) return false;
     if (hasCategories && selectedCategoryId == null) return false;
+    if (registrationErrors.isNotEmpty) return false;
     return true;
   }
 
@@ -67,6 +82,7 @@ class InscriptionController extends ChangeNotifier {
 
     try {
       currentUser = await _useCase.getCurrentUser();
+      _initializeAdditionalFieldValues();
       loadState = InscriptionLoadState.loaded;
     } catch (e) {
       loadState = InscriptionLoadState.error;
@@ -100,9 +116,39 @@ class InscriptionController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateRegistrationValue(String fieldId, dynamic value) {
+    registrationValues[fieldId] = value;
+    registrationErrors = RegistrationFormValidator.validateResponses(
+      schema: registrationForm,
+      values: registrationValues,
+    );
+    notifyListeners();
+  }
+
+  void _initializeAdditionalFieldValues() {
+    for (final field in registrationForm.activeFields) {
+      registrationValues.putIfAbsent(
+        field.id,
+        () => field.type == RegistrationFieldType.checkbox ? false : null,
+      );
+    }
+    registrationErrors = RegistrationFormValidator.validateResponses(
+      schema: registrationForm,
+      values: registrationValues,
+    );
+  }
+
   // ── Confirmar inscripción ──────────────────────────────────────────────────
 
-  Future<AppParticipant?> confirmEnrollment() async {
+  Future<Object?> confirmEnrollment() async {
+    registrationErrors = RegistrationFormValidator.validateResponses(
+      schema: registrationForm,
+      values: registrationValues,
+    );
+    if (registrationErrors.isNotEmpty) {
+      notifyListeners();
+      return null;
+    }
     if (!canSubmit) return null;
 
     submitState = InscriptionSubmitState.submitting;
@@ -115,16 +161,32 @@ class InscriptionController extends ChangeNotifier {
           ? ParticipantEntityType.team
           : ParticipantEntityType.user;
 
-      final participant = await _useCase.execute(
-        tournament: tournament,
-        entityId: entityId,
-        entityType: entityType,
-        categoryId: selectedCategoryId,
-      );
+      final Object result;
+      if (tournament.accessType == TournamentAccessType.publicOpen) {
+        result = await _useCase.execute(
+          tournament: tournament,
+          entityId: entityId,
+          entityType: entityType,
+          categoryId: selectedCategoryId,
+          registrationValues: registrationValues,
+        );
+        submittedJoinRequest = false;
+      } else {
+        final JoinRequest request = await _createJoinRequestUseCase.execute(
+          tournament: tournament,
+          entityId: entityId,
+          entityType: entityType,
+          requestedBy: currentUser!,
+          categoryId: selectedCategoryId,
+          registrationValues: registrationValues,
+        );
+        result = request;
+        submittedJoinRequest = true;
+      }
 
       submitState = InscriptionSubmitState.success;
       notifyListeners();
-      return participant;
+      return result;
     } on AlreadyEnrolledException {
       submitState = InscriptionSubmitState.error;
       submitError = 'Ya estás inscrito en este torneo.';
