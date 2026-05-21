@@ -487,6 +487,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
     final tournament = _ctrl.original;
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -759,6 +760,15 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
             if (date != null) _ctrl.updateBracketPublishDate(date);
           },
           onClear: () => _ctrl.updateBracketPublishDate(null),
+        ),
+        const SizedBox(height: 12),
+        GlassTextField(
+          controller: _ctrl.maxMatchDurationMinutesCtrl,
+          hint: 'Duración máx. enfrentamiento (min)',
+          icon: Icons.timer_rounded,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          onChanged: _ctrl.onMaxMatchDurationMinutesChanged,
         ),
         const SizedBox(height: 16),
         Container(

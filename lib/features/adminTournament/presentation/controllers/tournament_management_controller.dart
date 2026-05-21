@@ -99,6 +99,9 @@ class TournamentManagementController extends ChangeNotifier {
     maxParticipantsCtrl = TextEditingController(
       text: tournament.maxParticipants.toString(),
     );
+    maxMatchDurationMinutesCtrl = TextEditingController(
+      text: tournament.maxMatchDurationMinutes.toString(),
+    );
     membersPerTeamCtrl = TextEditingController(
       text: (tournament.membersPerTeam ?? 0).toString(),
     );
@@ -200,6 +203,7 @@ class TournamentManagementController extends ChangeNotifier {
   late final TextEditingController allInfoCtrl;
   late final TextEditingController locationCtrl;
   late final TextEditingController maxParticipantsCtrl;
+  late final TextEditingController maxMatchDurationMinutesCtrl;
   late final TextEditingController membersPerTeamCtrl;
   late final TextEditingController contactEmailCtrl;
   late final TextEditingController contactPhoneCtrl;
@@ -873,6 +877,12 @@ class TournamentManagementController extends ChangeNotifier {
     return _userService.getUserByNickname(query);
   }
 
+  void onMaxMatchDurationMinutesChanged(String value) {
+    final parsed = int.tryParse(value.trim()) ?? 60;
+    _edited = _copyEdited(maxMatchDurationMinutes: parsed);
+    notifyListeners();
+  }
+
   void onPlayerInviteQueryChanged(String query) {
     _playerInviteDebounce?.cancel();
     _playerInviteError = null;
@@ -1250,7 +1260,10 @@ class TournamentManagementController extends ChangeNotifier {
     bool setContactPhone = false,
     List<String>? contactLinks,
     List<String>? categories,
+    String? organizerUid,
     List<String>? adminIds,
+    int? maxMatchDurationMinutes,
+    DateTime? createdAt,
     String? portadaUrl,
     int? participantCount,
     TournamentStatus? status,
@@ -1267,9 +1280,10 @@ class TournamentManagementController extends ChangeNotifier {
       sport: _edited.sport,
       accessType: _edited.accessType,
       status: status ?? _edited.status,
-      organizerUid: _edited.organizerUid,
+      organizerUid: organizerUid ?? _edited.organizerUid,
       adminIds: adminIds ?? _edited.adminIds,
-      createdAt: _edited.createdAt,
+      maxMatchDurationMinutes: maxMatchDurationMinutes ?? _edited.maxMatchDurationMinutes,
+      createdAt: createdAt ?? _edited.createdAt,
       updatedAt: _edited.updatedAt,
       portadaUrl: portadaUrl ?? _edited.portadaUrl,
       additionalInfo: _edited.additionalInfo,
@@ -1299,6 +1313,7 @@ class TournamentManagementController extends ChangeNotifier {
         a.allInformation != b.allInformation ||
         a.scheduledAt != b.scheduledAt ||
         a.maxParticipants != b.maxParticipants ||
+        a.maxMatchDurationMinutes != b.maxMatchDurationMinutes ||
         a.membersPerTeam != b.membersPerTeam ||
         a.location != b.location ||
         a.latitude != b.latitude ||
@@ -1354,13 +1369,12 @@ class TournamentManagementController extends ChangeNotifier {
 
   @override
   void dispose() {
-    _locationDebounce?.cancel();
-    _playerInviteDebounce?.cancel();
     nameCtrl.dispose();
     descriptionCtrl.dispose();
     allInfoCtrl.dispose();
     locationCtrl.dispose();
     maxParticipantsCtrl.dispose();
+    maxMatchDurationMinutesCtrl.dispose();
     membersPerTeamCtrl.dispose();
     contactEmailCtrl.dispose();
     contactPhoneCtrl.dispose();

@@ -31,6 +31,7 @@ class TournamentFormController extends ChangeNotifier {
       locationController,
       maxParticipantsController,
       membersPerTeamController,
+      maxMatchDurationMinutesController,
       rulesController,
       categoryController,
       adminController,
@@ -64,9 +65,11 @@ class TournamentFormController extends ChangeNotifier {
   DateTime? eventDate;
   DateTime? registrationDeadline;
   DateTime? bracketPublishDate;
+  final maxMatchDurationMinutesController = TextEditingController();
   String? eventDateError;
   String? registrationDeadlineError;
   String? bracketPublishDateError;
+  String? maxMatchDurationError;
 
   // Step 3: Geolocalización
   final locationController = TextEditingController();
@@ -128,6 +131,7 @@ class TournamentFormController extends ChangeNotifier {
         locationController.text.trim().isNotEmpty ||
         maxParticipantsController.text.trim().isNotEmpty ||
         membersPerTeamController.text.trim().isNotEmpty ||
+        maxMatchDurationMinutesController.text.trim().isNotEmpty ||
         selectedAccessType != null ||
         rulesController.text.trim().isNotEmpty ||
         categories.isNotEmpty ||
@@ -155,6 +159,7 @@ class TournamentFormController extends ChangeNotifier {
       longitude: longitude,
       maxParticipants: int.tryParse(maxParticipantsController.text.trim()),
       membersPerTeam: int.tryParse(membersPerTeamController.text.trim()),
+      maxMatchDurationMinutes: int.tryParse(maxMatchDurationMinutesController.text.trim()),
       accessType: selectedAccessType,
       rules: rulesController.text,
       categories: List<String>.from(categories),
@@ -188,6 +193,7 @@ class TournamentFormController extends ChangeNotifier {
     longitude = draft.longitude;
     maxParticipantsController.text = draft.maxParticipants?.toString() ?? '';
     membersPerTeamController.text = draft.membersPerTeam?.toString() ?? '';
+    maxMatchDurationMinutesController.text = draft.maxMatchDurationMinutes?.toString() ?? '';
     selectedAccessType = draft.accessType;
     rulesController.text = draft.rules ?? '';
     categories
@@ -321,10 +327,21 @@ class TournamentFormController extends ChangeNotifier {
       bracketPublishDateError = null;
     }
 
+    final durationRaw = maxMatchDurationMinutesController.text.trim();
+    final duration = int.tryParse(durationRaw);
+    final durationOk = duration != null && duration > 0;
+    
+    maxMatchDurationError = durationRaw.isEmpty
+        ? 'Escribe la duración máxima del enfrentamiento.'
+        : !durationOk
+        ? 'Debe ser un número mayor a 0.'
+        : null;
+
     notifyListeners();
     return dateOk &&
         registrationDeadlineError == null &&
-        bracketPublishDateError == null;
+        bracketPublishDateError == null &&
+        durationOk;
   }
 
   bool _validateGeolocation() {
@@ -621,6 +638,9 @@ class TournamentFormController extends ChangeNotifier {
       case 'bracketPublishDate':
         bracketPublishDateError = null;
         break;
+      case 'maxMatchDurationMinutes':
+        maxMatchDurationError = null;
+        break;
       case 'location':
         locationError = null;
         break;
@@ -679,6 +699,7 @@ class TournamentFormController extends ChangeNotifier {
     locationController.dispose();
     maxParticipantsController.dispose();
     membersPerTeamController.dispose();
+    maxMatchDurationMinutesController.dispose();
     rulesController.dispose();
     categoryController.dispose();
     adminController.dispose();

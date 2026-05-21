@@ -232,6 +232,9 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
     final invitedAdminUserIds = _form.extraAdmins
         .map((entry) => entry.uid)
         .toList(growable: false);
+    final maxMatchDurationMinutes = int.tryParse(
+      _form.maxMatchDurationMinutesController.text.trim(),
+    ) ?? 60;
 
     final success = await _submitController.createTournament(
       name: _form.nameController.text,
@@ -243,6 +246,7 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
       membersPerTeam: membersPerTeam,
       location: _form.locationController.text,
       accessType: _form.selectedAccessType!,
+      maxMatchDurationMinutes: maxMatchDurationMinutes,
       invitedAdminUserIds: invitedAdminUserIds,
       coverImage: _form.coverImage,
       latitude: _form.latitude,
@@ -1273,6 +1277,11 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
         });
         _markDraftDirtyAndScheduleAutosave();
       }
+    },
+    maxMatchDurationMinutesController: _form.maxMatchDurationMinutesController,
+    maxMatchDurationError: _form.maxMatchDurationError,
+    onClearMaxMatchDurationError: () {
+      _form.clearFieldError('maxMatchDurationMinutes');
     },
     formatDate: _form.formatDate,
   );

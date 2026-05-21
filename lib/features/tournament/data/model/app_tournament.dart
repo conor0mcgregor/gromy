@@ -17,6 +17,7 @@ class AppTournament {
     this.status = TournamentStatus.published,
     required this.organizerUid,
     required this.adminIds,
+    required this.maxMatchDurationMinutes,
     required this.createdAt,
     required this.updatedAt,
     this.portadaUrl,
@@ -48,6 +49,7 @@ class AppTournament {
   final TournamentStatus status;
   final String organizerUid;
   final List<String> adminIds;
+  final int maxMatchDurationMinutes;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -100,6 +102,7 @@ class AppTournament {
       'organizerEmail': organizerEmail,
       'organizerDisplayName': organizerDisplayName,
       'adminIds': adminIds,
+      'maxMatchDurationMinutes': maxMatchDurationMinutes,
       'participantCount': participantCount,
       'portadaUrl': portadaUrl,
       'additionalInfo': additionalInfo,
@@ -142,6 +145,7 @@ class AppTournament {
       adminIds: (map['adminIds'] as List<dynamic>? ?? const <dynamic>[])
           .map((value) => value.toString())
           .toList(),
+      maxMatchDurationMinutes: (map['maxMatchDurationMinutes'] as num?)?.toInt() ?? 60,
       participantCount: (map['participantCount'] as num?)?.toInt() ?? 0,
       portadaUrl: map['portadaUrl'] as String?,
       additionalInfo: map['additionalInfo'] as String?,
@@ -176,6 +180,7 @@ class AppTournament {
     TournamentStatus? status,
     String? organizerUid,
     List<String>? adminIds,
+    int? maxMatchDurationMinutes,
     DateTime? createdAt,
     DateTime? updatedAt,
     String? portadaUrl,
@@ -207,6 +212,7 @@ class AppTournament {
       status: status ?? this.status,
       organizerUid: organizerUid ?? this.organizerUid,
       adminIds: adminIds ?? this.adminIds,
+      maxMatchDurationMinutes: maxMatchDurationMinutes ?? this.maxMatchDurationMinutes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       portadaUrl: portadaUrl ?? this.portadaUrl,

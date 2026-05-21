@@ -17,6 +17,9 @@ class Step2Schedule extends StatelessWidget {
     required this.bracketPublishDate,
     required this.bracketPublishDateError,
     required this.onPickBracketPublishDate,
+    required this.maxMatchDurationMinutesController,
+    required this.maxMatchDurationError,
+    required this.onClearMaxMatchDurationError,
     required this.formatDate,
   });
 
@@ -31,6 +34,10 @@ class Step2Schedule extends StatelessWidget {
   final DateTime? bracketPublishDate;
   final String? bracketPublishDateError;
   final VoidCallback onPickBracketPublishDate;
+
+  final TextEditingController maxMatchDurationMinutesController;
+  final String? maxMatchDurationError;
+  final VoidCallback onClearMaxMatchDurationError;
 
   final String Function(DateTime) formatDate;
 
@@ -101,6 +108,27 @@ class Step2Schedule extends StatelessWidget {
             isEmpty: bracketPublishDate == null,
             errorText: bracketPublishDateError,
             onTap: onPickBracketPublishDate,
+          ),
+          const SizedBox(height: 20),
+
+          // ── Duración máxima de un enfrentamiento (obligatoria) ──
+          Text(
+            'Tiempo estimado por partido/combate en minutos.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.4),
+              fontSize: 12,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 8),
+          GlassField(
+            controller: maxMatchDurationMinutesController,
+            label: 'Duración máxima de enfrentamiento (min) *',
+            hint: 'Ej: 60',
+            keyboardType: TextInputType.number,
+            errorText: maxMatchDurationError,
+            onChanged: (_) => onClearMaxMatchDurationError(),
+            icon: Icons.timer,
           ),
         ],
       ),

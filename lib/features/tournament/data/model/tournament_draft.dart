@@ -18,6 +18,7 @@ class TournamentDraft {
     this.longitude,
     this.maxParticipants,
     this.membersPerTeam,
+    this.maxMatchDurationMinutes,
     this.accessType,
     this.rules,
     this.categories = const [],
@@ -44,6 +45,7 @@ class TournamentDraft {
   final double? longitude;
   final int? maxParticipants;
   final int? membersPerTeam;
+  final int? maxMatchDurationMinutes;
   final TournamentAccessType? accessType;
   final String? rules;
   final List<String> categories;
@@ -72,6 +74,7 @@ class TournamentDraft {
       'longitude': longitude,
       'maxParticipants': maxParticipants,
       'membersPerTeam': membersPerTeam,
+      'maxMatchDurationMinutes': maxMatchDurationMinutes,
       'accessType': accessType?.name,
       'rules': rules,
       'categories': categories,
@@ -110,6 +113,7 @@ class TournamentDraft {
       longitude: (json['longitude'] as num?)?.toDouble(),
       maxParticipants: (json['maxParticipants'] as num?)?.toInt(),
       membersPerTeam: (json['membersPerTeam'] as num?)?.toInt(),
+      maxMatchDurationMinutes: (json['maxMatchDurationMinutes'] as num?)?.toInt(),
       accessType: _enumOrNull<TournamentAccessType>(
         json['accessType'],
         TournamentAccessType.values,
@@ -141,6 +145,7 @@ class TournamentDraft {
     double? longitude,
     int? maxParticipants,
     int? membersPerTeam,
+    int? maxMatchDurationMinutes,
     TournamentAccessType? accessType,
     String? rules,
     List<String>? categories,
@@ -167,6 +172,7 @@ class TournamentDraft {
       longitude: longitude ?? this.longitude,
       maxParticipants: maxParticipants ?? this.maxParticipants,
       membersPerTeam: membersPerTeam ?? this.membersPerTeam,
+      maxMatchDurationMinutes: maxMatchDurationMinutes ?? this.maxMatchDurationMinutes,
       accessType: accessType ?? this.accessType,
       rules: rules ?? this.rules,
       categories: categories ?? this.categories,
