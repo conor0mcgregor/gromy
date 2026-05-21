@@ -234,11 +234,16 @@ class _TournamentCardState extends State<TournamentCard>
                                       color: _sportAccent,
                                       shimmerCtrl: _shimmerCtrl,
                                     ),
-                                    _ParticipantsBadge(
-                                      current: widget.tournament.participantCount,
-                                      max: widget.tournament.maxParticipants,
-                                      occupancyColor: occupancyColor(_occupancy),
-                                    ),
+                                    if (widget.tournament.bracketsPublished)
+                                      const _StatusBadge(label: 'Brackets publicados', color: Color(0xFFFF4D6A))
+                                    else if (!widget.tournament.acceptsRegistrations)
+                                      const _StatusBadge(label: 'Inscripciones cerradas', color: Color(0xFFFF4D6A))
+                                    else
+                                      _ParticipantsBadge(
+                                        current: widget.tournament.participantCount,
+                                        max: widget.tournament.maxParticipants,
+                                        occupancyColor: occupancyColor(_occupancy),
+                                      ),
                                   ],
                                 ),
                               ),
@@ -733,3 +738,35 @@ class _InfoChip extends StatelessWidget {
     );
   }
 }
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        color: color.withValues(alpha: 0.15),
+        border: Border.all(
+          color: color.withValues(alpha: 0.3),
+          width: 0.8,
+        ),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.4,
+        ),
+      ),
+    );
+  }
+}
+

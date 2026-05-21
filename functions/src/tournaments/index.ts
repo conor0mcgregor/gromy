@@ -27,3 +27,5 @@ export {
   onTournamentDatesChanged,
   onTournamentLocationChanged,
 } from "./tournament_notifications";
+
+export {onTournamentBracketCompleted} from "./on_tournament_completed";

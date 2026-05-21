@@ -93,7 +93,7 @@ class CreateTournamentUseCase {
       sport: sport,
       accessType: accessType,
       maxMatchDurationMinutes: maxMatchDurationMinutes,
-      status: TournamentStatus.published,
+      status: TournamentStatus.registration,
       organizerUid: uid,
       organizerEmail: email?.trim().isEmpty == true ? null : email?.trim(),
       organizerDisplayName: displayName?.trim().isEmpty == true

@@ -65,4 +65,17 @@ class MyTournamentsListController {
       return Stream<List<AppTournament>>.error(e);
     }
   }
+
+  /// Stream de torneos finalizados/cancelados que el usuario creó o administra.
+  Stream<List<AppTournament>> watchCompletedTournaments() {
+    final uid = currentUid;
+    if (uid == null) return const Stream.empty();
+
+    try {
+      final repository = _tournamentRepository ?? FirestoreTournamentService();
+      return repository.watchMyCompletedTournaments(uid).distinct();
+    } catch (e) {
+      return Stream<List<AppTournament>>.error(e);
+    }
+  }
 }

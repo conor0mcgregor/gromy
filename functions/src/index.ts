@@ -39,6 +39,8 @@ export {
   onTournamentCancelled,
   onTournamentDatesChanged,
   onTournamentLocationChanged,
+  // Trigger de completado automático
+  onTournamentBracketCompleted,
 } from "./tournaments";
 
 // ── Módulo de brackets ──────────────────────────────────────────────────────

@@ -14,7 +14,7 @@ class AppTournament {
     required this.location,
     required this.sport,
     required this.accessType,
-    this.status = TournamentStatus.published,
+    this.status = TournamentStatus.registration,
     required this.organizerUid,
     required this.adminIds,
     required this.maxMatchDurationMinutes,
@@ -250,8 +250,23 @@ class AppTournament {
     return null;
   }
 
+  bool get bracketsPublished {
+    if (bracketPublishDate == null) return false;
+    return bracketPublishDate!.isBefore(DateTime.now());
+  }
+
+  /// Devuelve true si el torneo acepta nuevas inscripciones.
+  ///
+  /// Condiciones (todas deben cumplirse):
+  ///   1. El estado es [TournamentStatus.registration].
+  ///   2. Los brackets no han sido publicados todavía (fecha de publicación).
+  ///   3. El plazo de inscripción no ha expirado.
   bool get acceptsRegistrations {
+    // El estado debe ser explícitamente "registration"
     if (!status.acceptsRegistrations) return false;
+    // Si los brackets ya se publicaron por fecha, bloquear también
+    if (bracketsPublished) return false;
+    // Si el plazo de inscripción ha expirado
     if (registrationDeadline != null &&
         DateTime.now().isAfter(registrationDeadline!)) {
       return false;
@@ -261,3 +276,4 @@ class AppTournament {
 
   bool get isPubliclyVisible => status.isPubliclyVisible;
 }
+

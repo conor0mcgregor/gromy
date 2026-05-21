@@ -12,6 +12,7 @@ import '../../../core/widgets/static_location_map.dart';
 import '../../brackets/presentation/widgets/brankets_section.dart';
 import '../../participants/presentation/widgets/participants_section.dart';
 import '../../tournament/data/model/app_tournament.dart';
+import '../../tournament/data/model/enums_tournament.dart';
 import '../../profile/presentation/widgets/user_profile_navigation_helper.dart';
 import '../../../../database/participant/models/app_participant.dart';
 import '../../../../database/team/models/app_team.dart';
@@ -156,7 +157,14 @@ class _PreinscriptionScreenState extends State<PreinscriptionScreen> {
 
                       // 2. Información básica
                       _TournamentHeader(tournament: widget.tournament),
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 12),
+
+                      // Banner de estado (visible cuando no está en inscripciones)
+                      if (widget.tournament.status != TournamentStatus.registration)
+                        _TournamentStatusBanner(
+                          tournament: widget.tournament,
+                        ),
+                      const SizedBox(height: 16),
 
                       // 3. Participantes
                       ParticipantsSection(tournament: widget.tournament),
@@ -1002,6 +1010,9 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
     if (participant == null) return 'No se pudo cargar la inscripcion';
     if (!widget.canCancelTeam) return 'No tienes permisos para editar';
     final now = DateTime.now();
+    if (widget.tournament.bracketsPublished) {
+      return 'El torneo ya está en curso';
+    }
     if (!_isActiveStatus(participant.status)) {
       return 'Esta inscripcion ya no puede editarse.';
     }
@@ -1097,48 +1108,116 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
                       ),
                     ),
                   ],
-                  GradientButton(
-                    label: editBlockReason ?? 'Editar inscripcion',
-                    icon: Icons.edit_rounded,
-                    onPressed: canEdit ? _handleEdit : null,
-                    variant: GradientButtonVariant.select,
-                    size: GradientButtonSize.large,
-                  ),
-                  const SizedBox(height: 10),
-                  GradientButton(
-                    label: widget.canCancelTeam
-                        ? (_isCancelling
-                              ? 'Cancelando...'
-                              : 'Cancelar inscripción')
-                        : 'Solo administradores pueden cancelar',
-                    icon: widget.canCancelTeam
-                        ? (_isCancelling
-                              ? Icons.hourglass_top_rounded
-                              : Icons.cancel_rounded)
-                        : Icons.lock_outline_rounded,
-                    onPressed: (widget.canCancelTeam && !_isCancelling)
-                        ? _handleCancel
-                        : null,
-                    variant: GradientButtonVariant.danger,
-                    size: GradientButtonSize.large,
-                  ),
+                  // Bloqueo cuando el torneo está en curso O completado
+                  if (widget.tournament.status.isLocked) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        color: widget.tournament.status ==
+                                TournamentStatus.completed
+                            ? const Color(0xFFB0A8FF).withValues(alpha: 0.1)
+                            : const Color(0xFF00D4FF).withValues(alpha: 0.08),
+                        border: Border.all(
+                          color: widget.tournament.status ==
+                                  TournamentStatus.completed
+                              ? const Color(0xFFB0A8FF).withValues(alpha: 0.3)
+                              : const Color(0xFF00D4FF).withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            widget.tournament.status ==
+                                    TournamentStatus.completed
+                                ? Icons.emoji_events_rounded
+                                : Icons.sports_rounded,
+                            color: widget.tournament.status ==
+                                    TournamentStatus.completed
+                                ? const Color(0xFFB0A8FF)
+                                : const Color(0xFF00D4FF),
+                            size: 16,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              widget.tournament.status ==
+                                      TournamentStatus.completed
+                                  ? 'El torneo ha finalizado.\n'
+                                    'Ya no es posible modificar la inscripción.'
+                                  : 'El torneo está en curso.\n'
+                                    'No es posible modificar ni cancelar la inscripción.',
+                              style: TextStyle(
+                                color: widget.tournament.status ==
+                                        TournamentStatus.completed
+                                    ? const Color(0xFFB0A8FF)
+                                    : const Color(0xFF00D4FF),
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else ...[
+                    GradientButton(
+                      label: editBlockReason ?? 'Editar inscripcion',
+                      icon: Icons.edit_rounded,
+                      onPressed: canEdit ? _handleEdit : null,
+                      variant: GradientButtonVariant.select,
+                      size: GradientButtonSize.large,
+                    ),
+                    const SizedBox(height: 10),
+                    GradientButton(
+                      label: widget.canCancelTeam
+                          ? (_isCancelling
+                                ? 'Cancelando...'
+                                : 'Cancelar inscripción')
+                          : 'Solo administradores pueden cancelar',
+                      icon: widget.canCancelTeam
+                          ? (_isCancelling
+                                ? Icons.hourglass_top_rounded
+                                : Icons.cancel_rounded)
+                          : Icons.lock_outline_rounded,
+                      onPressed: (widget.canCancelTeam && !_isCancelling)
+                          ? _handleCancel
+                          : null,
+                      variant: GradientButtonVariant.danger,
+                      size: GradientButtonSize.large,
+                    ),
+                  ],
                 ],
               )
             : GradientButton(
-                label: !acceptsRegistrations
+                label: widget.tournament.status == TournamentStatus.completed
+                    ? 'Torneo finalizado'
+                    : widget.tournament.status.isLocked
+                    ? 'Brackets publicados'
+                    : !acceptsRegistrations
                     ? 'Inscripción no disponible'
                     : hasPendingJoinRequest
                     ? 'Solicitud pendiente de revision'
                     : isFull
                     ? 'Torneo completo'
                     : 'Inscribirse al torneo',
-                icon: !acceptsRegistrations || isFull
+                icon: widget.tournament.status == TournamentStatus.completed
+                    ? Icons.emoji_events_rounded
+                    : widget.tournament.status.isLocked || !acceptsRegistrations || isFull
                     ? Icons.block_rounded
                     : hasPendingJoinRequest
                     ? Icons.pending_actions_rounded
                     : Icons.how_to_reg_rounded,
                 onPressed:
-                    !acceptsRegistrations || isFull || hasPendingJoinRequest
+                    widget.tournament.status.isLocked ||
+                    !acceptsRegistrations ||
+                    isFull ||
+                    hasPendingJoinRequest
                     ? null
                     : () => Navigator.push(
                         context,
@@ -1150,11 +1229,96 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
                           ),
                         ),
                       ),
-                variant: isFull || !acceptsRegistrations
+                variant: isFull ||
+                        !acceptsRegistrations ||
+                        widget.tournament.status.isLocked
                     ? GradientButtonVariant.sunset
                     : GradientButtonVariant.aurora,
                 size: GradientButtonSize.large,
               ),
+      ),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  BANNER DE ESTADO DEL TORNEO
+// ════════════════════════════════════════════════════════════════
+
+/// Banner que muestra el estado actual del ciclo de vida del torneo.
+/// Visible cuando el torneo no está en fase de inscripciones.
+class _TournamentStatusBanner extends StatelessWidget {
+  const _TournamentStatusBanner({required this.tournament});
+  final AppTournament tournament;
+
+  @override
+  Widget build(BuildContext context) {
+    final isCompleted = tournament.status == TournamentStatus.completed;
+
+    if (!isCompleted && tournament.status != TournamentStatus.in_progress) {
+      return const SizedBox.shrink();
+    }
+
+    final color = isCompleted
+        ? const Color(0xFFB0A8FF)
+        : const Color(0xFF00D4FF);
+    final icon = isCompleted
+        ? Icons.emoji_events_rounded
+        : Icons.sports_rounded;
+    final title = isCompleted
+        ? '¡Torneo Finalizado!'
+        : 'Torneo en Curso';
+    final subtitle = isCompleted
+        ? 'Este torneo ya ha concluido. Puedes ver los resultados en los brackets.'
+        : 'Los brackets han sido publicados. Las inscripciones están cerradas.';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        color: color.withValues(alpha: 0.08),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withValues(alpha: 0.15),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: color.withValues(alpha: 0.75),
+                    fontSize: 12.5,
+                    height: 1.4,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

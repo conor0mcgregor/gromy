@@ -593,6 +593,8 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
               ],
             ),
           ),
+          _TournamentStatusBadge(status: t.status),
+          const SizedBox(width: 8),
           _RoleBadge(isCreator: _ctrl.isCreator),
         ],
       ),
@@ -798,6 +800,8 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                     Text(
                       _ctrl.edited.status == TournamentStatus.registration
                           ? 'Abiertas (Público puede inscribirse)'
+                          : _ctrl.edited.status == TournamentStatus.in_progress
+                          ? 'En curso (Brackets generados)'
                           : 'Cerradas (No se permiten más inscripciones)',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -805,6 +809,8 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                         color:
                             _ctrl.edited.status == TournamentStatus.registration
                             ? const Color(0xFF22C55E)
+                            : _ctrl.edited.status == TournamentStatus.in_progress
+                            ? const Color(0xFF00D4FF)
                             : const Color(0xFFFF4D6A),
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
@@ -814,10 +820,17 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                 ),
               ),
               const SizedBox(width: 12),
-              Switch(
-                value: _ctrl.edited.status == TournamentStatus.registration,
-                activeThumbColor: const Color(0xFF6C63FF),
-                onChanged: (_) => _ctrl.toggleRegistrationStatus(),
+              // El switch solo alterna entre registration e in_progress.
+              // Cuando está en in_progress o completed, el switch está bloqueado.
+              Opacity(
+                opacity: _ctrl.edited.status.isLocked ? 0.4 : 1.0,
+                child: Switch(
+                  value: _ctrl.edited.status == TournamentStatus.registration,
+                  activeThumbColor: const Color(0xFF6C63FF),
+                  onChanged: _ctrl.edited.status.isLocked
+                      ? null
+                      : (_) => _ctrl.toggleRegistrationStatus(),
+                ),
               ),
             ],
           ),
@@ -1443,6 +1456,9 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
   }
 
   Widget _buildDangerZone() {
+    final tournament = _ctrl.original;
+    final canDelete = tournament.status.canBeDeleted;
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
@@ -1466,12 +1482,55 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                   fontSize: 13,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              // Banner de bloqueo cuando el torneo ya tiene brackets
+              if (!canDelete) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    color: const Color(0xFFFF4D6A).withValues(alpha: 0.08),
+                    border: Border.all(
+                      color: const Color(0xFFFF4D6A).withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.lock_rounded,
+                        color: Color(0xFFFF4D6A),
+                        size: 16,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          tournament.status == TournamentStatus.completed
+                              ? 'No se puede eliminar un torneo finalizado.'
+                              : 'No se puede eliminar un torneo en curso.\n'
+                                'Los brackets ya han sido generados.',
+                          style: const TextStyle(
+                            color: Color(0xFFFF4D6A),
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               GradientButton(
                 label: _ctrl.isDeleting ? 'Eliminando...' : 'Eliminar torneo',
                 icon: Icons.delete_forever_rounded,
                 isLoading: _ctrl.isDeleting,
-                onPressed: _ctrl.isDeleting ? null : _handleDelete,
+                onPressed:
+                    (!canDelete || _ctrl.isDeleting) ? null : _handleDelete,
                 variant: GradientButtonVariant.danger,
               ),
             ],
@@ -1955,6 +2014,71 @@ class _InlineAction extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Badge de estado del torneo (ciclo de vida)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _TournamentStatusBadge extends StatelessWidget {
+  const _TournamentStatusBadge({required this.status});
+
+  final TournamentStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final (color, icon, label) = switch (status) {
+      TournamentStatus.registration => (
+          const Color(0xFF22C55E),
+          Icons.how_to_reg_rounded,
+          'Inscripciones',
+        ),
+      TournamentStatus.in_progress => (
+          const Color(0xFF00D4FF),
+          Icons.sports_rounded,
+          'En curso',
+        ),
+      TournamentStatus.completed => (
+          const Color(0xFFB0A8FF),
+          Icons.emoji_events_rounded,
+          'Finalizado',
+        ),
+      TournamentStatus.draft => (
+          Colors.white54,
+          Icons.edit_document,
+          'Borrador',
+        ),
+      TournamentStatus.cancelled => (
+          const Color(0xFFFF4D6A),
+          Icons.cancel_rounded,
+          'Cancelado',
+        ),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: color.withValues(alpha: 0.12),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 13),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _RoleBadge extends StatelessWidget {
   const _RoleBadge({required this.isCreator});
 
@@ -1993,6 +2117,7 @@ class _RoleBadge extends StatelessWidget {
     );
   }
 }
+
 
 class _DatePickerField extends StatelessWidget {
   const _DatePickerField({

@@ -58,46 +58,65 @@ enum TournamentAccessType {
 }
 
 enum TournamentStatus {
+  /// Fase 1 — Inscripciones abiertas. Los participantes pueden registrarse.
   registration('Inscripciones abiertas'),
-  in_progress('En curso / Inscripciones cerradas'),
+
+  /// Fase 2 — Brackets publicados. El torneo está en marcha.
+  /// Las inscripciones, ediciones y cancelaciones están bloqueadas.
+  in_progress('En curso'),
+
+  /// Fase 3 — Todos los resultados subidos. Torneo finalizado.
+  /// No aparece en el feed principal; sí en el historial de los participantes.
   completed('Finalizado'),
+
+  /// Estado auxiliar — Borrador local antes de publicar.
   draft('Borrador'),
-  published('Publicado'),
-  closed('Cerrado'),
-  finished('Finalizado'),
+
+  /// Estado auxiliar — Torneo cancelado por el organizador.
   cancelled('Cancelado');
 
   const TournamentStatus(this.label);
 
   final String label;
 
+  /// Convierte un valor de Firestore al enum correspondiente.
+  ///
+  /// Compatibilidad hacia atrás:
+  ///   - 'published'  → [registration]  (torneos legacy que aceptan inscripciones)
+  ///   - 'closed'     → [in_progress]
+  ///   - 'finished'   → [completed]
   static TournamentStatus fromValue(String value) {
     final val = value.toLowerCase().trim();
-    if (val.isEmpty || val == 'published') {
-      return TournamentStatus.published;
-    }
-    if (val == 'registration') {
-      return TournamentStatus.registration;
-    }
-    if (val == 'draft') {
-      return TournamentStatus.draft;
-    }
-    if (val == 'in_progress' || val == 'closed') {
-      return TournamentStatus.in_progress;
-    }
+    if (val == 'registration') return TournamentStatus.registration;
+    if (val == 'in_progress' || val == 'closed') return TournamentStatus.in_progress;
+    if (val == 'completed' || val == 'finished') return TournamentStatus.completed;
+    if (val == 'draft') return TournamentStatus.draft;
     if (val == 'cancelled') return TournamentStatus.cancelled;
-    if (val == 'completed' || val == 'finished') {
-      return TournamentStatus.completed;
-    }
-    return TournamentStatus.published;
+    // 'published' y cualquier valor desconocido → registration (legacy)
+    return TournamentStatus.registration;
   }
 
-  bool get acceptsRegistrations =>
-      this == TournamentStatus.registration ||
-      this == TournamentStatus.published;
-  bool get isPubliclyVisible =>
-      this == TournamentStatus.registration ||
-      this == TournamentStatus.published ||
+  /// Solo [registration] acepta nuevas inscripciones.
+  bool get acceptsRegistrations => this == TournamentStatus.registration;
+
+  /// Un torneo bloqueado tiene brackets generados y NO permite modificar
+  /// inscripciones, editar datos ni ser eliminado.
+  bool get isLocked =>
       this == TournamentStatus.in_progress ||
       this == TournamentStatus.completed;
+
+  /// Solo se puede eliminar un torneo que aún no ha generado brackets.
+  bool get canBeDeleted =>
+      this == TournamentStatus.registration ||
+      this == TournamentStatus.draft;
+
+  /// Aparece en el feed principal de Home (excluye [completed]).
+  bool get isActiveInFeed =>
+      this == TournamentStatus.registration ||
+      this == TournamentStatus.in_progress;
+
+  /// Visible públicamente (excluye borradores y cancelados).
+  bool get isPubliclyVisible =>
+      this != TournamentStatus.draft &&
+      this != TournamentStatus.cancelled;
 }

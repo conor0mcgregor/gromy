@@ -71,7 +71,7 @@ class FirestoreTournamentService implements TournamentRepository {
         : collection.doc(tournament.id);
     final tournamentToSave = tournament.copyWith(
       id: docRef.id,
-      status: TournamentStatus.published,
+      status: TournamentStatus.registration,
     );
 
     await docRef
@@ -106,7 +106,7 @@ class FirestoreTournamentService implements TournamentRepository {
     final tournamentToSave = tournament.copyWith(
       id: docRef.id,
       portadaUrl: downloadUrl,
-      status: TournamentStatus.published,
+      status: TournamentStatus.registration,
     );
 
     await docRef
@@ -118,31 +118,40 @@ class FirestoreTournamentService implements TournamentRepository {
 
   // ── Lectura ────────────────────────────────────────────────────────────────
 
+  /// Stream de torneos públicos y activos en el feed principal.
+  ///
+  /// Filtra directamente en Firestore por los estados del feed activo
+  /// (registration e in_progress), excluyendo completed, draft y cancelled.
   Stream<List<AppTournament>> _watchAllPublicTournaments() {
-    return _tournaments.snapshots().map((snapshot) {
-      final list = <AppTournament>[];
-      for (final doc in snapshot.docs) {
-        try {
-          final tournament = AppTournament.fromMap(doc.data());
-          if (tournament.isPubliclyVisible) {
-            list.add(tournament);
+    // Filtramos por los dos estados que deben aparecer en el feed
+    return _tournaments
+        .where('status', whereIn: ['registration', 'in_progress'])
+        .snapshots()
+        .map((snapshot) {
+          final list = <AppTournament>[];
+          for (final doc in snapshot.docs) {
+            try {
+              final tournament = AppTournament.fromMap(doc.data());
+              list.add(tournament);
+            } catch (e) {
+              // ignore: avoid_print
+              print('Error mapeando torneo: $e');
+            }
           }
-        } catch (e) {
-          // ignore: avoid_print
-          print('Error mapeando torneo: $e');
-        }
-      }
-      return list;
-    });
+          return list;
+        });
   }
 
   @override
   Stream<List<AppTournament>> watchTournaments() {
     return _watchAllPublicTournaments().map((all) {
       final pastThreshold = DateTime.now().subtract(const Duration(days: 1));
-      final active = all
-          .where((t) => !t.scheduledAt.isBefore(pastThreshold))
-          .toList();
+      // Excluimos torneos cuya fecha ya pasó (salvo in_progress que puede
+      // seguir activo aunque la fecha haya pasado)
+      final active = all.where((t) {
+        if (t.status == TournamentStatus.in_progress) return true;
+        return !t.scheduledAt.isBefore(pastThreshold);
+      }).toList();
       active.sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
       return active;
     });
@@ -184,6 +193,58 @@ class FirestoreTournamentService implements TournamentRepository {
       (List<AppTournament> public, List<AppTournament> private) {
         final all = [...public, ...private];
         return all.where((t) => t.adminIds.contains(uid)).toList()
+          ..sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
+      },
+    );
+  }
+
+  /// Stream de torneos completados/cancelados donde el usuario es creador o admin.
+  ///
+  /// Consulta Firestore filtrando por los estados que no aparecen en el feed
+  /// principal: completed y cancelled.
+  Stream<List<AppTournament>> _watchCompletedOrCancelledPublic() {
+    return _tournaments
+        .where('status', whereIn: ['completed', 'cancelled'])
+        .snapshots()
+        .map((snapshot) {
+          final list = <AppTournament>[];
+          for (final doc in snapshot.docs) {
+            try {
+              list.add(AppTournament.fromMap(doc.data()));
+            } catch (e) {
+              // ignore: avoid_print
+              print('Error mapeando torneo completado: $e');
+            }
+          }
+          return list;
+        });
+  }
+
+  @override
+  Stream<List<AppTournament>> watchMyCompletedTournaments(String uid) {
+    return Rx.combineLatest2(
+      _watchCompletedOrCancelledPublic(),
+      _watchPrivateTournaments(),
+      (List<AppTournament> completed, List<AppTournament> private) {
+        // Incluir privados con estado completado/cancelado
+        final completedPrivate = private.where(
+          (t) =>
+              t.status == TournamentStatus.completed ||
+              t.status == TournamentStatus.cancelled,
+        );
+        final all = [...completed, ...completedPrivate];
+        // Filtrar solo los que el uid creó o administra
+        return all
+            .where(
+              (t) => t.organizerUid == uid || t.adminIds.contains(uid),
+            )
+            .fold<List<AppTournament>>(
+              [],
+              (acc, t) {
+                if (!acc.any((e) => e.id == t.id)) acc.add(t);
+                return acc;
+              },
+            )
           ..sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
       },
     );
@@ -289,11 +350,11 @@ class FirestoreTournamentService implements TournamentRepository {
       participants,
     ) async {
       final tournaments = <AppTournament>[];
+      // Excluir participaciones rechazadas o canceladas
       final validParticipants = participants
           .where((p) => p.status != ParticipantStatus.rejected)
           .toList();
-      final now = DateTime.now();
-      final pastThreshold = now.subtract(const Duration(days: 1));
+      final pastThreshold = DateTime.now().subtract(const Duration(days: 1));
 
       for (final p in validParticipants) {
         try {
@@ -303,7 +364,12 @@ class FirestoreTournamentService implements TournamentRepository {
           }
           if (doc.exists && doc.data() != null) {
             final t = AppTournament.fromMap(doc.data()!);
-            if (t.scheduledAt.isBefore(pastThreshold)) {
+            // Incluir en el historial si:
+            //   (a) el torneo está explícitamente completado, O
+            //   (b) la fecha de celebración ya ha pasado
+            final isCompleted = t.status == TournamentStatus.completed;
+            final isPast = t.scheduledAt.isBefore(pastThreshold);
+            if (isCompleted || isPast) {
               tournaments.add(t);
             }
           }

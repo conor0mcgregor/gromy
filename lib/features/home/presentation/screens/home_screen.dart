@@ -6,6 +6,7 @@ import 'package:gromy/features/tournament/data/model/app_tournament.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../inscription/screen/preinscription_screen.dart';
+import '../../../tournament/data/model/enums_tournament.dart';
 import '../controllers/home_controller.dart';
 import '../widgets/tournament_card.dart';
 import '../widgets/filter_bottom_sheet.dart';
@@ -105,6 +106,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   List<AppTournament> _filter(List<AppTournament> all) {
     final filtered = all.where((t) {
+      if (t.status == TournamentStatus.completed) return false;
+
       final matchesSearch = _searchQuery.isEmpty ||
           t.name.toLowerCase().contains(_searchQuery) ||
           t.sport.label.toLowerCase().contains(_searchQuery);
