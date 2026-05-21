@@ -3,18 +3,19 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:rxdart/rxdart.dart';
 
-import '../../../../database/participant/models/app_participant.dart';
-import '../../../../database/participant/services/firestore_participant_service.dart';
-import '../../../../database/team/models/app_team.dart';
-import '../../../../database/team/services/firestore_team_service.dart';
-import '../../../home/presentation/widgets/tournament_card.dart';
-import '../../../inscription/data/models/join_request.dart';
-import '../../../inscription/screen/preinscription_screen.dart';
-import '../../../notifications/domain/entities/notification_type.dart';
-import '../../../tournament/data/model/app_tournament.dart';
-import '../../../tournament/data/services/firestore_tournament_service.dart';
-import '../controllers/events_controller.dart';
-import 'events_screen.dart';
+import '../../../../../database/participant/models/app_participant.dart';
+import '../../../../../database/participant/services/firestore_participant_service.dart';
+import '../../../../../database/team/models/app_team.dart';
+import '../../../../../database/team/services/firestore_team_service.dart';
+import '../../../../events/presentation/controllers/events_controller.dart';
+import '../../../../events/presentation/screens/events_screen.dart';
+import '../../../../home/presentation/widgets/tournament_card.dart';
+import '../../../../inscription/data/models/join_request.dart';
+import '../../../../inscription/screen/preinscription_screen.dart';
+import '../../../../notifications/domain/entities/notification_type.dart';
+import '../../../data/model/app_tournament.dart';
+import '../../../data/services/firestore_tournament_service.dart';
+import '../history/historical_tournaments_screen.dart';
 
 class InscribedTournamentsTab extends StatefulWidget {
   const InscribedTournamentsTab({super.key, required this.controller});
@@ -50,36 +51,69 @@ class _InscribedTournamentsTabState extends State<InscribedTournamentsTab> {
       stream: _watchEntries(uid),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const EventsLoadingState();
-        }
-
-        if (snapshot.hasError) {
-          return EventsErrorState(message: '${snapshot.error}');
-        }
-
-        final entries = snapshot.data ?? [];
-        if (entries.isEmpty) {
-          return const EventsEmptyState(
-            title: 'Sin inscripciones',
-            message:
-                'Aun no tienes torneos confirmados, pendientes o invitaciones activas.',
-            icon: Icons.how_to_reg_outlined,
+          return Column(
+            children: [
+              _OldInscriptionsButton(
+                onTap: () => _openHistoricalInscriptions(context),
+              ),
+              const Expanded(child: EventsLoadingState()),
+            ],
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
-          itemCount: entries.length,
-          itemBuilder: (context, index) {
-            final entry = entries[index];
-            return _EnrollmentCard(
-              entry: entry,
-              animationDelay: Duration(milliseconds: 70 * index),
-              onTap: () => _navigateToDetail(context, entry, uid),
-            );
-          },
+        if (snapshot.hasError) {
+          return Column(
+            children: [
+              _OldInscriptionsButton(
+                onTap: () => _openHistoricalInscriptions(context),
+              ),
+              Expanded(child: EventsErrorState(message: '${snapshot.error}')),
+            ],
+          );
+        }
+
+        final entries = snapshot.data ?? [];
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _OldInscriptionsButton(
+              onTap: () => _openHistoricalInscriptions(context),
+            ),
+            Expanded(
+              child: entries.isEmpty
+                  ? const EventsEmptyState(
+                      title: 'Sin inscripciones activas',
+                      message:
+                          'No tienes torneos en curso ni pendientes. '
+                          'Consulta tus torneos finalizados en el historial.',
+                      icon: Icons.how_to_reg_outlined,
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 110),
+                      itemCount: entries.length,
+                      itemBuilder: (context, index) {
+                        final entry = entries[index];
+                        return _EnrollmentCard(
+                          entry: entry,
+                          animationDelay: Duration(milliseconds: 70 * index),
+                          onTap: () => _navigateToDetail(context, entry, uid),
+                        );
+                      },
+                    ),
+            ),
+          ],
         );
       },
+    );
+  }
+
+  void _openHistoricalInscriptions(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const HistoricalTournamentsScreen(),
+      ),
     );
   }
 
@@ -177,6 +211,7 @@ class _InscribedTournamentsTabState extends State<InscribedTournamentsTab> {
             seed.tournamentId,
           );
           if (tournament == null) continue;
+          if (tournament.status.isExcludedFromActiveEnrollments) continue;
           entries.add(_EnrollmentEntry(tournament: tournament, seed: seed));
         }
         entries.sort(
@@ -258,6 +293,74 @@ class _InscribedTournamentsTabState extends State<InscribedTournamentsTab> {
           initialCanCancelTeam: canCancel,
           invitationNotificationId: entry.seed.invitation?['notificationId']
               ?.toString(),
+        ),
+      ),
+    );
+  }
+}
+
+class _OldInscriptionsButton extends StatelessWidget {
+  const _OldInscriptionsButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          splashColor: const Color(0xFF6C63FF).withValues(alpha: 0.1),
+          highlightColor: const Color(0xFF6C63FF).withValues(alpha: 0.05),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              color: Colors.white.withValues(alpha: 0.04),
+              border: Border.all(
+                color: const Color(0xFF6C63FF).withValues(alpha: 0.35),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: const Color(0xFF6C63FF).withValues(alpha: 0.14),
+                  ),
+                  child: const Icon(
+                    Icons.history_rounded,
+                    color: Color(0xFFB0A8FF),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Mis antiguas inscripciones',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: Colors.white.withValues(alpha: 0.45),
+                  size: 22,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

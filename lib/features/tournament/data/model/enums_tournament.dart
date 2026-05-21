@@ -119,4 +119,12 @@ enum TournamentStatus {
   bool get isPubliclyVisible =>
       this != TournamentStatus.draft &&
       this != TournamentStatus.cancelled;
+
+  /// Torneos que solo deben mostrarse en historial, no en inscripciones activas.
+  ///
+  /// Incluye estados finalizados (`completed`, legacy `finished`) y
+  /// [cancelled].
+  bool get isExcludedFromActiveEnrollments =>
+      this == TournamentStatus.completed ||
+      this == TournamentStatus.cancelled;
 }

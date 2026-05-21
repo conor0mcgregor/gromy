@@ -3,7 +3,7 @@ import 'package:gromy/core/widgets/glass_tab_bar.dart';
 
 import '../controllers/events_controller.dart';
 import 'save_tournaments_tab.dart';
-import 'inscribed_tournaments_tab.dart';
+import '../../../tournament/presentation/screens/inscribed_tournaments/inscribed_tournaments_tab.dart';
 
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
