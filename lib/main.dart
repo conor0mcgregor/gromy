@@ -56,11 +56,15 @@ void main() async {
 
   FirebaseAuth.instance.userChanges().listen((user) {
     if (user == null) {
-      // Si el usuario es nulo (logout o cuenta eliminada), volvemos a la raíz
-      // donde el AuthGateScreen reaccionará automáticamente y mostrará el LoginScreen.
+      // Si el usuario es nulo (logout o cuenta eliminada), forzamos una
+      // redirección absoluta a la puerta de autenticación, limpiando
+      // cualquier pila de navegación previa (evita estados zombi).
       final context = PushNotificationService.navigatorKey.currentContext;
-      if (context != null && Navigator.of(context).canPop()) {
-        Navigator.of(context).popUntil((route) => route.isFirst);
+      if (context != null) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const AuthGateScreen()),
+          (route) => false,
+        );
       }
     }
   });
