@@ -1,16 +1,9 @@
 horario de enfrentamiento solo se pude poner la hora
-al eliminar participante se tiene que eliminar tambien de los brackets
-al eliminar un categoria tienes que elejir en que categoria se pondran todos los usuarios que estaba en la categoria eliminada
-eliminar la opcion de editar los miembros de un equipo en un torneo porque seria un desastre
 
-pedir confirmacion para cambiar ubicacion
 boton de gestion en un torneo desde la carta de torneo de home si eres admin o creador
 
-que se refleje en la app la diferencia entre un torneo abierto y uno cerrado
 
 screen de match
 avisos de tu match
-
-ver perfil de ususarios en participantes, solicitudes, equipos, categorias, torneos
 
 en cada enfrentamiento añadir cuanto dura (como maximo) en el formulario de torneo, se puede modificar el de cada enfrentameinto en screen de enfrentarmientos o de matchs

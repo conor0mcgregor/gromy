@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
+import '../../features/profile/presentation/widgets/user_profile_navigation_helper.dart';
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  ParticipantCard  ·  Widget reutilizable
 //
@@ -15,6 +17,7 @@ import 'package:flutter/material.dart';
 //    - [trailing]: widget personalizado a la derecha (botón, badge, etc.)
 //    - [onTap]: callback al pulsar la card
 //    - [showBorder]: muestra borde glassmorphism (true por defecto)
+//    - [userId]: Si se provee, la card completa será clickeable para abrir el perfil del usuario.
 // ─────────────────────────────────────────────────────────────────────────────
 
 class ParticipantCard extends StatelessWidget {
@@ -27,6 +30,7 @@ class ParticipantCard extends StatelessWidget {
     this.onTap,
     this.showBorder = true,
     this.avatarSize = 44,
+    this.userId,
   });
 
   /// Nickname del usuario (se muestra con @, en negrita).
@@ -50,8 +54,81 @@ class ParticipantCard extends StatelessWidget {
   /// Tamaño del avatar en píxeles.
   final double avatarSize;
 
+  /// ID del usuario, si se provee habilita la navegación al perfil.
+  final String? userId;
+
   @override
   Widget build(BuildContext context) {
+    Widget cardContent = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      decoration: showBorder
+          ? BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.08),
+              ),
+            )
+          : null,
+      child: Row(
+        children: [
+          // ── Avatar ────────────────────────────────────────────
+          _ParticipantAvatar(
+            photoUrl: photoUrl,
+            nickname: nickname,
+            displayName: displayName,
+            size: avatarSize,
+          ),
+          const SizedBox(width: 14),
+
+          // ── Texto ─────────────────────────────────────────────
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '@$nickname',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.1,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (displayName.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    displayName,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.45),
+                      fontSize: 12.5,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          // ── Trailing ──────────────────────────────────────────
+          if (trailing != null) ...[
+            const SizedBox(width: 10),
+            trailing!,
+          ],
+        ],
+      ),
+    );
+
+    if (userId != null && userId!.isNotEmpty) {
+      return UserProfileClickable(
+        userId: userId,
+        borderRadius: 14,
+        child: cardContent,
+      );
+    }
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -59,67 +136,7 @@ class ParticipantCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         splashColor: const Color(0xFF6C63FF).withValues(alpha: 0.06),
         highlightColor: const Color(0xFF6C63FF).withValues(alpha: 0.03),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-          decoration: showBorder
-              ? BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.04),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.08),
-                  ),
-                )
-              : null,
-          child: Row(
-            children: [
-              // ── Avatar ────────────────────────────────────────────
-              _ParticipantAvatar(
-                photoUrl: photoUrl,
-                nickname: nickname,
-                displayName: displayName,
-                size: avatarSize,
-              ),
-              const SizedBox(width: 14),
-
-              // ── Texto ─────────────────────────────────────────────
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '@$nickname',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.1,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (displayName.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        displayName,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.45),
-                          fontSize: 12.5,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-
-              // ── Trailing ──────────────────────────────────────────
-              if (trailing != null) ...[
-                const SizedBox(width: 10),
-                trailing!,
-              ],
-            ],
-          ),
-        ),
+        child: cardContent,
       ),
     );
   }
@@ -138,6 +155,7 @@ class ParticipantAvatar extends StatelessWidget {
     this.displayName = '',
     this.size = 44,
     this.borderColor,
+    this.userId,
   });
 
   final String? photoUrl;
@@ -145,16 +163,27 @@ class ParticipantAvatar extends StatelessWidget {
   final String displayName;
   final double size;
   final Color? borderColor;
+  final String? userId;
 
   @override
   Widget build(BuildContext context) {
-    return _ParticipantAvatar(
+    Widget avatar = _ParticipantAvatar(
       photoUrl: photoUrl,
       nickname: nickname,
       displayName: displayName,
       size: size,
       borderColor: borderColor,
     );
+    
+    if (userId != null && userId!.isNotEmpty) {
+      return UserProfileClickable(
+        userId: userId,
+        borderRadius: size / 2, // Circular ripple
+        child: avatar,
+      );
+    }
+    
+    return avatar;
   }
 }
 

@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../app/app_shell.dart';
 import '../../../../database/team/services/firestore_team_service.dart';
-import '../../../profile/presentation/screens/other_user_profile_screen.dart';
+import '../../../../features/profile/presentation/widgets/user_profile_navigation_helper.dart';
 import '../../../team/presentation/screens/team_detail_screen.dart';
 import '../../data/models/app_match.dart';
 import '../../data/models/bracket_enums.dart';
@@ -186,22 +186,14 @@ class MatchCard extends StatelessWidget {
         ? (match.isBye ? 'BYE' : 'Por definir')
         : (name ?? 'Participante');
 
-    return GestureDetector(
-      onTap: isEmpty
-          ? null
-          : () => _handleParticipantTap(
-                context,
-                participantId,
-                participantType ?? MatchParticipantType.user,
-              ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: isWinner
-              ? _winnerColor.withValues(alpha: 0.06)
-              : Colors.transparent,
-        ),
-        child: Row(
+    Widget rowContent = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: isWinner
+            ? _winnerColor.withValues(alpha: 0.06)
+            : Colors.transparent,
+      ),
+      child: Row(
           children: [
             // Foto / Avatar
             _buildAvatar(photoUrl, isEmpty, isWinner),
@@ -265,8 +257,27 @@ class MatchCard extends StatelessWidget {
             ],
           ],
         ),
-      ),
-    );
+      );
+
+    if (!isEmpty && participantType == MatchParticipantType.user) {
+      return UserProfileClickable(
+        userId: participantId,
+        borderRadius: 0,
+        child: rowContent,
+      );
+    }
+    
+    if (!isEmpty && participantType == MatchParticipantType.team) {
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _handleParticipantTap(context, participantId, participantType!),
+          child: rowContent,
+        ),
+      );
+    }
+
+    return rowContent;
   }
 
   Future<void> _handleParticipantTap(
@@ -274,24 +285,7 @@ class MatchCard extends StatelessWidget {
     String participantId,
     MatchParticipantType type,
   ) async {
-    if (type == MatchParticipantType.user) {
-      if (FirebaseAuth.instance.currentUser?.uid == participantId) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const AppShell(initialIndex: 4),
-          ),
-          (route) => false,
-        );
-        return;
-      }
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => OtherUserProfileScreen(targetUid: participantId),
-        ),
-      );
-    } else if (type == MatchParticipantType.team) {
+    if (type == MatchParticipantType.team) {
       // Mostrar indicador de carga simple
       showDialog(
         context: context,

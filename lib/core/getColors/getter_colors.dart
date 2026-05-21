@@ -272,6 +272,11 @@ enum GradientButtonVariant {
     shadowColor: Color(0xFF00B4DB),
   ),
 
+  paradiseGreen(
+    colors: [Color(0xFF00DB6A), Color(0xFF00B084), Color(0xFF00FF9D)],
+    shadowColor: Color(0xFF00DB4D),
+  ),
+
   /// Cerezo en flor: Rosa pálido → Blanco → Verde primavera
   sakura(
     colors: [Color(0xFFFFB7C5), Color(0xFFFFF0F3), Color(0xFFC1E1C1)],

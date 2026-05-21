@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gromy/features/team/presentation/widgets/admin_chip.dart';
+import '../../../../features/profile/presentation/widgets/user_profile_navigation_helper.dart';
 
 class TeamMemberTile extends StatelessWidget {
   const TeamMemberTile({
@@ -10,6 +11,7 @@ class TeamMemberTile extends StatelessWidget {
     this.isAdmin = false,
     this.showAdminBadge = true,
     this.trailing,
+    this.userId,
     this.onTap,
     this.statusLabel,
     this.statusColor,
@@ -22,6 +24,7 @@ class TeamMemberTile extends StatelessWidget {
   final bool isAdmin;
   final bool showAdminBadge;
   final Widget? trailing;
+  final String? userId;
   final VoidCallback? onTap;
   final String? statusLabel;
   final Color? statusColor;
@@ -31,72 +34,86 @@ class TeamMemberTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent = statusColor ?? const Color(0xFFF59E0B);
 
-    return Opacity(
-      opacity: muted ? 0.78 : 1,
-      child: InkWell(
-        onTap: onTap,
+
+    final content = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: muted
+            ? accent.withValues(alpha: 0.06)
+            : Colors.white.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: muted
-                ? accent.withValues(alpha: 0.06)
-                : Colors.white.withValues(alpha: 0.04),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: muted
-                  ? accent.withValues(alpha: 0.2)
-                  : Colors.white.withValues(alpha: 0.08),
-            ),
-          ),
-          child: Row(
-            children: [
-              _buildAvatar(accent),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            displayName,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (isAdmin) ...[
-                          const SizedBox(width: 8),
-                          AdminChip(small: !showAdminBadge),
-                        ],
-                        if (statusLabel != null) ...[
-                          const SizedBox(width: 8),
-                          _StatusChip(label: statusLabel!, color: accent),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '@$nickname',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.45),
-                        fontSize: 12.5,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              if (trailing != null) ...[const SizedBox(width: 10), trailing!],
-            ],
-          ),
+        border: Border.all(
+          color: muted
+              ? accent.withValues(alpha: 0.2)
+              : Colors.white.withValues(alpha: 0.08),
         ),
       ),
+      child: Row(
+        children: [
+          _buildAvatar(accent),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        displayName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isAdmin) ...[
+                      const SizedBox(width: 8),
+                      AdminChip(small: !showAdminBadge),
+                    ],
+                    if (statusLabel != null) ...[
+                      const SizedBox(width: 8),
+                      _StatusChip(label: statusLabel!, color: accent),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '@$nickname',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.45),
+                    fontSize: 12.5,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          if (trailing != null) ...[const SizedBox(width: 10), trailing!],
+        ],
+      ),
+    );
+
+    Widget interactiveContent;
+    if (userId != null) {
+      interactiveContent = UserProfileClickable(
+        userId: userId!,
+        borderRadius: 14,
+        child: content,
+      );
+    } else {
+      interactiveContent = InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: content,
+      );
+    }
+
+    return Opacity(
+      opacity: muted ? 0.78 : 1,
+      child: interactiveContent,
     );
   }
 

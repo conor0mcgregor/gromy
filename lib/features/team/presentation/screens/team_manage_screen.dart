@@ -1006,24 +1006,7 @@ class _TeamManageScreenState extends State<TeamManageScreen>
                 photoUrl: user?.photoUrl,
                 isAdmin: isAdmin,
                 showAdminBadge: false,
-                onTap: () {
-                  if (FirebaseAuth.instance.currentUser?.uid == uid) {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AppShell(initialIndex: 4),
-                      ),
-                          (route) => false,
-                    );
-                    return;
-                  }
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => OtherUserProfileScreen(targetUid: uid),
-                    ),
-                  );
-                },
+                userId: uid,
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

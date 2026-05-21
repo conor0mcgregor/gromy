@@ -596,7 +596,10 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
             child: const Text(
               'Descartar borrador',
               style: TextStyle(fontWeight: FontWeight.bold),
-            ),
+              softWrap: true, // Le permite romper la línea y bajar cuando no cabe
+              maxLines: 2,
+            )
+            ,
           ),
           TextButton(
             onPressed: () async {
@@ -633,7 +636,13 @@ class _FormTournamentScreenState extends State<FormTournamentScreen>
           children: [
             Icon(Icons.warning_amber_rounded, color: Color(0xFFFF4D6A)),
             SizedBox(width: 8),
-            Text('¿Descartar borrador?', style: TextStyle(color: Colors.white)),
+            Expanded(child:
+            Text(
+              'Descartar borrador',
+              style: TextStyle(fontWeight: FontWeight.bold),
+              softWrap: true, // Le permite romper la línea y bajar cuando no cabe
+              maxLines: 2,
+              ))
           ],
         ),
         content: Text(

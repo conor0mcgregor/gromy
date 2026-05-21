@@ -344,28 +344,10 @@ class _TeamCardState extends State<TeamCard>
                           ? '${user.name} ${user.lastName}'.trim()
                           : 'Usuario desconocido',
                       photoUrl: user?.photoUrl,
+                      userId: user?.uid,
                       trailing: isAdmin
                           ? _AdminBadge()
                           : null,
-                      onTap: () {
-                        if (user == null) return;
-                        if (FirebaseAuth.instance.currentUser?.uid == user.uid) {
-                          Navigator.pushAndRemoveUntil(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const AppShell(initialIndex: 4),
-                            ),
-                            (route) => false,
-                          );
-                          return;
-                        }
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => OtherUserProfileScreen(targetUid: user.uid),
-                          ),
-                        );
-                      },
                     ),
                   );
                 }),

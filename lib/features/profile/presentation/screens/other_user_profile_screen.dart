@@ -759,13 +759,53 @@ class _TabButton extends StatelessWidget {
   }
 }
 
-class _SportsStatsSection extends StatelessWidget {
+class _SportsStatsSection extends StatefulWidget {
   const _SportsStatsSection({required this.profile});
 
   final PublicUserProfile profile;
 
   @override
+  State<_SportsStatsSection> createState() => _SportsStatsSectionState();
+}
+
+class _SportsStatsSectionState extends State<_SportsStatsSection> {
+  TournamentSport? _selectedSport;
+
+  @override
+  void initState() {
+    super.initState();
+    _initSelectedSport();
+  }
+  
+  void _initSelectedSport() {
+    // Buscar el primer deporte con métricas jugadas
+    for (final sport in TournamentSport.values) {
+      final stats = widget.profile.sportsStats[sport.name];
+      if (stats != null && (stats.matchesPlayed > 0 || stats.totalPlayed > 0)) {
+        _selectedSport = sport;
+        return;
+      }
+    }
+    // Si no hay ninguno jugado, por defecto el primero
+    _selectedSport = TournamentSport.values.first;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final availableSports = TournamentSport.values.where((sport) {
+      final stats = widget.profile.sportsStats[sport.name];
+      return stats != null && (stats.matchesPlayed > 0 || stats.totalPlayed > 0);
+    }).toList();
+    
+    final hasAnyPlayed = availableSports.isNotEmpty;
+    // Si no hay ninguno jugado, usamos la lista completa para mostrarlos vacíos
+    final displaySports = hasAnyPlayed ? availableSports : TournamentSport.values.toList();
+    
+    // Fallback si por alguna razón el seleccionado ya no es válido
+    if (!displaySports.contains(_selectedSport)) {
+      _selectedSport = displaySports.first;
+    }
+
     return Column(
       key: const ValueKey('sports'),
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -777,11 +817,131 @@ class _SportsStatsSection extends StatelessWidget {
           color: Color(0xFF00D4FF),
         ),
         const SizedBox(height: 14),
-        ...TournamentSport.values.map((sport) {
-          final stats = profile.sportsStats[sport.name] ?? UserSportStats.empty;
-          return _SportPerformanceCard(sport: sport, stats: stats);
-        }),
+        if (!hasAnyPlayed)
+           _GlobalSportEmptyState(color: const Color(0xFF00D4FF))
+        else ...[
+          // Selector de Deporte
+          SizedBox(
+            height: 42,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: displaySports.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final sport = displaySports[index];
+                final isSelected = sport == _selectedSport;
+                final accent = sportColor(sport);
+                
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedSport = sport;
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOutCubic,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: isSelected ? accent.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected ? accent.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.1),
+                        width: isSelected ? 1.5 : 1,
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _sportIcon(sport),
+                          color: isSelected ? accent : Colors.white.withValues(alpha: 0.5),
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          sport.label,
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.5),
+                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 18),
+          
+          // Tarjeta de estadísticas (Animada)
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: Builder(
+              key: ValueKey(_selectedSport),
+              builder: (context) {
+                final stats = widget.profile.sportsStats[_selectedSport!.name] ?? UserSportStats.empty;
+                return _SportPerformanceCard(sport: _selectedSport!, stats: stats);
+              }
+            ),
+          ),
+        ],
       ],
+    );
+  }
+}
+
+class _GlobalSportEmptyState extends StatelessWidget {
+  const _GlobalSportEmptyState({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        color: color.withValues(alpha: 0.05),
+        border: Border.all(color: color.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.sports_basketball_rounded, color: color, size: 32),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Aún no hay estadísticas',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'El jugador no ha registrado partidos ni torneos en ningún deporte.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.5),
+              fontSize: 14,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../data/models/app_match.dart';
 import '../../data/models/bracket_enums.dart';
+import '../../../../features/profile/presentation/widgets/user_profile_navigation_helper.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  MatchDetailPanel  ·  Widget
@@ -331,7 +332,7 @@ class MatchDetailPanel extends StatelessWidget {
         : (name ?? 'Participante');
     final isTeam = type == MatchParticipantType.team;
 
-    return AnimatedContainer(
+    Widget cardContent = AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -530,6 +531,16 @@ class MatchDetailPanel extends StatelessWidget {
         ],
       ),
     );
+
+    if (!isEmpty && !isTeam && participantId != null) {
+      return UserProfileClickable(
+        userId: participantId,
+        borderRadius: 16,
+        child: cardContent,
+      );
+    }
+    
+    return cardContent;
   }
 
   Widget _buildAvatar({

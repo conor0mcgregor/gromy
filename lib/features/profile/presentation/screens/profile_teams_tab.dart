@@ -56,8 +56,10 @@ class ProfileTeamsTab extends StatelessWidget {
               GradientButton(
                 label: 'Crear equipo',
                 icon: Icons.group_add_rounded,
-                variant: GradientButtonVariant.violet,
+                variant: GradientButtonVariant.paradiseGreen,
+                animationType: AnimationType.subtle,
                 size: GradientButtonSize.large,
+                // textColor: Color(0xFF0B00A3),
                 onPressed: () {
                   Navigator.push(
                     context,

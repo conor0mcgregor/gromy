@@ -394,24 +394,7 @@ class _ParticipantItem extends StatelessWidget {
         nickname: user.nickname,
         displayName: '${user.name} ${user.lastName}'.trim(),
         photoUrl: user.photoUrl,
-        onTap: () {
-          if (FirebaseAuth.instance.currentUser?.uid == user.uid) {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const AppShell(initialIndex: 4),
-              ),
-                  (route) => false,
-            );
-            return;
-          }
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => OtherUserProfileScreen(targetUid: user.uid),
-            ),
-          );
-        },
+        userId: user.uid,
       ),
       TeamParticipantDisplay(:final team) => TeamCard(team: team),
     };

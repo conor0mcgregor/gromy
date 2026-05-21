@@ -10,8 +10,6 @@ import '../../../../database/team/models/app_team.dart';
 import '../../../../database/team/services/firestore_team_service.dart';
 import '../../../user/data/services/firestore_user_service.dart';
 import '../../../user/data/models/app_user.dart';
-import '../../../profile/presentation/screens/other_user_profile_screen.dart';
-import '../../../../app/app_shell.dart';
 import '../widgets/team_member_tile.dart';
 import 'team_manage_screen.dart';
 
@@ -203,7 +201,9 @@ class _TeamDetailScreenState extends State<TeamDetailScreen>
                     child: GradientButton(
                       label: 'Gestionar equipo',
                       icon: Icons.settings_rounded,
-                      variant: GradientButtonVariant.violet,
+                      variant: GradientButtonVariant.mysticMoon,
+                      animationType: AnimationType.shimmer,
+                      textColor: Colors.black,
                       size: GradientButtonSize.large,
                       onPressed: () async {
                         await Navigator.push(
@@ -458,24 +458,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen>
                 photoUrl: user?.photoUrl,
                 isAdmin: isAdmin,
                 showAdminBadge: true,
-                onTap: () {
-                  if (FirebaseAuth.instance.currentUser?.uid == uid) {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AppShell(initialIndex: 4),
-                      ),
-                          (route) => false,
-                    );
-                    return;
-                  }
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => OtherUserProfileScreen(targetUid: uid),
-                    ),
-                  );
-                },
+                userId: uid,
               ),
             );
           }),

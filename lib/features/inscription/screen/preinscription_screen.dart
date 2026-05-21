@@ -12,14 +12,13 @@ import '../../../core/widgets/static_location_map.dart';
 import '../../brackets/presentation/widgets/brankets_section.dart';
 import '../../participants/presentation/widgets/participants_section.dart';
 import '../../tournament/data/model/app_tournament.dart';
+import '../../profile/presentation/widgets/user_profile_navigation_helper.dart';
 import '../../../../database/participant/models/app_participant.dart';
 import '../../../../database/team/models/app_team.dart';
 import '../domain/models/enrollment_status.dart';
 import '../presentation/controllers/preinscription_controller.dart';
 import '../../events/presentation/controllers/favorites_controller.dart';
 import 'edit_inscription_screen.dart';
-import '../../profile/presentation/screens/other_user_profile_screen.dart';
-import '../../../app/app_shell.dart';
 import 'inscription_screen.dart';
 
 // ════════════════════════════════════════════════════════════════
@@ -405,23 +404,9 @@ class _OrganizerChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        if (FirebaseAuth.instance.currentUser?.uid == organizerUid) {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (_) => const AppShell(initialIndex: 4)),
-            (route) => false,
-          );
-          return;
-        }
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => OtherUserProfileScreen(targetUid: organizerUid),
-          ),
-        );
-      },
+    return UserProfileClickable(
+      userId: organizerUid,
+      borderRadius: 999,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
