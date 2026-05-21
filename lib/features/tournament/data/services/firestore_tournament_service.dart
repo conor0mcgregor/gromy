@@ -7,6 +7,7 @@ import '../../../../core/models/registration_form.dart';
 import '../../../../database/participant/models/app_participant.dart';
 import '../../../../database/participant/repositories/participant_repository.dart';
 import '../../../../database/participant/services/firestore_participant_service.dart';
+import '../helpers/tournament_collection_resolver.dart';
 import '../model/app_tournament.dart';
 import '../model/enums_tournament.dart';
 import '../repositories/tournament_repository.dart';
@@ -28,6 +29,7 @@ class FirestoreTournamentService implements TournamentRepository {
     FirebaseFirestore? firestore,
     TournamentStorageService? storageService,
     ParticipantRepository? participantRepository,
+    TournamentCollectionResolver? tournamentResolver,
   }) : _db =
            firestore ??
            FirebaseFirestore.instanceFor(
@@ -36,11 +38,15 @@ class FirestoreTournamentService implements TournamentRepository {
            ),
        _storageService = storageService ?? FirebaseTournamentStorageService(),
        _participantRepo =
-           participantRepository ?? FirestoreParticipantService();
+           participantRepository ?? FirestoreParticipantService(),
+       _tournamentResolver =
+           tournamentResolver ??
+           TournamentCollectionResolver(firestore: firestore);
 
   final FirebaseFirestore _db;
   final TournamentStorageService _storageService;
   final ParticipantRepository _participantRepo;
+  final TournamentCollectionResolver _tournamentResolver;
 
   CollectionReference<Map<String, dynamic>> get _tournaments =>
       _db.collection('tournaments');
@@ -50,13 +56,7 @@ class FirestoreTournamentService implements TournamentRepository {
 
   Future<DocumentReference<Map<String, dynamic>>> _getTournamentDoc(
     String id,
-  ) async {
-    final doc = await _tournaments.doc(id).get();
-    if (doc.exists) {
-      return _tournaments.doc(id);
-    }
-    return _privateTournaments.doc(id);
-  }
+  ) => _tournamentResolver.referenceFor(id);
 
   // ── Creación ───────────────────────────────────────────────────────────────
 
@@ -254,18 +254,9 @@ class FirestoreTournamentService implements TournamentRepository {
 
   @override
   Future<AppTournament?> getTournament(String tournamentId) async {
-    var doc = await _tournaments
-        .doc(tournamentId)
-        .get()
-        .timeout(const Duration(seconds: 10));
-    if (!doc.exists) {
-      doc = await _privateTournaments
-          .doc(tournamentId)
-          .get()
-          .timeout(const Duration(seconds: 10));
-    }
-    final data = doc.data();
-    if (!doc.exists || data == null) return null;
+    final lookup = await _tournamentResolver.lookup(tournamentId);
+    final data = lookup?.data;
+    if (lookup == null || data == null) return null;
     return AppTournament.fromMap(data);
   }
 

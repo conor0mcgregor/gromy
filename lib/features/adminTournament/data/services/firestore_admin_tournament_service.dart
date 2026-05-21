@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 
 import '../../../../core/models/registration_form.dart';
 import '../../../brackets/data/services/cloud_function_bracket_service.dart';
+import '../../../tournament/data/helpers/tournament_collection_resolver.dart';
 import '../../../tournament/data/model/app_tournament.dart';
 import '../repositories/admin_tournament_repository.dart';
 
@@ -19,6 +20,7 @@ class FirestoreAdminTournamentService implements AdminTournamentRepository {
   FirestoreAdminTournamentService({
     FirebaseFirestore? firestore,
     CloudFunctionBracketService? bracketCloudService,
+    TournamentCollectionResolver? tournamentResolver,
   }) : _db =
            firestore ??
            FirebaseFirestore.instanceFor(
@@ -26,27 +28,21 @@ class FirestoreAdminTournamentService implements AdminTournamentRepository {
              databaseId: 'gromy-db',
            ),
        _bracketCloudService =
-           bracketCloudService ?? CloudFunctionBracketService();
+           bracketCloudService ?? CloudFunctionBracketService(),
+       _tournamentResolver =
+           tournamentResolver ??
+           TournamentCollectionResolver(firestore: firestore);
 
   final FirebaseFirestore _db;
   final CloudFunctionBracketService _bracketCloudService;
+  final TournamentCollectionResolver _tournamentResolver;
 
   CollectionReference<Map<String, dynamic>> get _tournaments =>
       _db.collection('tournaments');
 
-  CollectionReference<Map<String, dynamic>> get _privateTournaments =>
-      _db.collection('private_tournaments');
-
   Future<DocumentReference<Map<String, dynamic>>> _tournamentRefFor(
     String tournamentId,
-  ) async {
-    final publicRef = _tournaments.doc(tournamentId);
-    final publicDoc = await publicRef.get().timeout(
-      const Duration(seconds: 10),
-    );
-    if (publicDoc.exists) return publicRef;
-    return _privateTournaments.doc(tournamentId);
-  }
+  ) => _tournamentResolver.referenceFor(tournamentId);
 
   // ── Actualización ─────────────────────────────────────────────────────────
 
@@ -468,17 +464,9 @@ class FirestoreAdminTournamentService implements AdminTournamentRepository {
 
   @override
   Future<AppTournament?> getTournament(String tournamentId) async {
-    var doc = await _tournaments
-        .doc(tournamentId)
-        .get()
-        .timeout(const Duration(seconds: 10));
-    if (!doc.exists) {
-      doc = await _privateTournaments
-          .doc(tournamentId)
-          .get()
-          .timeout(const Duration(seconds: 10));
-    }
-    if (!doc.exists || doc.data() == null) return null;
-    return AppTournament.fromMap(doc.data()!);
+    final lookup = await _tournamentResolver.lookup(tournamentId);
+    final data = lookup?.data;
+    if (lookup == null || data == null) return null;
+    return AppTournament.fromMap(data);
   }
 }

@@ -3,6 +3,10 @@ import {getFirestore} from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {NotificationDispatcher} from "../notifications/notification_dispatcher";
+import {
+  resolveTournament,
+  resolveTournamentOrThrow,
+} from "./tournament_resolver";
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Admin Invitation Functions  ·  Cloud Functions v2
@@ -85,21 +89,13 @@ export const createAdminInvitation = onCall(
 
     const db = getFirestore(DB_ID);
 
-    // 3. Obtener torneo
-    const tournamentDoc = await db
-      .collection("tournaments")
-      .doc(tournamentId)
-      .get();
-
-    const tournament = tournamentDoc.data();
-    if (!tournamentDoc.exists || !tournament) {
-      logger.error("createAdminInvitation: tournament not found", {
-        callerId,
-        tournamentId,
-        invitedUserId,
-      });
-      throw new HttpsError("not-found", "El torneo no existe.");
-    }
+    // 3. Obtener torneo (público o privado)
+    const {data: tournament, collectionId} =
+      await resolveTournamentOrThrow(db, tournamentId);
+    logger.info("createAdminInvitation: tournament resolved", {
+      tournamentId,
+      collectionId,
+    });
 
     // 4. Validar que el llamante sea el creador
     if (tournament.organizerUid !== callerId) {
@@ -306,20 +302,17 @@ export const acceptAdminInvitation = onCall(
 
     const tournamentId = data.tournamentId;
 
-    // 6. Obtener torneo
-    const tournamentDoc = await db
-      .collection("tournaments")
-      .doc(tournamentId)
-      .get();
-
-    const tournament = tournamentDoc.data();
-    if (!tournamentDoc.exists || !tournament) {
+    // 6. Obtener torneo (público o privado)
+    let tournamentRef;
+    let tournament;
+    try {
+      const resolved = await resolveTournamentOrThrow(db, tournamentId);
+      tournamentRef = resolved.ref;
+      tournament = resolved.data;
+    } catch (error) {
       // Actualizar a expirada si el torneo no existe
       await notifDoc.ref.update({"data.status": "expired"});
-      throw new HttpsError(
-        "not-found",
-        "El torneo ya no existe."
-      );
+      throw error;
     }
 
     const adminIds: string[] = tournament.adminIds ?? [];
@@ -328,7 +321,7 @@ export const acceptAdminInvitation = onCall(
     await db.runTransaction(async (transaction) => {
       // Añadir a admin_ids si no está ya
       if (!adminIds.includes(callerId)) {
-        transaction.update(tournamentDoc.ref, {
+        transaction.update(tournamentRef, {
           adminIds: admin.firestore.FieldValue.arrayUnion(callerId),
           updatedAt: admin.firestore.Timestamp.now(),
         });
@@ -451,11 +444,9 @@ export const rejectAdminInvitation = onCall(
 
     // Notificar al creador del torneo
     const tournamentId = data.tournamentId;
-    const tournamentDoc = await db.collection("tournaments")
-      .doc(tournamentId).get();
-
-    const tournament = tournamentDoc.data();
-    if (tournamentDoc.exists && tournament) {
+    const resolved = await resolveTournament(db, tournamentId);
+    const tournament = resolved?.data;
+    if (resolved != null && tournament != null) {
       const callerDoc = await db.collection("users").doc(callerId).get();
       const callerData = callerDoc.data();
       const callerName = callerData ?
@@ -532,14 +523,8 @@ export const cancelAdminInvitation = onCall(
     const data = notif.data as Record<string, string>;
     const tournamentId = data.tournamentId;
 
-    // Validar que el llamante sea el creador del torneo
-    const tournamentDoc = await db.collection("tournaments")
-      .doc(tournamentId).get();
-
-    const tournament = tournamentDoc.data();
-    if (!tournamentDoc.exists || !tournament) {
-      throw new HttpsError("not-found", "El torneo no existe.");
-    }
+    // Validar que el llamante sea el creador del torneo (público o privado)
+    const {data: tournament} = await resolveTournamentOrThrow(db, tournamentId);
 
     if (tournament.organizerUid !== callerId) {
       throw new HttpsError(

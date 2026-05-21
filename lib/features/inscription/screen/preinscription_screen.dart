@@ -1038,6 +1038,35 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
     return null;
   }
 
+  /// `true` solo cuando editar y cancelar están realmente permitidos.
+  bool _canShowEditAndCancelButtons() {
+    if (widget.onCancelInscription == null) return false;
+    if (_editBlockReason() != null) return false;
+    return true;
+  }
+
+  /// Mensaje informativo cuando la inscripción ya no admite cambios.
+  String? _enrollmentActionsBlockMessage() {
+    if (_canShowEditAndCancelButtons()) return null;
+
+    if (widget.tournament.status == TournamentStatus.completed) {
+      return 'El torneo ha finalizado.\n'
+          'Ya no es posible modificar la inscripción.';
+    }
+    if (widget.tournament.status == TournamentStatus.in_progress ||
+        widget.tournament.status.isLocked) {
+      return 'El torneo está en curso.\n'
+          'No es posible modificar ni cancelar la inscripción.';
+    }
+    if (widget.tournament.status == TournamentStatus.cancelled) {
+      return 'El torneo fue cancelado.\n'
+          'La inscripción ya no puede modificarse.';
+    }
+
+    return _editBlockReason() ??
+        'La inscripción ya no puede modificarse.';
+  }
+
   bool _isActiveStatus(ParticipantStatus status) {
     return switch (status) {
       ParticipantStatus.pending ||
@@ -1053,8 +1082,8 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
     final isFull =
         widget.tournament.participantCount >= widget.tournament.maxParticipants;
     final hasPendingJoinRequest = widget.hasPendingJoinRequest;
-    final editBlockReason = _editBlockReason();
-    final canEdit = editBlockReason == null && !_isCancelling;
+    final showEditAndCancel = _canShowEditAndCancelButtons();
+    final actionsBlockMessage = _enrollmentActionsBlockMessage();
     final acceptsRegistrations = widget.tournament.acceptsRegistrations;
 
     return Container(
@@ -1108,86 +1137,28 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
                       ),
                     ),
                   ],
-                  // Bloqueo cuando el torneo está en curso O completado
-                  if (widget.tournament.status.isLocked) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        color: widget.tournament.status ==
-                                TournamentStatus.completed
-                            ? const Color(0xFFB0A8FF).withValues(alpha: 0.1)
-                            : const Color(0xFF00D4FF).withValues(alpha: 0.08),
-                        border: Border.all(
-                          color: widget.tournament.status ==
-                                  TournamentStatus.completed
-                              ? const Color(0xFFB0A8FF).withValues(alpha: 0.3)
-                              : const Color(0xFF00D4FF).withValues(alpha: 0.25),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            widget.tournament.status ==
-                                    TournamentStatus.completed
-                                ? Icons.emoji_events_rounded
-                                : Icons.sports_rounded,
-                            color: widget.tournament.status ==
-                                    TournamentStatus.completed
-                                ? const Color(0xFFB0A8FF)
-                                : const Color(0xFF00D4FF),
-                            size: 16,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              widget.tournament.status ==
-                                      TournamentStatus.completed
-                                  ? 'El torneo ha finalizado.\n'
-                                    'Ya no es posible modificar la inscripción.'
-                                  : 'El torneo está en curso.\n'
-                                    'No es posible modificar ni cancelar la inscripción.',
-                              style: TextStyle(
-                                color: widget.tournament.status ==
-                                        TournamentStatus.completed
-                                    ? const Color(0xFFB0A8FF)
-                                    : const Color(0xFF00D4FF),
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
-                                height: 1.4,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ] else ...[
+                  if (actionsBlockMessage != null)
+                    _EnrollmentActionsBlockBanner(
+                      message: actionsBlockMessage,
+                      tournament: widget.tournament,
+                    )
+                  else if (showEditAndCancel) ...[
                     GradientButton(
-                      label: editBlockReason ?? 'Editar inscripcion',
+                      label: 'Editar inscripcion',
                       icon: Icons.edit_rounded,
-                      onPressed: canEdit ? _handleEdit : null,
+                      onPressed: _isCancelling ? null : _handleEdit,
                       variant: GradientButtonVariant.select,
                       size: GradientButtonSize.large,
                     ),
                     const SizedBox(height: 10),
                     GradientButton(
-                      label: widget.canCancelTeam
-                          ? (_isCancelling
-                                ? 'Cancelando...'
-                                : 'Cancelar inscripción')
-                          : 'Solo administradores pueden cancelar',
-                      icon: widget.canCancelTeam
-                          ? (_isCancelling
-                                ? Icons.hourglass_top_rounded
-                                : Icons.cancel_rounded)
-                          : Icons.lock_outline_rounded,
-                      onPressed: (widget.canCancelTeam && !_isCancelling)
-                          ? _handleCancel
-                          : null,
+                      label: _isCancelling
+                          ? 'Cancelando...'
+                          : 'Cancelar inscripción',
+                      icon: _isCancelling
+                          ? Icons.hourglass_top_rounded
+                          : Icons.cancel_rounded,
+                      onPressed: _isCancelling ? null : _handleCancel,
                       variant: GradientButtonVariant.danger,
                       size: GradientButtonSize.large,
                     ),
@@ -1236,6 +1207,63 @@ class _StickyEnrollBarState extends State<_StickyEnrollBar> {
                     : GradientButtonVariant.aurora,
                 size: GradientButtonSize.large,
               ),
+      ),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  BANNER DE INSCRIPCIÓN BLOQUEADA
+// ════════════════════════════════════════════════════════════════
+
+class _EnrollmentActionsBlockBanner extends StatelessWidget {
+  const _EnrollmentActionsBlockBanner({
+    required this.message,
+    required this.tournament,
+  });
+
+  final String message;
+  final AppTournament tournament;
+
+  @override
+  Widget build(BuildContext context) {
+    final isCompleted = tournament.status == TournamentStatus.completed;
+    final color = isCompleted
+        ? const Color(0xFFB0A8FF)
+        : tournament.status == TournamentStatus.cancelled
+        ? const Color(0xFFFF6B6B)
+        : const Color(0xFF00D4FF);
+    final icon = isCompleted
+        ? Icons.emoji_events_rounded
+        : tournament.status == TournamentStatus.cancelled
+        ? Icons.cancel_outlined
+        : Icons.lock_outline_rounded;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: color.withValues(alpha: 0.1),
+        border: Border.all(color: color.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 16),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: color,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
