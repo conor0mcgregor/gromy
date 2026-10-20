@@ -6,8 +6,7 @@ import 'package:gromy/core/widgets/gradient_button.dart';
 import '../../../../../core/getColors/getter_colors.dart';
 import '../../controllers/create_tournament_controller.dart';
 import 'form_tournament_screen.dart';
-import '../../../../local_tournament/presentation/screens/local_tournament_create_screen.dart';
-import '../../../../local_tournament/presentation/screens/local_tournament_management_screen.dart';
+import '../../../../local_tournament/presentation/screens/local_tournaments_screen.dart';
 
 class CreateTournamentScreen extends StatefulWidget {
   const CreateTournamentScreen({super.key});
@@ -159,25 +158,16 @@ class _CreateTournamentScreenState extends State<CreateTournamentScreen>
       width: double.infinity,
       height: 54,
       child: OutlinedButton.icon(
-        onPressed: () async {
-          final tournamentId = await Navigator.push<String>(
+        onPressed: () {
+          Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => const LocalTournamentCreateScreen(),
-            ),
-          );
-          if (tournamentId == null || !mounted) return;
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => LocalTournamentManagementScreen(
-                tournamentId: tournamentId,
-              ),
+              builder: (_) => const LocalTournamentsScreen(),
             ),
           );
         },
         icon: const Icon(Icons.phonelink_rounded),
-        label: const Text('Crear torneo local en este dispositivo'),
+        label: const Text('Gestionar torneos locales (offline)'),
         style: OutlinedButton.styleFrom(
           foregroundColor: const Color(0xFF00D4FF),
           side: const BorderSide(color: Color(0xFF00D4FF)),

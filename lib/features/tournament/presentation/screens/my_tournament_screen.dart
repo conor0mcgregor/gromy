@@ -7,10 +7,6 @@ import '../../data/model/app_tournament.dart';
 import '../../data/model/tournament_draft.dart';
 import '../../data/repositories/tournament_draft_repository.dart';
 import '../../data/services/shared_preferences_tournament_draft_repository.dart';
-import '../../../local_tournament/data/services/json_file_local_tournament_repository.dart';
-import '../../../local_tournament/domain/models/local_tournament.dart';
-import '../../../local_tournament/domain/services/local_tournament_service.dart';
-import '../../../local_tournament/presentation/screens/local_tournament_management_screen.dart';
 import '../controllers/my_tournaments_list_controller.dart';
 import 'create_tournament/create_tournament_screen.dart';
 import 'create_tournament/form_tournament_screen.dart';
@@ -25,10 +21,7 @@ class MyTournamentScreen extends StatefulWidget {
 class _MyTournamentScreenState extends State<MyTournamentScreen> {
   late final MyTournamentsListController _controller;
   late final TournamentDraftRepository _draftRepository;
-  late final LocalTournamentService _localTournamentService;
   List<TournamentDraft> _localDrafts = const [];
-  List<LocalTournament> _localTournaments = const [];
-  String? _localTournamentError;
   bool _isLoadingDrafts = false;
   bool _isCreatingTournament = false;
   int _selectedTab = 0; // 0 = Online, 1 = Locales
@@ -38,10 +31,6 @@ class _MyTournamentScreenState extends State<MyTournamentScreen> {
     super.initState();
     _controller = MyTournamentsListController();
     _draftRepository = SharedPreferencesTournamentDraftRepository();
-    _localTournamentService = LocalTournamentService(
-      JsonFileLocalTournamentRepository(),
-    );
-    _loadLocalTournaments();
     _loadLocalDrafts();
   }
 
@@ -50,36 +39,8 @@ class _MyTournamentScreenState extends State<MyTournamentScreen> {
       _isCreatingTournament = !_isCreatingTournament;
     });
     if (!_isCreatingTournament) {
-      _loadLocalTournaments();
       _loadLocalDrafts();
     }
-  }
-
-  Future<void> _loadLocalTournaments() async {
-    try {
-      final tournaments = await _localTournamentService.getTournaments();
-      if (mounted) {
-        setState(() {
-          _localTournaments = tournaments;
-          _localTournamentError = null;
-        });
-      }
-    } catch (error) {
-      if (mounted) setState(() => _localTournamentError = error.toString());
-    }
-  }
-
-  Future<void> _openLocalTournament(LocalTournament tournament) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => LocalTournamentManagementScreen(
-          tournamentId: tournament.id,
-          service: _localTournamentService,
-        ),
-      ),
-    );
-    if (mounted) _loadLocalTournaments();
   }
 
   Future<void> _loadLocalDrafts() async {
@@ -363,10 +324,7 @@ class _MyTournamentScreenState extends State<MyTournamentScreen> {
     return StreamBuilder<List<AppTournament>>(
       stream: _controller.watchAdministeredTournaments(),
       builder: (context, snapshot) {
-        final localContentAvailable =
-            _localTournaments.isNotEmpty ||
-            _localDrafts.isNotEmpty ||
-            _localTournamentError != null;
+        final localContentAvailable = _localDrafts.isNotEmpty;
         if (snapshot.connectionState == ConnectionState.waiting &&
             !localContentAvailable) {
           return const _TournamentLoadingState();
@@ -378,38 +336,19 @@ class _MyTournamentScreenState extends State<MyTournamentScreen> {
 
         final managedTournaments = snapshot.data ?? [];
 
-        if (managedTournaments.isEmpty &&
-            _localDrafts.isEmpty &&
-            _localTournaments.isEmpty &&
-            _localTournamentError == null) {
+        if (managedTournaments.isEmpty && _localDrafts.isEmpty) {
           return const _TournamentEmptyState(
             title: 'Sin torneos',
-            message: 'Aún no has creado ni administras ningún torneo.',
+            message: 'Aún no has creado ni administras ningún torneo online.',
             icon: Icons.admin_panel_settings_outlined,
           );
         }
 
         final children = <Widget>[];
-        if (_localTournamentError != null) {
-          children.add(_LocalStorageError(message: _localTournamentError!));
-        }
         if (snapshot.hasError) {
           children.add(
             _RemoteTournamentError(message: snapshot.error.toString()),
           );
-        }
-        if (_localTournaments.isNotEmpty) {
-          children.add(
-            _LocalTournamentsHeader(count: _localTournaments.length),
-          );
-          for (final tournament in _localTournaments) {
-            children.add(
-              _LocalTournamentCard(
-                tournament: tournament,
-                onTap: () => _openLocalTournament(tournament),
-              ),
-            );
-          }
         }
         if (_localDrafts.isNotEmpty) {
           children.add(_LocalDraftsHeader(isLoading: _isLoadingDrafts));
@@ -459,27 +398,11 @@ class _MyTournamentScreenState extends State<MyTournamentScreen> {
   }
 
   Widget _buildLocalOnlyList() {
-    if (_localTournamentError != null) {
-      return _LocalStorageError(message: _localTournamentError!);
-    }
-    if (_localTournaments.isEmpty) {
-      return const _TournamentEmptyState(
-        title: 'Sin torneos locales',
-        message:
-            'Crea un torneo local para organizar atletas en este dispositivo.',
-        icon: Icons.phonelink_rounded,
-      );
-    }
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
-      children: [
-        _LocalTournamentsHeader(count: _localTournaments.length),
-        for (final tournament in _localTournaments)
-          _LocalTournamentCard(
-            tournament: tournament,
-            onTap: () => _openLocalTournament(tournament),
-          ),
-      ],
+    return const _TournamentEmptyState(
+      title: 'Inicia sesión',
+      message:
+          'Inicia sesión para gestionar tus torneos online o usa la pestaña Locales para organizar competiciones en este dispositivo.',
+      icon: Icons.cloud_off_rounded,
     );
   }
 }
@@ -516,156 +439,6 @@ class _TournamentLoadingState extends StatelessWidget {
   }
 }
 
-class _LocalTournamentsHeader extends StatelessWidget {
-  const _LocalTournamentsHeader({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(4, 8, 4, 10),
-    child: Row(
-      children: [
-        const Icon(Icons.phonelink_rounded, color: Color(0xFF00D4FF), size: 18),
-        const SizedBox(width: 8),
-        const Expanded(
-          child: Text(
-            'Torneos locales',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-        Text(
-          count.toString(),
-          style: const TextStyle(
-            color: Color(0xFF00D4FF),
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-class _LocalTournamentCard extends StatelessWidget {
-  const _LocalTournamentCard({required this.tournament, required this.onTap});
-
-  final LocalTournament tournament;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 10),
-    child: Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.all(15),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            gradient: LinearGradient(
-              colors: [
-                const Color(0xFF00D4FF).withValues(alpha: .10),
-                Colors.white.withValues(alpha: .035),
-              ],
-            ),
-            border: Border.all(
-              color: const Color(0xFF00D4FF).withValues(alpha: .2),
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  color: const Color(0xFF00D4FF).withValues(alpha: .13),
-                ),
-                child: const Icon(
-                  Icons.phonelink_rounded,
-                  color: Color(0xFF00D4FF),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      tournament.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _formatLocalDate(tournament.scheduledAt) +
-                          ' · ' +
-                          tournament.participantCount.toString() +
-                          ' atletas · ' +
-                          tournament.status.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white60,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.arrow_forward_ios_rounded,
-                color: Colors.white38,
-                size: 15,
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-
-  String _formatLocalDate(DateTime date) =>
-      date.day.toString().padLeft(2, '0') +
-      '/' +
-      date.month.toString().padLeft(2, '0') +
-      '/' +
-      date.year.toString();
-}
-
-class _LocalStorageError extends StatelessWidget {
-  const _LocalStorageError({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(bottom: 12),
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: const Color(0xFFFF8A80).withValues(alpha: .1),
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: const Color(0xFFFF8A80).withValues(alpha: .3)),
-    ),
-    child: Text(
-      'No se pudieron cargar los torneos locales: ' + message,
-      style: const TextStyle(color: Color(0xFFFFC2BE), fontSize: 12),
-    ),
-  );
-}
-
 class _RemoteTournamentError extends StatelessWidget {
   const _RemoteTournamentError({required this.message});
 
@@ -680,8 +453,7 @@ class _RemoteTournamentError extends StatelessWidget {
       borderRadius: BorderRadius.circular(14),
     ),
     child: Text(
-      'No se pudieron cargar los torneos online. Los torneos locales siguen disponibles. ' +
-          message,
+      'No se pudieron cargar los torneos online: $message',
       style: const TextStyle(color: Colors.white60, fontSize: 12),
     ),
   );
