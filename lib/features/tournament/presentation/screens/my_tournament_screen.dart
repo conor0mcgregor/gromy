@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../adminTournament/presentation/screens/tournament_management_screen.dart';
 import '../../../home/presentation/widgets/tournament_card.dart';
+import '../../../local_tournament/presentation/screens/local_tournaments_screen.dart';
 import '../../data/model/app_tournament.dart';
 import '../../data/model/tournament_draft.dart';
 import '../../data/repositories/tournament_draft_repository.dart';
@@ -30,6 +31,7 @@ class _MyTournamentScreenState extends State<MyTournamentScreen> {
   String? _localTournamentError;
   bool _isLoadingDrafts = false;
   bool _isCreatingTournament = false;
+  int _selectedTab = 0; // 0 = Online, 1 = Locales
 
   @override
   void initState() {
@@ -145,7 +147,9 @@ class _MyTournamentScreenState extends State<MyTournamentScreen> {
                       Text(
                         _isCreatingTournament
                             ? 'Configura tu nuevo evento'
-                            : 'Torneos que administras o creaste',
+                            : _selectedTab == 1
+                                ? 'Gestionados desde este dispositivo'
+                                : 'Torneos que administras o creaste',
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.white.withValues(alpha: 0.45),
@@ -197,6 +201,122 @@ class _MyTournamentScreenState extends State<MyTournamentScreen> {
                 ],
               ),
             ),
+            if (!_isCreatingTournament)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+                child: Container(
+                  height: 44,
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _selectedTab = 0),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            decoration: BoxDecoration(
+                              color: _selectedTab == 0
+                                  ? const Color(0xFF6C63FF)
+                                      .withValues(alpha: 0.25)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _selectedTab == 0
+                                    ? const Color(0xFF6C63FF)
+                                        .withValues(alpha: 0.6)
+                                    : Colors.transparent,
+                              ),
+                            ),
+                            child: Center(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.cloud_outlined,
+                                    size: 16,
+                                    color: _selectedTab == 0
+                                        ? Colors.white
+                                        : Colors.white.withValues(alpha: 0.5),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Online',
+                                    style: TextStyle(
+                                      color: _selectedTab == 0
+                                          ? Colors.white
+                                          : Colors.white.withValues(alpha: 0.5),
+                                      fontWeight: _selectedTab == 0
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _selectedTab = 1),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            decoration: BoxDecoration(
+                              color: _selectedTab == 1
+                                  ? const Color(0xFF22C55E)
+                                      .withValues(alpha: 0.2)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _selectedTab == 1
+                                    ? const Color(0xFF22C55E)
+                                        .withValues(alpha: 0.5)
+                                    : Colors.transparent,
+                              ),
+                            ),
+                            child: Center(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.devices_rounded,
+                                    size: 16,
+                                    color: _selectedTab == 1
+                                        ? const Color(0xFF22C55E)
+                                        : Colors.white.withValues(alpha: 0.5),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Locales',
+                                    style: TextStyle(
+                                      color: _selectedTab == 1
+                                          ? Colors.white
+                                          : Colors.white.withValues(alpha: 0.5),
+                                      fontWeight: _selectedTab == 1
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             Expanded(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 400),
@@ -218,10 +338,15 @@ class _MyTournamentScreenState extends State<MyTournamentScreen> {
                     ? const CreateTournamentScreen(
                         key: ValueKey('create_screen'),
                       )
-                    : KeyedSubtree(
-                        key: const ValueKey('list_screen'),
-                        child: _buildTournamentList(),
-                      ),
+                    : _selectedTab == 0
+                        ? KeyedSubtree(
+                            key: const ValueKey('online_list_screen'),
+                            child: _buildTournamentList(),
+                          )
+                        : const KeyedSubtree(
+                            key: ValueKey('local_tournaments_screen'),
+                            child: LocalTournamentsScreen(isEmbedded: true),
+                          ),
               ),
             ),
           ],
