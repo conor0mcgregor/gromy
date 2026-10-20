@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -19,10 +20,7 @@ import 'local_tournament_athletes_screen.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 class LocalTournamentDetailScreen extends StatefulWidget {
-  const LocalTournamentDetailScreen({
-    super.key,
-    required this.tournament,
-  });
+  const LocalTournamentDetailScreen({super.key, required this.tournament});
 
   final LocalTournament tournament;
 
@@ -40,6 +38,7 @@ class _LocalTournamentDetailScreenState
   void initState() {
     super.initState();
     _controller = LocalTournamentController(tournament: widget.tournament);
+    unawaited(_controller.repairLegacyAutoByes());
   }
 
   @override
@@ -76,14 +75,20 @@ class _LocalTournamentDetailScreenState
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
                 const SizedBox(width: 10),
                 Expanded(child: Text(_controller.successMessage!)),
               ],
             ),
             backgroundColor: const Color(0xFF22C55E),
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
         _controller.clearMessages();
@@ -93,14 +98,20 @@ class _LocalTournamentDetailScreenState
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.error_outline_rounded, color: Colors.white, size: 18),
+                const Icon(
+                  Icons.error_outline_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
                 const SizedBox(width: 10),
                 Expanded(child: Text(_controller.errorMessage!)),
               ],
             ),
             backgroundColor: const Color(0xFFEF4444),
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
         _controller.clearMessages();
@@ -111,7 +122,8 @@ class _LocalTournamentDetailScreenState
   Widget _buildAppBar() {
     final current = _controller.current;
     final coverPath = current.coverImagePath;
-    final hasValidCover = coverPath != null &&
+    final hasValidCover =
+        coverPath != null &&
         coverPath.isNotEmpty &&
         File(coverPath).existsSync();
 
@@ -129,7 +141,11 @@ class _LocalTournamentDetailScreenState
             color: Colors.black.withValues(alpha: 0.4),
             border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
           ),
-          child: Icon(Icons.arrow_back_rounded, size: 18, color: Colors.white.withValues(alpha: 0.9)),
+          child: Icon(
+            Icons.arrow_back_rounded,
+            size: 18,
+            color: Colors.white.withValues(alpha: 0.9),
+          ),
         ),
         onPressed: () => Navigator.pop(context),
       ),
@@ -143,7 +159,11 @@ class _LocalTournamentDetailScreenState
               color: Colors.black.withValues(alpha: 0.4),
               border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
             ),
-            child: Icon(Icons.photo_camera_rounded, size: 18, color: Colors.white.withValues(alpha: 0.7)),
+            child: Icon(
+              Icons.photo_camera_rounded,
+              size: 18,
+              color: Colors.white.withValues(alpha: 0.7),
+            ),
           ),
           onPressed: _isPickingImage ? null : _pickCoverImage,
         ),
@@ -195,18 +215,33 @@ class _LocalTournamentDetailScreenState
             child: GestureDetector(
               onTap: _removeCoverImage,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.1),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.delete_outline_rounded, size: 13, color: Colors.white.withValues(alpha: 0.7)),
+                    Icon(
+                      Icons.delete_outline_rounded,
+                      size: 13,
+                      color: Colors.white.withValues(alpha: 0.7),
+                    ),
                     const SizedBox(width: 4),
-                    Text('Quitar portada', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11)),
+                    Text(
+                      'Quitar portada',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        fontSize: 11,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -231,23 +266,42 @@ class _LocalTournamentDetailScreenState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.emoji_events_rounded, size: 48, color: const Color(0xFF6C63FF).withValues(alpha: 0.4)),
+            Icon(
+              Icons.emoji_events_rounded,
+              size: 48,
+              color: const Color(0xFF6C63FF).withValues(alpha: 0.4),
+            ),
             const SizedBox(height: 8),
             GestureDetector(
               onTap: _pickCoverImage,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
                   color: Colors.white.withValues(alpha: 0.06),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.1),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.add_photo_alternate_rounded, size: 14, color: Colors.white.withValues(alpha: 0.5)),
+                    Icon(
+                      Icons.add_photo_alternate_rounded,
+                      size: 14,
+                      color: Colors.white.withValues(alpha: 0.5),
+                    ),
                     const SizedBox(width: 6),
-                    Text('Añadir portada', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
+                    Text(
+                      'Añadir portada',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -278,7 +332,8 @@ class _LocalTournamentDetailScreenState
           const SizedBox(height: 24),
 
           // ── Campeón (si el torneo ha terminado) ───────────────────────────
-          if (current.status == LocalTournamentStatus.finished && current.champion != null)
+          if (current.status == LocalTournamentStatus.finished &&
+              current.champion != null)
             _buildChampionSection(current.champion!),
         ],
       ),
@@ -310,23 +365,41 @@ class _LocalTournamentDetailScreenState
                 decoration: BoxDecoration(shape: BoxShape.circle, color: color),
               ),
               const SizedBox(width: 6),
-              Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w800)),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ],
           ),
         ),
         if (current.sport != null) ...[
           const SizedBox(width: 10),
-          Icon(Icons.sports_rounded, size: 14, color: Colors.white.withValues(alpha: 0.4)),
+          Icon(
+            Icons.sports_rounded,
+            size: 14,
+            color: Colors.white.withValues(alpha: 0.4),
+          ),
           const SizedBox(width: 4),
           Text(
             current.sport!,
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.5),
+              fontSize: 13,
+            ),
           ),
         ],
         const Spacer(),
         Text(
           '${current.athletes.length} atletas',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13, fontWeight: FontWeight.w500),
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.4),
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ],
     );
@@ -342,7 +415,9 @@ class _LocalTournamentDetailScreenState
           child: ElevatedButton.icon(
             onPressed: current.hasBracket ? _openBracket : _generateBracket,
             icon: Icon(
-              current.hasBracket ? Icons.account_tree_rounded : Icons.auto_fix_high_rounded,
+              current.hasBracket
+                  ? Icons.account_tree_rounded
+                  : Icons.auto_fix_high_rounded,
               size: 20,
             ),
             label: Text(
@@ -353,7 +428,9 @@ class _LocalTournamentDetailScreenState
               backgroundColor: const Color(0xFF6C63FF),
               foregroundColor: Colors.white,
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
           ),
         ),
@@ -365,11 +442,16 @@ class _LocalTournamentDetailScreenState
             child: OutlinedButton.icon(
               onPressed: _confirmRegenerateBracket,
               icon: const Icon(Icons.refresh_rounded, size: 16),
-              label: const Text('Regenerar bracket', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              label: const Text(
+                'Regenerar bracket',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.white.withValues(alpha: 0.6),
                 side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
             ),
           ),
@@ -382,11 +464,18 @@ class _LocalTournamentDetailScreenState
           child: OutlinedButton.icon(
             onPressed: _openAthletes,
             icon: const Icon(Icons.people_rounded, size: 16),
-            label: const Text('Gestionar atletas', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+            label: const Text(
+              'Gestionar atletas',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF00D4FF),
-              side: BorderSide(color: const Color(0xFF00D4FF).withValues(alpha: 0.3)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              side: BorderSide(
+                color: const Color(0xFF00D4FF).withValues(alpha: 0.3),
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
           ),
         ),
@@ -412,17 +501,28 @@ class _LocalTournamentDetailScreenState
         ),
         child: Column(
           children: [
-            Icon(Icons.person_add_rounded, size: 32, color: Colors.white.withValues(alpha: 0.2)),
+            Icon(
+              Icons.person_add_rounded,
+              size: 32,
+              color: Colors.white.withValues(alpha: 0.2),
+            ),
             const SizedBox(height: 10),
             Text(
               'Sin atletas registrados',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 14, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.5),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
               'Toca "Gestionar atletas" para añadir participantes',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 12),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.3),
+                fontSize: 12,
+              ),
             ),
           ],
         ),
@@ -452,7 +552,11 @@ class _LocalTournamentDetailScreenState
               ),
               child: Text(
                 '${current.athletes.length}',
-                style: const TextStyle(color: Color(0xFF6C63FF), fontSize: 12, fontWeight: FontWeight.w800),
+                style: const TextStyle(
+                  color: Color(0xFF6C63FF),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ],
@@ -461,7 +565,10 @@ class _LocalTournamentDetailScreenState
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: current.athletes.take(12).map((a) => _AthleteChip(athlete: a)).toList(),
+          children: current.athletes
+              .take(12)
+              .map((a) => _AthleteChip(athlete: a))
+              .toList(),
         ),
         if (current.athletes.length > 12) ...[
           const SizedBox(height: 8),
@@ -469,7 +576,11 @@ class _LocalTournamentDetailScreenState
             onTap: _openAthletes,
             child: Text(
               '+ ${current.athletes.length - 12} más',
-              style: const TextStyle(color: Color(0xFF6C63FF), fontSize: 13, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                color: Color(0xFF6C63FF),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -494,20 +605,36 @@ class _LocalTournamentDetailScreenState
             const Color(0xFFFF8C00).withValues(alpha: 0.08),
           ],
         ),
-        border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.3)),
+        border: Border.all(
+          color: const Color(0xFFFFD700).withValues(alpha: 0.3),
+        ),
       ),
       child: Column(
         children: [
-          const Icon(Icons.emoji_events_rounded, color: Color(0xFFFFD700), size: 32),
+          const Icon(
+            Icons.emoji_events_rounded,
+            color: Color(0xFFFFD700),
+            size: 32,
+          ),
           const SizedBox(height: 8),
           const Text(
             '¡Campeón!',
-            style: TextStyle(color: Color(0xFFFFD700), fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 1),
+            style: TextStyle(
+              color: Color(0xFFFFD700),
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             champion.name,
-            style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -0.5),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.5,
+            ),
           ),
         ],
       ),
@@ -549,20 +676,28 @@ class _LocalTournamentDetailScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.delete_outline_rounded,
-                  color: Color(0xFFEF4444), size: 32),
+              const Icon(
+                Icons.delete_outline_rounded,
+                color: Color(0xFFEF4444),
+                size: 32,
+              ),
               const SizedBox(height: 14),
               const Text(
                 'Quitar portada',
                 style: TextStyle(
-                    color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800),
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 '¿Eliminar la portada actual y volver a la imagen predeterminada?',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.65), fontSize: 13),
+                  color: Colors.white.withValues(alpha: 0.65),
+                  fontSize: 13,
+                ),
               ),
               const SizedBox(height: 20),
               Row(
@@ -570,8 +705,12 @@ class _LocalTournamentDetailScreenState
                   Expanded(
                     child: TextButton(
                       onPressed: () => Navigator.pop(ctx, false),
-                      child: Text('Cancelar',
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.6))),
+                      child: Text(
+                        'Cancelar',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.6),
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -583,8 +722,10 @@ class _LocalTournamentDetailScreenState
                         foregroundColor: Colors.white,
                         elevation: 0,
                       ),
-                      child: const Text('Quitar',
-                          style: TextStyle(fontWeight: FontWeight.w700)),
+                      child: const Text(
+                        'Quitar',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
                     ),
                   ),
                 ],
@@ -630,10 +771,7 @@ class _LocalTournamentDetailScreenState
                 child: SizedBox(
                   width: double.infinity,
                   height: 180,
-                  child: Image.file(
-                    imageFile,
-                    fit: BoxFit.cover,
-                  ),
+                  child: Image.file(imageFile, fit: BoxFit.cover),
                 ),
               ),
               const SizedBox(height: 20),
@@ -645,7 +783,8 @@ class _LocalTournamentDetailScreenState
                       child: Text(
                         'Descartar',
                         style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.6)),
+                          color: Colors.white.withValues(alpha: 0.6),
+                        ),
                       ),
                     ),
                   ),
@@ -692,7 +831,9 @@ class _LocalTournamentDetailScreenState
           content: const Text('Añade atletas antes de generar el bracket.'),
           backgroundColor: const Color(0xFFEF4444),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
       return;
@@ -719,14 +860,29 @@ class _LocalTournamentDetailScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.refresh_rounded, color: Color(0xFFF59E0B), size: 36),
+              const Icon(
+                Icons.refresh_rounded,
+                color: Color(0xFFF59E0B),
+                size: 36,
+              ),
               const SizedBox(height: 14),
-              const Text('¿Regenerar bracket?', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+              const Text(
+                '¿Regenerar bracket?',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
               const SizedBox(height: 10),
               Text(
                 'Se perderán todos los resultados registrados. Esta acción no se puede deshacer.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 14, height: 1.4),
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  fontSize: 14,
+                  height: 1.4,
+                ),
               ),
               const SizedBox(height: 24),
               Row(
@@ -734,7 +890,12 @@ class _LocalTournamentDetailScreenState
                   Expanded(
                     child: TextButton(
                       onPressed: () => Navigator.pop(ctx, false),
-                      child: Text('Cancelar', style: TextStyle(color: Colors.white.withValues(alpha: 0.6))),
+                      child: Text(
+                        'Cancelar',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.6),
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -744,10 +905,15 @@ class _LocalTournamentDetailScreenState
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFF59E0B),
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         elevation: 0,
                       ),
-                      child: const Text('Regenerar', style: TextStyle(fontWeight: FontWeight.w700)),
+                      child: const Text(
+                        'Regenerar',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
                     ),
                   ),
                 ],
@@ -805,14 +971,22 @@ class _AthleteChip extends StatelessWidget {
             child: Center(
               child: Text(
                 athlete.name.isNotEmpty ? athlete.name[0].toUpperCase() : '?',
-                style: const TextStyle(color: Color(0xFF6C63FF), fontSize: 11, fontWeight: FontWeight.w800),
+                style: const TextStyle(
+                  color: Color(0xFF6C63FF),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ),
           const SizedBox(width: 6),
           Text(
             athlete.name,
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12, fontWeight: FontWeight.w500),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.8),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),

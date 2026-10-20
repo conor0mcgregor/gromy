@@ -70,8 +70,7 @@ class LocalMatch {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  bool get isReady =>
-      athlete1 != null && athlete2 != null;
+  bool get isReady => athlete1 != null && athlete2 != null;
 
   bool get isBye => status == LocalMatchStatus.bye;
 
@@ -114,10 +113,14 @@ class LocalMatch {
       matchOrder: (map['matchOrder'] as num?)?.toInt() ?? 0,
       status: LocalMatchStatus.fromValue(map['status'] as String? ?? ''),
       athlete1: map['athlete1'] != null
-          ? LocalAthlete.fromMap(Map<String, dynamic>.from(map['athlete1'] as Map))
+          ? LocalAthlete.fromMap(
+              Map<String, dynamic>.from(map['athlete1'] as Map),
+            )
           : null,
       athlete2: map['athlete2'] != null
-          ? LocalAthlete.fromMap(Map<String, dynamic>.from(map['athlete2'] as Map))
+          ? LocalAthlete.fromMap(
+              Map<String, dynamic>.from(map['athlete2'] as Map),
+            )
           : null,
       winnerId: map['winnerId'] as String?,
       loserId: map['loserId'] as String?,
@@ -149,6 +152,7 @@ class LocalMatch {
     bool clearAthlete1 = false,
     bool clearAthlete2 = false,
     bool clearWinner = false,
+    bool clearResult = false,
   }) {
     return LocalMatch(
       id: id ?? this.id,
@@ -158,10 +162,12 @@ class LocalMatch {
       status: status ?? this.status,
       athlete1: clearAthlete1 ? null : (athlete1 ?? this.athlete1),
       athlete2: clearAthlete2 ? null : (athlete2 ?? this.athlete2),
-      winnerId: clearWinner ? null : (winnerId ?? this.winnerId),
-      loserId: clearWinner ? null : (loserId ?? this.loserId),
-      scoreAthlete1: scoreAthlete1 ?? this.scoreAthlete1,
-      scoreAthlete2: scoreAthlete2 ?? this.scoreAthlete2,
+      winnerId: (clearWinner || clearResult)
+          ? null
+          : (winnerId ?? this.winnerId),
+      loserId: (clearWinner || clearResult) ? null : (loserId ?? this.loserId),
+      scoreAthlete1: clearResult ? null : (scoreAthlete1 ?? this.scoreAthlete1),
+      scoreAthlete2: clearResult ? null : (scoreAthlete2 ?? this.scoreAthlete2),
       parentMatch1Id: parentMatch1Id ?? this.parentMatch1Id,
       parentMatch2Id: parentMatch2Id ?? this.parentMatch2Id,
       childMatchId: childMatchId ?? this.childMatchId,

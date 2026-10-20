@@ -55,7 +55,11 @@ void main() {
 
     test('Serialización y deserialización de LocalAthlete', () {
       final now = DateTime.now();
-      final athlete = LocalAthlete(id: 'uuid-123', name: 'Lucía Fernández', createdAt: now);
+      final athlete = LocalAthlete(
+        id: 'uuid-123',
+        name: 'Lucía Fernández',
+        createdAt: now,
+      );
       final map = athlete.toMap();
       final deserialized = LocalAthlete.fromMap(map);
 
@@ -145,57 +149,72 @@ void main() {
       expect(r0.every((m) => m.athlete1 != null && m.athlete2 != null), isTrue);
     });
 
-    test('Genera bracket de 5 atletas (8 slots, 3 rondas, 3 byes, sin matches vacíos)', () {
-      final athletes = [
-        const LocalAthlete(id: '1', name: 'A1'),
-        const LocalAthlete(id: '2', name: 'A2'),
-        const LocalAthlete(id: '3', name: 'A3'),
-        const LocalAthlete(id: '4', name: 'A4'),
-        const LocalAthlete(id: '5', name: 'A5'),
-      ];
+    test(
+      'Genera bracket de 5 atletas (8 slots, 3 rondas, 3 byes, sin matches vacíos)',
+      () {
+        final athletes = [
+          const LocalAthlete(id: '1', name: 'A1'),
+          const LocalAthlete(id: '2', name: 'A2'),
+          const LocalAthlete(id: '3', name: 'A3'),
+          const LocalAthlete(id: '4', name: 'A4'),
+          const LocalAthlete(id: '5', name: 'A5'),
+        ];
 
-      final result = LocalBracketGenerator.generate(
-        bracketId: 'test_b',
-        athletes: athletes,
-        shuffle: false,
-      );
+        final result = LocalBracketGenerator.generate(
+          bracketId: 'test_b',
+          athletes: athletes,
+          shuffle: false,
+        );
 
-      expect(result.totalRounds, 3);
-      expect(result.matches.length, 7); // 4 + 2 + 1
+        expect(result.totalRounds, 3);
+        expect(result.matches.length, 7); // 4 + 2 + 1
 
-      final r0 = result.matches.where((m) => m.round == 0).toList();
-      expect(r0.length, 4);
+        final r0 = result.matches.where((m) => m.round == 0).toList();
+        expect(r0.length, 4);
 
-      // Ningún match debe estar completamente vacío (a1 != null en todos)
-      for (final m in r0) {
-        expect(m.athlete1, isNotNull);
-      }
+        // Ningún match debe estar completamente vacío (a1 != null en todos)
+        for (final m in r0) {
+          expect(m.athlete1, isNotNull);
+        }
 
-      // Exactamente 3 byes
-      final byes = r0.where((m) => m.isBye).toList();
-      expect(byes.length, 3);
+        // Exactamente 3 byes
+        final byes = r0.where((m) => m.isBye).toList();
+        expect(byes.length, 3);
 
-      // Los 3 byes avanzaron a semifinales
-      final r1 = result.matches.where((m) => m.round == 1).toList();
-      expect(r1.length, 2);
-    });
+        // Los 3 byes avanzaron a semifinales
+        final r1 = result.matches.where((m) => m.round == 1).toList();
+        expect(r1.length, 2);
+        // Un hueco pendiente de un match anterior no es un BYE. El organizador
+        // debe poder registrar ese enfrentamiento cuando llegue su rival.
+        expect(r1.every((m) => m.status == LocalMatchStatus.pending), isTrue);
+        expect(
+          r1
+              .where((m) => m.athlete1 != null || m.athlete2 != null)
+              .every((m) => !m.isBye),
+          isTrue,
+        );
+      },
+    );
 
-    test('Genera bracket de 8 atletas (4 matches r0, 2 matches r1, 1 final)', () {
-      final athletes = List.generate(
-        8,
-        (i) => LocalAthlete(id: '$i', name: 'Atleta $i'),
-      );
+    test(
+      'Genera bracket de 8 atletas (4 matches r0, 2 matches r1, 1 final)',
+      () {
+        final athletes = List.generate(
+          8,
+          (i) => LocalAthlete(id: '$i', name: 'Atleta $i'),
+        );
 
-      final result = LocalBracketGenerator.generate(
-        bracketId: 'test_b',
-        athletes: athletes,
-        shuffle: false,
-      );
+        final result = LocalBracketGenerator.generate(
+          bracketId: 'test_b',
+          athletes: athletes,
+          shuffle: false,
+        );
 
-      expect(result.totalRounds, 3);
-      expect(result.matches.length, 7);
-      expect(result.matches.where((m) => m.isBye).length, 0);
-    });
+        expect(result.totalRounds, 3);
+        expect(result.matches.length, 7);
+        expect(result.matches.where((m) => m.isBye).length, 0);
+      },
+    );
   });
 
   group('LocalTournamentController Tests', () {
@@ -321,71 +340,204 @@ void main() {
       expect(updatedM2.athlete1?.name, originalA1);
     });
 
-    test('Gestión de errores: deshacer resultado limpia recursivamente al ganador', () async {
+    test('Intercambia los dos slots del mismo enfrentamiento', () async {
       await controller.addAthletes(['A1', 'A2', 'A3', 'A4']);
       await controller.generateBracket();
 
-      final r0 = controller.matches.where((m) => m.round == 0).toList();
-      final match0 = r0.first;
-      final winnerId = match0.athlete1!.id;
+      final match = controller.matches.firstWhere((m) => m.round == 0);
+      final first = match.athlete1!.id;
+      final second = match.athlete2!.id;
 
-      // 1. Ganar semifinal
-      await controller.recordMatchResult(
-        matchId: match0.id,
-        winnerId: winnerId,
-        loserId: match0.athlete2!.id,
+      final error = await controller.swapAthletes(
+        matchId1: match.id,
+        slot1: 1,
+        matchId2: match.id,
+        slot2: 2,
       );
 
-      // Ver que avanzó a la final
-      var finalMatch = controller.matches.firstWhere((m) => m.round == 1);
-      expect(finalMatch.athlete1?.id, winnerId);
-
-      // 2. Deshacer el resultado de match0
-      await controller.undoMatchResult(match0.id);
-
-      // El match volvió a pending
-      final resetMatch0 = controller.matches.firstWhere((m) => m.id == match0.id);
-      expect(resetMatch0.status, LocalMatchStatus.pending);
-      expect(resetMatch0.winnerId, isNull);
-
-      // El participante fue limpiado de la final
-      finalMatch = controller.matches.firstWhere((m) => m.round == 1);
-      expect(finalMatch.athlete1, isNull);
+      final updated = controller.matches.firstWhere((m) => m.id == match.id);
+      expect(error, isNull);
+      expect(updated.athlete1?.id, second);
+      expect(updated.athlete2?.id, first);
     });
 
-    test('Modificar resultado previo actualiza la siguiente ronda sin inconsistencias', () async {
-      await controller.addAthletes(['A1', 'A2', 'A3', 'A4']);
+    test(
+      'Recalcula el BYE al intercambiar un atleta antes de resultados',
+      () async {
+        await controller.addAthletes(['A1', 'A2', 'A3']);
+        await controller.generateBracket();
+
+        final firstRound = controller.matches
+            .where((m) => m.round == 0)
+            .toList();
+        final regular = firstRound.firstWhere((m) => !m.isBye);
+        final bye = firstRound.firstWhere((m) => m.isBye);
+
+        final error = await controller.swapAthletes(
+          matchId1: regular.id,
+          slot1: 2,
+          matchId2: bye.id,
+          slot2: 2,
+        );
+
+        final updatedRegular = controller.matches.firstWhere(
+          (m) => m.id == regular.id,
+        );
+        final updatedBye = controller.matches.firstWhere((m) => m.id == bye.id);
+        expect(error, isNull);
+        expect(updatedRegular.isBye, isTrue);
+        expect(updatedRegular.winnerId, updatedRegular.athlete1?.id);
+        expect(updatedBye.isReady, isTrue);
+        expect(updatedBye.isBye, isFalse);
+        expect(updatedBye.winnerId, isNull);
+      },
+    );
+
+    test(
+      'Repara brackets guardados con un BYE propagado a otra ronda',
+      () async {
+        final athletes = [
+          const LocalAthlete(id: '1', name: 'A1'),
+          const LocalAthlete(id: '2', name: 'A2'),
+          const LocalAthlete(id: '3', name: 'A3'),
+        ];
+        final generated = LocalBracketGenerator.generate(
+          bracketId: 'legacy',
+          athletes: athletes,
+          shuffle: false,
+        );
+        final finalMatch = generated.matches.firstWhere(
+          (match) => match.isFinal,
+        );
+        final corrupted = generated.matches
+            .map(
+              (match) => match.id == finalMatch.id
+                  ? match.copyWith(status: LocalMatchStatus.bye, winnerId: '3')
+                  : match,
+            )
+            .toList();
+        final legacyController = LocalTournamentController(
+          tournament: LocalTournament(
+            id: 'legacy',
+            name: 'Legacy',
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+            status: LocalTournamentStatus.inProgress,
+            athletes: athletes,
+            matches: corrupted,
+            totalRounds: generated.totalRounds,
+          ),
+          repository: repository,
+        );
+
+        await legacyController.repairLegacyAutoByes();
+
+        final repairedFinal = legacyController.matches.firstWhere(
+          (match) => match.isFinal,
+        );
+        expect(repairedFinal.isBye, isFalse);
+        expect(repairedFinal.winnerId, isNull);
+        expect(repairedFinal.athlete2?.id, '3');
+        legacyController.dispose();
+      },
+    );
+
+    test('Rechaza ganadores y perdedores que no pertenecen al match', () async {
+      await controller.addAthletes(['A1', 'A2']);
       await controller.generateBracket();
+      final match = controller.matches.single;
 
-      final r0 = controller.matches.where((m) => m.round == 0).toList();
-      final match0 = r0.first;
-      final a1Id = match0.athlete1!.id;
-      final a2Id = match0.athlete2!.id;
-
-      // 1. Gana A1 inicialmente
-      await controller.recordMatchResult(
-        matchId: match0.id,
-        winnerId: a1Id,
-        loserId: a2Id,
+      final badWinner = await controller.recordMatchResult(
+        matchId: match.id,
+        winnerId: 'otro',
+        loserId: match.athlete2!.id,
+      );
+      final badLoser = await controller.recordMatchResult(
+        matchId: match.id,
+        winnerId: match.athlete1!.id,
+        loserId: match.athlete1!.id,
       );
 
-      var finalMatch = controller.matches.firstWhere((m) => m.round == 1);
-      expect(finalMatch.athlete1?.id, a1Id);
-
-      // 2. Se corrige el resultado: en realidad ganó A2
-      await controller.recordMatchResult(
-        matchId: match0.id,
-        winnerId: a2Id,
-        loserId: a1Id,
-      );
-
-      final updatedMatch0 = controller.matches.firstWhere((m) => m.id == match0.id);
-      expect(updatedMatch0.winnerId, a2Id);
-
-      // En la final ahora está A2, NO A1
-      finalMatch = controller.matches.firstWhere((m) => m.round == 1);
-      expect(finalMatch.athlete1?.id, a2Id);
-      expect(finalMatch.athlete1?.name, match0.athlete2?.name);
+      expect(badWinner, isNotNull);
+      expect(badLoser, isNotNull);
+      expect(controller.matches.single.isCompleted, isFalse);
     });
+
+    test(
+      'Gestión de errores: deshacer resultado limpia recursivamente al ganador',
+      () async {
+        await controller.addAthletes(['A1', 'A2', 'A3', 'A4']);
+        await controller.generateBracket();
+
+        final r0 = controller.matches.where((m) => m.round == 0).toList();
+        final match0 = r0.first;
+        final winnerId = match0.athlete1!.id;
+
+        // 1. Ganar semifinal
+        await controller.recordMatchResult(
+          matchId: match0.id,
+          winnerId: winnerId,
+          loserId: match0.athlete2!.id,
+        );
+
+        // Ver que avanzó a la final
+        var finalMatch = controller.matches.firstWhere((m) => m.round == 1);
+        expect(finalMatch.athlete1?.id, winnerId);
+
+        // 2. Deshacer el resultado de match0
+        await controller.undoMatchResult(match0.id);
+
+        // El match volvió a pending
+        final resetMatch0 = controller.matches.firstWhere(
+          (m) => m.id == match0.id,
+        );
+        expect(resetMatch0.status, LocalMatchStatus.pending);
+        expect(resetMatch0.winnerId, isNull);
+
+        // El participante fue limpiado de la final
+        finalMatch = controller.matches.firstWhere((m) => m.round == 1);
+        expect(finalMatch.athlete1, isNull);
+      },
+    );
+
+    test(
+      'Modificar resultado previo actualiza la siguiente ronda sin inconsistencias',
+      () async {
+        await controller.addAthletes(['A1', 'A2', 'A3', 'A4']);
+        await controller.generateBracket();
+
+        final r0 = controller.matches.where((m) => m.round == 0).toList();
+        final match0 = r0.first;
+        final a1Id = match0.athlete1!.id;
+        final a2Id = match0.athlete2!.id;
+
+        // 1. Gana A1 inicialmente
+        await controller.recordMatchResult(
+          matchId: match0.id,
+          winnerId: a1Id,
+          loserId: a2Id,
+        );
+
+        var finalMatch = controller.matches.firstWhere((m) => m.round == 1);
+        expect(finalMatch.athlete1?.id, a1Id);
+
+        // 2. Se corrige el resultado: en realidad ganó A2
+        await controller.recordMatchResult(
+          matchId: match0.id,
+          winnerId: a2Id,
+          loserId: a1Id,
+        );
+
+        final updatedMatch0 = controller.matches.firstWhere(
+          (m) => m.id == match0.id,
+        );
+        expect(updatedMatch0.winnerId, a2Id);
+
+        // En la final ahora está A2, NO A1
+        finalMatch = controller.matches.firstWhere((m) => m.round == 1);
+        expect(finalMatch.athlete1?.id, a2Id);
+        expect(finalMatch.athlete1?.name, match0.athlete2?.name);
+      },
+    );
   });
 }

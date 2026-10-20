@@ -3,7 +3,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../brackets/data/models/app_match.dart';
-import '../../../brackets/presentation/controllers/bracket_admin_controller.dart' show DragSlotData;
+import '../../../brackets/presentation/controllers/bracket_admin_controller.dart'
+    show DragSlotData;
 import '../../data/models/local_athlete.dart';
 import '../../data/models/local_match.dart';
 import '../../data/models/local_tournament.dart';
@@ -20,20 +21,15 @@ import '../../domain/local_bracket_generator.dart';
 //  SRP: cada operación es atómica y persiste el estado inmediatamente.
 // ─────────────────────────────────────────────────────────────────────────────
 
-enum LocalTournamentControllerState {
-  loading,
-  ready,
-  saving,
-  error,
-}
+enum LocalTournamentControllerState { loading, ready, saving, error }
 
 class LocalTournamentController extends ChangeNotifier {
   LocalTournamentController({
     required this.tournament,
     LocalTournamentRepository? repository,
     LocalTournamentImageService? imageService,
-  })  : _repository = repository ?? SharedPreferencesLocalTournamentRepository(),
-        _imageService = imageService ?? LocalTournamentImageService() {
+  }) : _repository = repository ?? SharedPreferencesLocalTournamentRepository(),
+       _imageService = imageService ?? LocalTournamentImageService() {
     _current = tournament;
   }
 
@@ -60,6 +56,29 @@ class LocalTournamentController extends ChangeNotifier {
   int get totalRounds => _current.totalRounds;
   Map<int, List<LocalMatch>> get matchesByRound => _current.matchesByRound;
   bool get hasBracket => _current.hasBracket;
+
+  /// Corrige brackets guardados por versiones anteriores que propagaban un
+  /// BYE por rondas pendientes. No toca torneos que ya tienen combates reales
+  /// registrados para no alterar su historial.
+  Future<void> repairLegacyAutoByes() async {
+    if (!_current.hasBracket ||
+        _current.matches.any((match) => match.isCompleted)) {
+      return;
+    }
+    final hasInvalidDerivedBye = _current.matches.any(
+      (match) => match.round > 0 && (match.isBye || match.winnerId != null),
+    );
+    if (!hasInvalidDerivedBye) return;
+
+    final repairedMatches = List<LocalMatch>.from(_current.matches);
+    _resetDependentRoundsAndApplyByes(repairedMatches);
+    _current = _current.copyWith(
+      matches: repairedMatches,
+      updatedAt: DateTime.now(),
+    );
+    notifyListeners();
+    await _persist();
+  }
 
   /// Matches adaptados al formato AppMatch para reutilizar BracketBoard y widgets existentes.
   Map<int, List<AppMatch>> get appMatchesByRound {
@@ -96,6 +115,10 @@ class LocalTournamentController extends ChangeNotifier {
     required AppMatch targetMatch,
     required int targetSlot,
   }) {
+    if (sourceSlot != 1 && sourceSlot != 2 ||
+        targetSlot != 1 && targetSlot != 2) {
+      return 'La posición del participante no es válida.';
+    }
     if (sourceMatch.id == targetMatch.id && sourceSlot == targetSlot) {
       return 'No puedes intercambiar un participante consigo mismo.';
     }
@@ -105,10 +128,15 @@ class LocalTournamentController extends ChangeNotifier {
     if (sourceMatch.isCompleted || targetMatch.isCompleted) {
       return 'No se puede intercambiar en un enfrentamiento ya completado.';
     }
-    final sourceId =
-        sourceSlot == 1 ? sourceMatch.participant1Id : sourceMatch.participant2Id;
-    final targetId =
-        targetSlot == 1 ? targetMatch.participant1Id : targetMatch.participant2Id;
+    if (_current.matches.any((match) => match.isCompleted)) {
+      return 'Los emparejamientos solo se pueden cambiar antes de registrar resultados.';
+    }
+    final sourceId = sourceSlot == 1
+        ? sourceMatch.participant1Id
+        : sourceMatch.participant2Id;
+    final targetId = targetSlot == 1
+        ? targetMatch.participant1Id
+        : targetMatch.participant2Id;
     if ((sourceId == null || sourceId.isEmpty) &&
         (targetId == null || targetId.isEmpty)) {
       return 'Ambos slots están vacíos.';
@@ -130,8 +158,13 @@ class LocalTournamentController extends ChangeNotifier {
     );
   }
 
-  Future<String?> executeManualSwap(AppMatch targetMatch, int targetSlot) async {
-    if (_pendingSwapSource == null) return 'No hay un participante seleccionado para intercambiar.';
+  Future<String?> executeManualSwap(
+    AppMatch targetMatch,
+    int targetSlot,
+  ) async {
+    if (_pendingSwapSource == null) {
+      return 'No hay un participante seleccionado para intercambiar.';
+    }
     final source = _pendingSwapSource!;
     _pendingSwapSource = null;
     notifyListeners();
@@ -194,10 +227,7 @@ class LocalTournamentController extends ChangeNotifier {
       return a.id == athleteId ? a.copyWith(name: trimmed) : a;
     }).toList();
 
-    _current = _current.copyWith(
-      athletes: updated,
-      updatedAt: DateTime.now(),
-    );
+    _current = _current.copyWith(athletes: updated, updatedAt: DateTime.now());
     notifyListeners();
     await _persist();
   }
@@ -245,10 +275,7 @@ class LocalTournamentController extends ChangeNotifier {
     final athlete = list.removeAt(oldIndex);
     list.insert(newIndex, athlete);
 
-    _current = _current.copyWith(
-      athletes: list,
-      updatedAt: DateTime.now(),
-    );
+    _current = _current.copyWith(athletes: list, updatedAt: DateTime.now());
     notifyListeners();
     await _persist();
   }
@@ -258,8 +285,8 @@ class LocalTournamentController extends ChangeNotifier {
   /// Genera el bracket de eliminación directa.
   /// Si ya existe uno, lo reemplaza.
   Future<void> generateBracket() async {
-    if (_current.athletes.isEmpty) {
-      _setError('Añade al menos un atleta para generar el bracket.');
+    if (_current.athletes.length < 2) {
+      _setError('Añade al menos dos atletas para generar el bracket.');
       return;
     }
 
@@ -290,6 +317,9 @@ class LocalTournamentController extends ChangeNotifier {
     required String matchId2,
     required int slot2,
   }) async {
+    if (slot1 != 1 && slot1 != 2 || slot2 != 1 && slot2 != 2) {
+      return 'La posición del participante no es válida.';
+    }
     if (matchId1 == matchId2 && slot1 == slot2) {
       return 'No puedes intercambiar un participante consigo mismo.';
     }
@@ -297,12 +327,14 @@ class LocalTournamentController extends ChangeNotifier {
     final match1 = _matchById(matchId1);
     final match2 = _matchById(matchId2);
 
-    if (match1 == null || match2 == null) return 'Enfrentamiento no encontrado.';
+    if (match1 == null || match2 == null) {
+      return 'Enfrentamiento no encontrado.';
+    }
     if (match1.round != 0 || match2.round != 0) {
       return 'Solo se pueden intercambiar participantes de la primera ronda.';
     }
-    if (match1.isCompleted || match2.isCompleted) {
-      return 'No se puede intercambiar en un enfrentamiento completado.';
+    if (_current.matches.any((match) => match.isCompleted)) {
+      return 'Los emparejamientos solo se pueden cambiar antes de registrar resultados.';
     }
 
     final a1 = slot1 == 1 ? match1.athlete1 : match1.athlete2;
@@ -312,19 +344,27 @@ class LocalTournamentController extends ChangeNotifier {
       return 'Ambos slots están vacíos.';
     }
 
-    final updatedMatches = _current.matches.map((m) {
-      if (m.id == matchId1) {
-        return slot1 == 1
-            ? m.copyWith(athlete1: a2)
-            : m.copyWith(athlete2: a2);
-      }
-      if (m.id == matchId2) {
-        return slot2 == 1
-            ? m.copyWith(athlete1: a1)
-            : m.copyWith(athlete2: a1);
-      }
-      return m;
-    }).toList();
+    final updatedMatches = List<LocalMatch>.from(_current.matches);
+    final firstIndex = updatedMatches.indexWhere(
+      (match) => match.id == matchId1,
+    );
+    final secondIndex = updatedMatches.indexWhere(
+      (match) => match.id == matchId2,
+    );
+
+    if (firstIndex == secondIndex) {
+      // El mismo match necesita actualizar ambos slots sobre la misma copia.
+      updatedMatches[firstIndex] = _replaceSlot(
+        _replaceSlot(match1, slot1, a2),
+        slot2,
+        a1,
+      );
+    } else {
+      updatedMatches[firstIndex] = _replaceSlot(match1, slot1, a2);
+      updatedMatches[secondIndex] = _replaceSlot(match2, slot2, a1);
+    }
+
+    _resetDependentRoundsAndApplyByes(updatedMatches);
 
     _current = _current.copyWith(
       matches: updatedMatches,
@@ -333,6 +373,17 @@ class LocalTournamentController extends ChangeNotifier {
     notifyListeners();
     await _persist();
     return null; // éxito
+  }
+
+  LocalMatch _replaceSlot(LocalMatch match, int slot, LocalAthlete? athlete) {
+    if (slot == 1) {
+      return athlete == null
+          ? match.copyWith(clearAthlete1: true)
+          : match.copyWith(athlete1: athlete);
+    }
+    return athlete == null
+        ? match.copyWith(clearAthlete2: true)
+        : match.copyWith(athlete2: athlete);
   }
 
   /// Registra el resultado de un match y hace avanzar al ganador.
@@ -347,8 +398,22 @@ class LocalTournamentController extends ChangeNotifier {
   }) async {
     final match = _matchById(matchId);
     if (match == null) return 'Enfrentamiento no encontrado.';
-    if (!match.isReady) return 'El enfrentamiento aún no tiene ambos participantes.';
+    if (!match.isReady) {
+      return 'El enfrentamiento aún no tiene ambos participantes.';
+    }
     if (match.isBye) return 'No se puede registrar resultado en un BYE.';
+    if (winnerId != match.athlete1!.id && winnerId != match.athlete2!.id) {
+      return 'El ganador debe ser uno de los dos participantes.';
+    }
+    final expectedLoserId = winnerId == match.athlete1!.id
+        ? match.athlete2!.id
+        : match.athlete1!.id;
+    if (loserId != expectedLoserId) {
+      return 'El perdedor debe ser el otro participante del enfrentamiento.';
+    }
+    if (scoreAthlete1 < 0 || scoreAthlete2 < 0) {
+      return 'Las puntuaciones no pueden ser negativas.';
+    }
 
     final winner = match.athlete1?.id == winnerId
         ? match.athlete1!
@@ -382,12 +447,18 @@ class LocalTournamentController extends ChangeNotifier {
 
     // Hacer avanzar al ganador al match hijo
     if (match.childMatchId != null && match.childMatchId!.isNotEmpty) {
-      final childIdx = updatedMatches.indexWhere((m) => m.id == match.childMatchId);
+      final childIdx = updatedMatches.indexWhere(
+        (m) => m.id == match.childMatchId,
+      );
       if (childIdx != -1) {
         if (match.positionInChild == 1) {
-          updatedMatches[childIdx] = updatedMatches[childIdx].copyWith(athlete1: winner);
+          updatedMatches[childIdx] = updatedMatches[childIdx].copyWith(
+            athlete1: winner,
+          );
         } else {
-          updatedMatches[childIdx] = updatedMatches[childIdx].copyWith(athlete2: winner);
+          updatedMatches[childIdx] = updatedMatches[childIdx].copyWith(
+            athlete2: winner,
+          );
         }
       }
     }
@@ -398,7 +469,8 @@ class LocalTournamentController extends ChangeNotifier {
       (m) => m.isFinal,
       orElse: () => updatedMatches.first,
     );
-    if (finalMatch.isCompleted || (finalMatch.childMatchId == null && matchId == finalMatch.id)) {
+    if (finalMatch.isCompleted ||
+        (finalMatch.childMatchId == null && matchId == finalMatch.id)) {
       final updated = updatedMatches.firstWhere((m) => m.id == matchId);
       if (updated.isCompleted && updated.isFinal) {
         newStatus = LocalTournamentStatus.finished;
@@ -471,7 +543,9 @@ class LocalTournamentController extends ChangeNotifier {
     int? positionInChild,
     String? oldWinnerId,
   ) {
-    if (childMatchId == null || childMatchId.isEmpty || oldWinnerId == null) return;
+    if (childMatchId == null || childMatchId.isEmpty || oldWinnerId == null) {
+      return;
+    }
     final idx = matchesList.indexWhere((m) => m.id == childMatchId);
     if (idx == -1) return;
     final child = matchesList[idx];
@@ -488,7 +562,10 @@ class LocalTournamentController extends ChangeNotifier {
     }
 
     if (child.winnerId == oldWinnerId) {
-      updated = updated.copyWith(clearWinner: true, status: LocalMatchStatus.pending);
+      updated = updated.copyWith(
+        clearResult: true,
+        status: LocalMatchStatus.pending,
+      );
       changed = true;
       _clearDescendantWinner(
         matchesList,
@@ -501,6 +578,65 @@ class LocalTournamentController extends ChangeNotifier {
     if (changed) {
       matchesList[idx] = updated;
     }
+  }
+
+  /// Tras mover atletas se reconstruyen todos los datos derivados. Solo se
+  /// permite antes de resultados para que no se elimine una competición ya
+  /// disputada. Así se quitan avances automáticos antiguos y se recalculan los
+  /// BYE reales de la primera ronda.
+  void _resetDependentRoundsAndApplyByes(List<LocalMatch> matchesList) {
+    for (var index = 0; index < matchesList.length; index++) {
+      final match = matchesList[index];
+      if (match.round == 0) {
+        // El generador guarda los BYE en el primer slot. Mantener ese
+        // invariante evita que un atleta real quede interpretado como hueco.
+        final normalized = match.athlete1 == null && match.athlete2 != null
+            ? match.copyWith(athlete1: match.athlete2, clearAthlete2: true)
+            : match;
+        final hasFirst = normalized.athlete1 != null;
+        final hasSecond = normalized.athlete2 != null;
+        matchesList[index] = normalized.copyWith(
+          status: hasFirst && !hasSecond
+              ? LocalMatchStatus.bye
+              : LocalMatchStatus.pending,
+          clearResult: true,
+        );
+      } else {
+        matchesList[index] = match.copyWith(
+          clearAthlete1: true,
+          clearAthlete2: true,
+          clearResult: true,
+          status: LocalMatchStatus.pending,
+        );
+      }
+    }
+
+    final firstRound = matchesList.where((match) => match.round == 0).toList();
+    for (final bye in firstRound) {
+      if (!bye.isBye || bye.athlete1 == null) continue;
+      final byeIndex = matchesList.indexWhere((match) => match.id == bye.id);
+      final resolvedBye = matchesList[byeIndex].copyWith(
+        winnerId: bye.athlete1!.id,
+        status: LocalMatchStatus.bye,
+      );
+      matchesList[byeIndex] = resolvedBye;
+      _advanceAthleteToChild(matchesList, resolvedBye, bye.athlete1!);
+    }
+  }
+
+  void _advanceAthleteToChild(
+    List<LocalMatch> matchesList,
+    LocalMatch match,
+    LocalAthlete athlete,
+  ) {
+    final childId = match.childMatchId;
+    if (childId == null || childId.isEmpty) return;
+    final childIndex = matchesList.indexWhere((item) => item.id == childId);
+    if (childIndex < 0) return;
+    final child = matchesList[childIndex];
+    matchesList[childIndex] = match.positionInChild == 1
+        ? child.copyWith(athlete1: athlete)
+        : child.copyWith(athlete2: athlete);
   }
 
   // ── Torneo ─────────────────────────────────────────────────────────────────

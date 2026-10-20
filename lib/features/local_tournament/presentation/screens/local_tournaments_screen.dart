@@ -49,12 +49,7 @@ class _LocalTournamentsScreenState extends State<LocalTournamentsScreen> {
         if (widget.isEmbedded) {
           return Stack(
             children: [
-              _buildBody(),
-              Positioned(
-                bottom: 120,
-                right: 20,
-                child: _buildFab(),
-              ),
+              _buildBody()
             ],
           );
         }

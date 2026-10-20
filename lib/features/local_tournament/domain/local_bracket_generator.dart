@@ -52,11 +52,7 @@ class LocalBracketGenerator {
       final matchesInRound = slotCount ~/ (1 << (round + 1));
       for (int order = 0; order < matchesInRound; order++) {
         final id = allMatchIds[offset++];
-        matchShells[id] = _MatchShell(
-          id: id,
-          round: round,
-          matchOrder: order,
-        );
+        matchShells[id] = _MatchShell(id: id, round: round, matchOrder: order);
       }
     }
 
@@ -64,9 +60,7 @@ class LocalBracketGenerator {
     _linkTree(matchShells, slotCount, allMatchIds, totalRounds);
 
     // Asignar atletas y byes a la primera ronda
-    final round0Shells = matchShells.values
-        .where((s) => s.round == 0)
-        .toList()
+    final round0Shells = matchShells.values.where((s) => s.round == 0).toList()
       ..sort((a, b) => a.matchOrder.compareTo(b.matchOrder));
 
     final numRound0Matches = slotCount ~/ 2;
@@ -100,7 +94,9 @@ class LocalBracketGenerator {
       );
     }
 
-    // Si un match es BYE, pre-asignar el ganador y propagar
+    // Un BYE solo resuelve su propio match de primera ronda. El siguiente
+    // enfrentamiento puede tener un rival que aún depende de otro match; por
+    // tanto, no se debe convertir en BYE ni propagarlo de forma recursiva.
     _propagateByes(matchShells, totalRounds, bracketId);
 
     // Convertir a LocalMatch
@@ -116,10 +112,10 @@ class LocalBracketGenerator {
     int totalRounds,
     String bracketId,
   ) {
-    // Ronda 0 primero
-    final round0 = shells.values
-        .where((s) => s.round == 0)
-        .toList()
+    // Solo la primera ronda conoce de forma definitiva qué huecos no tienen
+    // rival. En rondas posteriores un hueco vacío significa "pendiente del
+    // match padre", no un BYE.
+    final round0 = shells.values.where((s) => s.round == 0).toList()
       ..sort((a, b) => a.matchOrder.compareTo(b.matchOrder));
 
     for (final shell in round0) {
@@ -149,17 +145,6 @@ class LocalBracketGenerator {
       shells[child.id] = child.copyWith(athlete1: winner);
     } else if (byeShell.positionInChild == 2) {
       shells[child.id] = child.copyWith(athlete2: winner);
-    }
-
-    // Verificar si el hijo también es bye (ambos sin rival)
-    final updatedChild = shells[child.id]!;
-    if (updatedChild.athlete1 != null && updatedChild.athlete2 == null) {
-      // Este hijo también es bye si no hay segundo participante
-      shells[child.id] = updatedChild.copyWith(
-        status: LocalMatchStatus.bye,
-        winnerId: updatedChild.athlete1!.id,
-      );
-      _advanceToChild(shells, shells[child.id]!, updatedChild.athlete1!);
     }
   }
 
