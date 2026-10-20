@@ -45,6 +45,7 @@ class AppMatch {
     this.completedAt,
     this.scoreParticipant1,
     this.scoreParticipant2,
+    this.resultDescription,
     this.positionInChild,
     this.categoryId,
   });
@@ -106,6 +107,9 @@ class AppMatch {
   final int? scoreParticipant1;
   final int? scoreParticipant2;
 
+  /// Descripción libre del resultado, útil para sumisión, descalificación, etc.
+  final String? resultDescription;
+
   /// Posición (1 o 2) que ocupa el ganador en el match hijo.
   final int? positionInChild;
 
@@ -164,8 +168,17 @@ class AppMatch {
         : null,
     'scoreParticipant1': scoreParticipant1,
     'scoreParticipant2': scoreParticipant2,
+    'resultDescription': resultDescription,
     'positionInChild': positionInChild,
     'categoryId': categoryId,
+  };
+
+  /// Mapa JSON con fechas ISO, independiente de los serializadores Firestore.
+  Map<String, dynamic> toJsonMap() => {
+    ...toMap(),
+    'scheduledAt': scheduledAt?.toIso8601String(),
+    'startedAt': startedAt?.toIso8601String(),
+    'completedAt': completedAt?.toIso8601String(),
   };
 
   factory AppMatch.fromMap(Map<String, dynamic> map) {
@@ -205,6 +218,7 @@ class AppMatch {
       completedAt: _nullableDateFromValue(map['completedAt']),
       scoreParticipant1: (map['scoreParticipant1'] as num?)?.toInt(),
       scoreParticipant2: (map['scoreParticipant2'] as num?)?.toInt(),
+      resultDescription: map['resultDescription'] as String?,
       positionInChild: (map['positionInChild'] as num?)?.toInt(),
       categoryId: map['categoryId'] as String?,
     );
@@ -240,6 +254,7 @@ class AppMatch {
     DateTime? completedAt,
     int? scoreParticipant1,
     int? scoreParticipant2,
+    String? resultDescription,
     int? positionInChild,
     String? categoryId,
   }) {
@@ -275,6 +290,7 @@ class AppMatch {
       completedAt: completedAt ?? this.completedAt,
       scoreParticipant1: scoreParticipant1 ?? this.scoreParticipant1,
       scoreParticipant2: scoreParticipant2 ?? this.scoreParticipant2,
+      resultDescription: resultDescription ?? this.resultDescription,
       positionInChild: positionInChild ?? this.positionInChild,
       categoryId: categoryId ?? this.categoryId,
     );
@@ -284,6 +300,7 @@ class AppMatch {
     if (value == null) return null;
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
     return null;
   }
 

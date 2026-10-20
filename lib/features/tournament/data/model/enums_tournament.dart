@@ -11,6 +11,16 @@ enum TournamentSport {
 
   final String label;
 
+  /// Deportes admitidos para nuevas competiciones en Gromy.
+  ///
+  /// Los otros valores se conservan para poder leer torneos históricos de
+  /// Firestore sin migrar ni descartar datos existentes.
+  static const supportedForCreation = <TournamentSport>[
+    TournamentSport.brazilianJiuJitsu,
+  ];
+
+  bool get isSupportedForCreation => supportedForCreation.contains(this);
+
   static TournamentSport fromValue(String value) {
     return TournamentSport.values.firstWhere(
       (sport) => sport.name == value,

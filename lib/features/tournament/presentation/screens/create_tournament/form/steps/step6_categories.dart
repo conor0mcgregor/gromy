@@ -5,8 +5,7 @@ import '../widgets/form_helpers.dart';
 import '../widgets/step_card.dart';
 import '../widgets/tournament_selectors.dart';
 
-/// Paso 6 — Categorías: permite al usuario añadir etiquetas/categorías
-/// opcionales al torneo (ej. 'Sub-18', 'Femenino', 'Amateur').
+/// Paso 6 — Categorías configurables para las divisiones del torneo BJJ.
 ///
 /// SRP: este widget es puramente presentacional. La lógica de negocio
 /// (validación de duplicados, lista de estado) vive en [TournamentFormController].
@@ -28,9 +27,9 @@ class Step6Categories extends StatelessWidget {
   Widget build(BuildContext context) {
     return StepCard(
       icon: Icons.label_rounded,
-      title: 'Categorías',
+      title: 'Categorías y divisiones',
       subtitle:
-          'Añade etiquetas opcionales para organizar el torneo (ej. Sub-18, Femenino, Amateur).',
+          'Añade solo las divisiones que usarás: por ejemplo Gi/No-Gi, edad, peso, nivel o equipos.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -55,7 +54,7 @@ class Step6Categories extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Este campo es opcional. Puedes crear el torneo sin añadir categorías.',
+                    'Las categorías son opcionales. No hay divisiones predefinidas; escribe las que correspondan a este reglamento.',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.55),
                       fontSize: 12.5,
@@ -70,7 +69,7 @@ class Step6Categories extends StatelessWidget {
           // ── Input + Botón Añadir ───────────────────────────────
           GlassField(
             controller: categoryController,
-            hint: 'Ej. Sub-18, Femenino, Amateur...',
+            hint: 'Ej. No-Gi · Adulto · +76 kg · cinturón azul',
             icon: Icons.label_outline_rounded,
             label: 'Nombre de la categoría',
             capitalization: TextCapitalization.sentences,

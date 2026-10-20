@@ -73,7 +73,7 @@ class Step1Discipline extends StatelessWidget {
         return Wrap(
           spacing: spacing,
           runSpacing: spacing,
-          children: TournamentSport.values.map((sport) {
+          children: TournamentSport.supportedForCreation.map((sport) {
             final selected = selectedSport == sport;
             return SizedBox(
               width: w,
@@ -136,6 +136,16 @@ class Step1Discipline extends StatelessWidget {
           _buildTeamModeSection(),
           const SizedBox(height: 18),
           _buildSportGrid(),
+          const SizedBox(height: 8),
+          Text(
+            'Gromy está especializado en Brazilian Jiu-Jitsu y grappling. '
+            'Configura gi/no-gi, pesos y divisiones en las categorías.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.55),
+              fontSize: 12,
+              height: 1.4,
+            ),
+          ),
           if (sportError != null) ...[
             const SizedBox(height: 10),
             ErrorText(message: sportError!),

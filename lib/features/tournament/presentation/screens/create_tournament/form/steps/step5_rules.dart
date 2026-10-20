@@ -25,7 +25,7 @@ class Step5Rules extends StatelessWidget {
             icon: Icons.gavel_rounded,
             title: 'Reglamento',
             subtitle:
-            'Especifica las reglas del torneo, formato de competición, criterios de desempate y toda información técnica relevante.',
+            'Especifica el reglamento elegido, las modalidades gi/no-gi y los criterios que se usarán en esta competición.',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -72,12 +72,8 @@ class Step5Rules extends StatelessWidget {
             controller: rulesController,
             label: 'Reglas y detalles técnicos',
             // Hint más limpio y directo para no saturar la vista
-            hint: 'Redacta aquí el reglamento...\n\n'
-                'Te sugerimos incluir:\n'
-                '- Formato (Eliminatoria, liguilla...)\n'
-                '- Duración de los encuentros\n'
-                '- Criterios de desempate\n'
-                '- Normas de conducta',
+            hint: 'Redacta aquí el reglamento que adopta la competición...\n\n'
+                'Puedes detallar la modalidad, duración de los combates, métodos de victoria, desempates y normas de conducta.',
             errorText: rulesError,
             // Ya no pasamos el parámetro 'icon'
 

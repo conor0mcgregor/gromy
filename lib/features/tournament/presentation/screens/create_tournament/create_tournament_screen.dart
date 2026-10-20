@@ -6,6 +6,8 @@ import 'package:gromy/core/widgets/gradient_button.dart';
 import '../../../../../core/getColors/getter_colors.dart';
 import '../../controllers/create_tournament_controller.dart';
 import 'form_tournament_screen.dart';
+import '../../../../local_tournament/presentation/screens/local_tournament_create_screen.dart';
+import '../../../../local_tournament/presentation/screens/local_tournament_management_screen.dart';
 
 class CreateTournamentScreen extends StatefulWidget {
   const CreateTournamentScreen({super.key});
@@ -94,6 +96,8 @@ class _CreateTournamentScreenState extends State<CreateTournamentScreen>
                         const SizedBox(height: 20),
                         _buildSubmitButton(),
                         const SizedBox(height: 14),
+                        _buildLocalTournamentButton(),
+                        const SizedBox(height: 14),
 
                         // ── Aviso amigable ──
                         _buildReadyHint(),
@@ -134,7 +138,7 @@ class _CreateTournamentScreenState extends State<CreateTournamentScreen>
           ],
         ),
         child: GradientButton(
-          label: 'Crear torneo',
+          label: 'Crear torneo online',
           icon: Icons.emoji_events_rounded,
           isLoading: _isSubmitting,
           variant: GradientButtonVariant.sunset,
@@ -145,6 +149,41 @@ class _CreateTournamentScreenState extends State<CreateTournamentScreen>
               MaterialPageRoute(builder: (context) => const FormTournamentScreen()),
             );
           },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocalTournamentButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: OutlinedButton.icon(
+        onPressed: () async {
+          final tournamentId = await Navigator.push<String>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const LocalTournamentCreateScreen(),
+            ),
+          );
+          if (tournamentId == null || !mounted) return;
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => LocalTournamentManagementScreen(
+                tournamentId: tournamentId,
+              ),
+            ),
+          );
+        },
+        icon: const Icon(Icons.phonelink_rounded),
+        label: const Text('Crear torneo local en este dispositivo'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFF00D4FF),
+          side: const BorderSide(color: Color(0xFF00D4FF)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
         ),
       ),
     );
@@ -166,7 +205,7 @@ class _CreateTournamentScreenState extends State<CreateTournamentScreen>
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Una vez creado, podrás invitar participantes y gestionar el torneo desde tu perfil.',
+              'Online: invita usuarios de Gromy. Local: organiza atletas y combates desde este dispositivo.',
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.65),
                 fontSize: 13,

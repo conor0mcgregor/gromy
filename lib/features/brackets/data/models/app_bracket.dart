@@ -93,6 +93,15 @@ class AppBracket {
         : null,
   };
 
+  /// Mapa JSON con fechas ISO para persistencia local.
+  Map<String, dynamic> toJsonMap() => {
+    ...toMap(),
+    'createdAt': createdAt.toIso8601String(),
+    'updatedAt': updatedAt.toIso8601String(),
+    'publishedAt': publishedAt?.toIso8601String(),
+    'completedAt': completedAt?.toIso8601String(),
+  };
+
   factory AppBracket.fromMap(Map<String, dynamic> map) {
     return AppBracket(
       id: map['id'] as String? ?? '',
@@ -151,6 +160,9 @@ class AppBracket {
   static DateTime _dateFromValue(dynamic value) {
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
+    if (value is String) {
+      return DateTime.tryParse(value) ?? DateTime.fromMillisecondsSinceEpoch(0);
+    }
     return DateTime.fromMillisecondsSinceEpoch(0);
   }
 
@@ -158,6 +170,7 @@ class AppBracket {
     if (value == null) return null;
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
     return null;
   }
 }

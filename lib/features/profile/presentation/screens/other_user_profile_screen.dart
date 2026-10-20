@@ -779,7 +779,7 @@ class _SportsStatsSectionState extends State<_SportsStatsSection> {
   
   void _initSelectedSport() {
     // Buscar el primer deporte con métricas jugadas
-    for (final sport in TournamentSport.values) {
+    for (final sport in TournamentSport.supportedForCreation) {
       final stats = widget.profile.sportsStats[sport.name];
       if (stats != null && (stats.matchesPlayed > 0 || stats.totalPlayed > 0)) {
         _selectedSport = sport;
@@ -787,19 +787,21 @@ class _SportsStatsSectionState extends State<_SportsStatsSection> {
       }
     }
     // Si no hay ninguno jugado, por defecto el primero
-    _selectedSport = TournamentSport.values.first;
+    _selectedSport = TournamentSport.supportedForCreation.first;
   }
 
   @override
   Widget build(BuildContext context) {
-    final availableSports = TournamentSport.values.where((sport) {
+    final availableSports = TournamentSport.supportedForCreation.where((sport) {
       final stats = widget.profile.sportsStats[sport.name];
       return stats != null && (stats.matchesPlayed > 0 || stats.totalPlayed > 0);
     }).toList();
     
     final hasAnyPlayed = availableSports.isNotEmpty;
     // Si no hay ninguno jugado, usamos la lista completa para mostrarlos vacíos
-    final displaySports = hasAnyPlayed ? availableSports : TournamentSport.values.toList();
+    final displaySports = hasAnyPlayed
+        ? availableSports
+        : TournamentSport.supportedForCreation.toList();
     
     // Fallback si por alguna razón el seleccionado ya no es válido
     if (!displaySports.contains(_selectedSport)) {

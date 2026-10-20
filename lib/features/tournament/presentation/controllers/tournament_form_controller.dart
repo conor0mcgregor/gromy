@@ -183,7 +183,9 @@ class TournamentFormController extends ChangeNotifier {
         coverBytes = null;
       }
     }
-    selectedSport = draft.sport;
+    selectedSport = draft.sport?.isSupportedForCreation == true
+        ? draft.sport
+        : TournamentSport.brazilianJiuJitsu;
     isTeamSport = draft.isTeamSport;
     eventDate = draft.eventDate;
     registrationDeadline = draft.registrationDeadline;

@@ -70,7 +70,8 @@ enum MatchStatus {
 /// Tipo de participante en un match (usuario individual o equipo).
 enum MatchParticipantType {
   user,
-  team;
+  team,
+  local;
 
   static MatchParticipantType fromValue(String value) {
     return MatchParticipantType.values.firstWhere(

@@ -34,7 +34,7 @@ class FirebaseAppAccessResolver implements AppAccessResolver {
     final currentUser = _auth.currentUser;
 
     final nowDate = DateTime.now();
-    if (nowDate.isAfter(DateTime(2026, 5, 22))) {
+    if (nowDate.isAfter(DateTime(2027, 1, 1))) {
       return const AppFinishDemo();
     }
 

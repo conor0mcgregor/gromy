@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import 'package:gromy/features/tournament/data/model/app_tournament.dart';
+import 'package:gromy/features/tournament/data/model/enums_tournament.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../inscription/screen/preinscription_screen.dart';
@@ -30,13 +31,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String _searchQuery = '';
   String? _selectedSport; // null = todos
 
-  final List<String> _sports = [
-    'Fútbol',
-    'Baloncesto',
-    'Tenis',
-    'Pádel',
-    'Voleibol',
-  ];
+  final List<String> _sports = [TournamentSport.brazilianJiuJitsu.label];
 
   // Filtros avanzados
   DateTimeRange? _filterDateRange;
@@ -105,6 +100,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   List<AppTournament> _filter(List<AppTournament> all) {
     final filtered = all.where((t) {
+      if (t.sport != TournamentSport.brazilianJiuJitsu) return false;
       final matchesSearch = _searchQuery.isEmpty ||
           t.name.toLowerCase().contains(_searchQuery) ||
           t.sport.label.toLowerCase().contains(_searchQuery);
@@ -182,7 +178,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               stream: _homeController.watchTournaments(),
               builder: (context, snapshot) {
                 final all = snapshot.data ?? [];
-                final sports = all.map((t) => t.sport.label).toSet().toList()
+                final sports = all
+                    .where((t) => t.sport == TournamentSport.brazilianJiuJitsu)
+                    .map((t) => t.sport.label)
+                    .toSet()
+                    .toList()
                   ..sort();
 
                 if (sports.isEmpty) return const SizedBox(height: 16);

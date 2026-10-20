@@ -62,6 +62,7 @@ class FirestoreTournamentService implements TournamentRepository {
 
   @override
   Future<AppTournament> createTournament(AppTournament tournament) async {
+    _validateCreationSport(tournament);
     final collection =
         tournament.accessType == TournamentAccessType.privateInviteOnly
         ? _privateTournaments
@@ -86,6 +87,7 @@ class FirestoreTournamentService implements TournamentRepository {
     required AppTournament tournament,
     required XFile coverImage,
   }) async {
+    _validateCreationSport(tournament);
     // 1. Reservar un ID en Firestore para usarlo en la ruta de Storage.
     final collection =
         tournament.accessType == TournamentAccessType.privateInviteOnly
@@ -114,6 +116,14 @@ class FirestoreTournamentService implements TournamentRepository {
         .timeout(const Duration(seconds: 10));
 
     return tournamentToSave;
+  }
+
+  void _validateCreationSport(AppTournament tournament) {
+    if (!tournament.sport.isSupportedForCreation) {
+      throw ArgumentError(
+        'Gromy solo permite crear torneos de Brazilian Jiu-Jitsu y grappling.',
+      );
+    }
   }
 
   // ── Lectura ────────────────────────────────────────────────────────────────

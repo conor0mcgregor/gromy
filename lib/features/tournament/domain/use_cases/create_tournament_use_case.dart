@@ -54,6 +54,12 @@ class CreateTournamentUseCase {
       throw ArgumentError('Completa los campos obligatorios del torneo.');
     }
 
+    if (!sport.isSupportedForCreation) {
+      throw ArgumentError(
+        'Gromy solo permite crear torneos de Brazilian Jiu-Jitsu y grappling.',
+      );
+    }
+
     if (maxParticipants < 2) {
       throw ArgumentError('El máximo de participantes debe ser al menos 2.');
     }
